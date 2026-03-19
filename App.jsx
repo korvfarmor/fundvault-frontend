@@ -1,0 +1,338 @@
+import { useState, useEffect } from "react";
+import { supabase } from "./supabaseClient";
+import TradingPlatform from "./trading-platform";
+
+// ── Design tokens (same as trading platform) ──────────────────────────────────
+const C = {
+  bg:      "#080c14",
+  surface: "#0d1420",
+  card:    "#111827",
+  border:  "#1e2d40",
+  accent:  "#00e5ff",
+  green:   "#00d084",
+  red:     "#ff3d5a",
+  amber:   "#f59e0b",
+  purple:  "#a78bfa",
+  muted:   "#4a6080",
+  text:    "#c8d8e8",
+  textDim: "#6b859e",
+};
+
+// ── Auth Screen ───────────────────────────────────────────────────────────────
+function AuthScreen() {
+  const [mode,     setMode    ] = useState("login"); // "login" | "register" | "forgot"
+  const [email,    setEmail   ] = useState("");
+  const [password, setPassword] = useState("");
+  const [name,     setName    ] = useState("");
+  const [loading,  setLoading ] = useState(false);
+  const [error,    setError   ] = useState("");
+  const [success,  setSuccess ] = useState("");
+
+  const clearMessages = () => { setError(""); setSuccess(""); };
+
+  // ── Sign in ──────────────────────────────────────────────────────────────
+  const handleLogin = async () => {
+    if (!email || !password) return setError("Fill in email and password");
+    setLoading(true); clearMessages();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) setError(error.message);
+    setLoading(false);
+  };
+
+  // ── Sign up ──────────────────────────────────────────────────────────────
+  const handleRegister = async () => {
+    if (!email || !password || !name) return setError("Fill in all fields");
+    if (password.length < 8) return setError("Password must be at least 8 characters");
+    setLoading(true); clearMessages();
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name } },
+    });
+    if (error) setError(error.message);
+    else setSuccess("Account created! Check your email to confirm, then sign in.");
+    setLoading(false);
+  };
+
+  // ── Forgot password ───────────────────────────────────────────────────────
+  const handleForgot = async () => {
+    if (!email) return setError("Enter your email address");
+    setLoading(true); clearMessages();
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) setError(error.message);
+    else setSuccess("Password reset link sent — check your email.");
+    setLoading(false);
+  };
+
+  const handleSubmit = () => {
+    if (mode === "login")    handleLogin();
+    if (mode === "register") handleRegister();
+    if (mode === "forgot")   handleForgot();
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh", background: C.bg, display: "flex",
+      alignItems: "center", justifyContent: "center",
+      fontFamily: "'DM Sans', sans-serif", padding: 24,
+    }}>
+      {/* Background glow */}
+      <div style={{
+        position: "fixed", top: "20%", left: "50%", transform: "translateX(-50%)",
+        width: 600, height: 600, borderRadius: "50%",
+        background: `radial-gradient(circle, ${C.accent}08 0%, transparent 70%)`,
+        pointerEvents: "none",
+      }}/>
+
+      <div style={{ width: "100%", maxWidth: 420, position: "relative", zIndex: 1 }}>
+
+        {/* Logo */}
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 12,
+            marginBottom: 8,
+          }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 10,
+              background: `linear-gradient(135deg, ${C.accent}, #0070f3)`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 20, fontWeight: 900, color: "#000",
+              fontFamily: "'Syne', sans-serif",
+            }}>E</div>
+            <span style={{
+              fontFamily: "'Syne', sans-serif", fontWeight: 800,
+              fontSize: 26, color: C.text, letterSpacing: "0.05em",
+            }}>EDGESTAT</span>
+          </div>
+          <div style={{
+            fontFamily: "'Space Mono', monospace", fontSize: 10,
+            color: C.amber, letterSpacing: "0.15em", textTransform: "uppercase",
+          }}>Futures · Prop Firm Tracker</div>
+        </div>
+
+        {/* Card */}
+        <div style={{
+          background: C.card, border: `1px solid ${C.border}`,
+          borderRadius: 16, padding: 32, position: "relative", overflow: "hidden",
+        }}>
+          {/* Top accent line */}
+          <div style={{
+            position: "absolute", top: 0, left: 0, right: 0, height: 2,
+            background: `linear-gradient(90deg, ${C.accent}, ${C.purple})`,
+          }}/>
+
+          {/* Tab switcher (login / register) */}
+          {mode !== "forgot" && (
+            <div style={{
+              display: "flex", background: C.surface, borderRadius: 8,
+              border: `1px solid ${C.border}`, padding: 3, marginBottom: 28,
+            }}>
+              {["login", "register"].map(m => (
+                <button key={m} onClick={() => { setMode(m); clearMessages(); }} style={{
+                  flex: 1, padding: "8px 0", borderRadius: 6, border: "none",
+                  background: mode === m ? C.accentDim || `${C.accent}22` : "transparent",
+                  color: mode === m ? C.accent : C.muted,
+                  fontFamily: "'Space Mono', monospace", fontSize: 11,
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                  cursor: "pointer", fontWeight: mode === m ? 700 : 400,
+                  transition: "all 0.15s",
+                }}>
+                  {m === "login" ? "Sign In" : "Register"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Forgot password header */}
+          {mode === "forgot" && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{
+                fontFamily: "'Syne', sans-serif", fontWeight: 800,
+                fontSize: 20, color: C.text, marginBottom: 6,
+              }}>Reset password</div>
+              <div style={{ fontSize: 13, color: C.textDim }}>
+                Enter your email and we'll send a reset link.
+              </div>
+            </div>
+          )}
+
+          {/* Name field (register only) */}
+          {mode === "register" && (
+            <div style={{ marginBottom: 14 }}>
+              <label style={{
+                display: "block", fontFamily: "'Space Mono', monospace",
+                fontSize: 10, color: C.muted, letterSpacing: "0.1em",
+                textTransform: "uppercase", marginBottom: 6,
+              }}>Full Name</label>
+              <input
+                value={name} onChange={e => setName(e.target.value)}
+                placeholder="Your name"
+                style={inputStyle}
+              />
+            </div>
+          )}
+
+          {/* Email */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Email</label>
+            <input
+              type="email" value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              onKeyDown={e => e.key === "Enter" && handleSubmit()}
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Password */}
+          {mode !== "forgot" && (
+            <div style={{ marginBottom: 22 }}>
+              <label style={labelStyle}>Password</label>
+              <input
+                type="password" value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder={mode === "register" ? "Min. 8 characters" : "••••••••"}
+                onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                style={inputStyle}
+              />
+            </div>
+          )}
+
+          {/* Error / Success messages */}
+          {error && (
+            <div style={{
+              background: `${C.red}15`, border: `1px solid ${C.red}44`,
+              borderRadius: 8, padding: "10px 14px", marginBottom: 16,
+              fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: C.red,
+            }}>⚠ {error}</div>
+          )}
+          {success && (
+            <div style={{
+              background: `${C.green}15`, border: `1px solid ${C.green}44`,
+              borderRadius: 8, padding: "10px 14px", marginBottom: 16,
+              fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: C.green,
+            }}>✓ {success}</div>
+          )}
+
+          {/* Submit button */}
+          <button
+            onClick={handleSubmit} disabled={loading}
+            style={{
+              width: "100%", padding: "13px",
+              background: loading ? C.surface : `linear-gradient(135deg, ${C.accent}22, ${C.accent}11)`,
+              border: `1px solid ${C.accent}${loading ? "33" : "88"}`,
+              color: loading ? C.muted : C.accent,
+              borderRadius: 10, cursor: loading ? "not-allowed" : "pointer",
+              fontFamily: "'Space Mono', monospace", fontSize: 12,
+              letterSpacing: "0.1em", textTransform: "uppercase",
+              fontWeight: 700, transition: "all 0.15s",
+            }}
+          >
+            {loading
+              ? "Please wait..."
+              : mode === "login"    ? "Sign In →"
+              : mode === "register" ? "Create Account →"
+              : "Send Reset Link →"
+            }
+          </button>
+
+          {/* Forgot / Back links */}
+          <div style={{ marginTop: 18, textAlign: "center" }}>
+            {mode === "login" && (
+              <button onClick={() => { setMode("forgot"); clearMessages(); }}
+                style={linkStyle}>
+                Forgot password?
+              </button>
+            )}
+            {mode === "forgot" && (
+              <button onClick={() => { setMode("login"); clearMessages(); }}
+                style={linkStyle}>
+                ← Back to sign in
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          textAlign: "center", marginTop: 24,
+          fontFamily: "'Space Mono', monospace", fontSize: 10,
+          color: C.muted, letterSpacing: "0.05em",
+        }}>
+          NQ · ES · Futures · Prop Firm Focused
+        </div>
+      </div>
+
+      {/* Google Fonts */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: ${C.bg}; }
+        input::placeholder { color: ${C.muted}; }
+        input:focus { outline: none; border-color: ${C.accent}88 !important; }
+      `}</style>
+    </div>
+  );
+}
+
+// ── Shared input styles ───────────────────────────────────────────────────────
+const inputStyle = {
+  width: "100%", padding: "11px 14px",
+  background: "#080c14", border: "1px solid #1e2d40",
+  borderRadius: 8, color: "#c8d8e8",
+  fontFamily: "'DM Sans', sans-serif", fontSize: 14,
+  transition: "border-color 0.15s",
+};
+const labelStyle = {
+  display: "block", fontFamily: "'Space Mono', monospace",
+  fontSize: 10, color: "#6b859e", letterSpacing: "0.1em",
+  textTransform: "uppercase", marginBottom: 6,
+};
+const linkStyle = {
+  background: "none", border: "none", color: "#4a6080",
+  fontFamily: "'Space Mono', monospace", fontSize: 10,
+  cursor: "pointer", letterSpacing: "0.05em",
+  textDecoration: "underline",
+};
+
+// ── App root — handles auth state ─────────────────────────────────────────────
+export default function App() {
+  const [session, setSession] = useState(undefined); // undefined = loading
+
+  useEffect(() => {
+    // Get current session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // Listen for login / logout events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Loading state
+  if (session === undefined) {
+    return (
+      <div style={{
+        minHeight: "100vh", background: "#080c14",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: "50%",
+          border: "3px solid #1e2d40", borderTop: "3px solid #00e5ff",
+          animation: "spin 0.8s linear infinite",
+        }}/>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  // Not logged in → show auth screen
+  if (!session) return <AuthScreen />;
+
+  // Logged in → show trading platform
+  return <TradingPlatform session={session} />;
+}
