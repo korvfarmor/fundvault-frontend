@@ -4384,7 +4384,7 @@ export default function TradingPlatform({ session }) {
               <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,padding:"20px 28px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
                 <div>
                   <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:C.text}}>Need help?</div>
-                  <div style={{fontSize:13,color:C.textDim,marginTop:4}}>Contact us at support@fundvault.io</div>
+                  <div style={{fontSize:13,color:C.textDim,marginTop:4}}>Contact us at support@fundvault.app</div>
                 </div>
                 <div style={{display:"flex",gap:10}}>
                   <button onClick={()=>setTab("dashboard")} style={{padding:"9px 18px",borderRadius:8,background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,cursor:"pointer",fontWeight:700,letterSpacing:"0.04em"}}>
