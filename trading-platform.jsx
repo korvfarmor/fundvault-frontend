@@ -8,12 +8,20 @@ import {
 } from "recharts";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
-const C = {
+const DARK = {
   bg:"#080c14", surface:"#0d1420", card:"#111827", border:"#1e2d40",
   accent:"#00e5ff", accentDim:"#00e5ff22",
   green:"#00d084", red:"#ff3d5a", amber:"#f59e0b",
   purple:"#a78bfa", muted:"#4a6080", text:"#c8d8e8", textDim:"#6b859e",
 };
+const LIGHT = {
+  bg:"#f0f4f8", surface:"#ffffff", card:"#ffffff", border:"#d1dce8",
+  accent:"#0070f3", accentDim:"#0070f322",
+  green:"#00a86b", red:"#e53e3e", amber:"#d97706",
+  purple:"#7c3aed", muted:"#8da0b3", text:"#1a2636", textDim:"#4a6080",
+};
+// C is set dynamically inside the component; this fallback is for module-level helpers
+let C = DARK;
 
 // ── Sample data ───────────────────────────────────────────────────────────────
 const INITIAL_TRADES = [
@@ -1123,6 +1131,15 @@ export default function TradingPlatform({ session }) {
   const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Trader";
   const userInitial = userName.charAt(0).toUpperCase();
   const handleSignOut = () => supabase.auth.signOut();
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("fv_theme") !== "light");
+  const toggleTheme = () => {
+    setDarkMode(d => {
+      const next = !d;
+      localStorage.setItem("fv_theme", next ? "dark" : "light");
+      return next;
+    });
+  };
+  C = darkMode ? DARK : LIGHT;
   const [tab,        setTab       ] = useState("dashboard");
   const [selTrade,   setSelTrade  ] = useState(null);
   const [showRules,  setShowRules ] = useState(false);
@@ -1579,6 +1596,9 @@ export default function TradingPlatform({ session }) {
             <button onClick={syncTradovate} disabled={syncingTV} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",cursor:syncingTV?"not-allowed":"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:tvStatus?.connected?C.green:C.muted,letterSpacing:"0.05em",textTransform:"uppercase"}} title={tvStatus?.connected?"Sync trades from Tradovate":"Connect Tradovate first"}>{syncingTV?"Syncing...":tvStatus?.connected?"↻ Sync TV":"TV: Off"}</button>
             <button onClick={toggleMode} style={{background:isDemo?"#a78bfa22":"#00e5ff11",border:`1px solid ${isDemo?"#a78bfa44":"#00e5ff22"}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:isDemo?"#a78bfa":"#00e5ff",fontWeight:700,letterSpacing:"0.05em"}}>
               {isDemo?"🎭 DEMO":"⚡ LIVE"}
+            </button>
+            <button onClick={toggleTheme} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:13,color:C.muted,letterSpacing:"0.05em"}} title={darkMode?"Switch to light mode":"Switch to dark mode"}>
+              {darkMode?"☀️":"🌙"}
             </button>
             <button onClick={handleSignOut} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.05em",textTransform:"uppercase"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.red;e.currentTarget.style.color=C.red;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.color=C.muted;}}>Sign out</button>
           </div>
