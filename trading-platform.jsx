@@ -2326,7 +2326,11 @@ export default function TradingPlatform({ session }) {
       {/* Nav */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",height:58,borderBottom:`1px solid ${C.border}`,background:C.surface,position:"sticky",top:0,zIndex:100}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <svg width="26" height="26" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="7" fill="url(#fvg)"/><path d="M8 22 L14 10 L20 17 L24 12" stroke="#000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/><defs><linearGradient id="fvg" x1="0" y1="0" x2="32" y2="32"><stop stopColor="#00e5ff"/><stop offset="1" stopColor="#0070f3"/></linearGradient></defs></svg>
+          <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+            <rect width="32" height="32" rx="7" fill="url(#nav-fvg)"/>
+            <path d="M7 22 L13 10 L19 17 L25 10" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"/>
+            <defs><linearGradient id="nav-fvg" x1="0" y1="0" x2="32" y2="32"><stop stopColor="#00e5ff"/><stop offset="1" stopColor="#0070f3"/></linearGradient></defs>
+          </svg>
           <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15,letterSpacing:"0.05em"}}>FUNDVAULT</span>
           <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.amber,background:"#f59e0b18",border:"1px solid #f59e0b44",borderRadius:4,padding:"2px 8px"}}>PROP FOCUS</span>
         </div>
