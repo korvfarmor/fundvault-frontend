@@ -809,7 +809,7 @@ function FlattenWidget({ tvStatus }) {
 }
 
 // ── NewsTab — Live Economic Calendar (ForexFactory feed) ─────────────────────
-function NewsTab({ econFilter, setEconFilter, C }) {
+function NewsTab({ econFilter, setEconFilter, C, newsBlocker, saveNewsBlocker }) {
   const [events,    setEvents  ] = useState([]);
   const [loading,   setLoading ] = useState(true);
   const [error,     setError   ] = useState(null);
@@ -940,6 +940,105 @@ function NewsTab({ econFilter, setEconFilter, C }) {
           </div>
         )}
       </div>
+
+      {/* ── News Blocker Guard ─────────────────────────────────────────────── */}
+      {newsBlocker && saveNewsBlocker && (() => {
+        const MINS = [2, 5, 10, 15, 30];
+        // Compute blocking windows for today
+        const blockingWindows = futureEvents.filter(ev => {
+          if (ev.date !== today) return false;
+          if (newsBlocker.impact === "high" && ev.impact !== "high") return false;
+          if (newsBlocker.impact === "medium_high" && ev.impact === "low") return false;
+          return true;
+        }).map(ev => {
+          const evMin = parseEventMinutes(ev);
+          if (evMin === null) return null;
+          const start = evMin - newsBlocker.before;
+          const end   = evMin + newsBlocker.after;
+          const fmt = m => `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;
+          const nowMin = nowTime.getHours()*60 + nowTime.getMinutes();
+          const active = nowMin >= start && nowMin <= end;
+          return { name: ev.event||ev.name, time: ev.time, start, end, startFmt: fmt(Math.max(0,start)), endFmt: fmt(end), active };
+        }).filter(Boolean);
+
+        const isCurrentlyBlocked = newsBlocker.enabled && blockingWindows.some(w => w.active);
+
+        return (
+          <div style={{background:C.card,border:`1px solid ${isCurrentlyBlocked?C.red+"66":C.border}`,borderRadius:14,overflow:"hidden"}}>
+            {isCurrentlyBlocked && <div style={{height:3,background:C.red}}/>}
+            <div style={{padding:"16px 20px",display:"flex",alignItems:"center",gap:16}}>
+              <div style={{fontSize:28}}>{isCurrentlyBlocked?"🚫":"🛡️"}</div>
+              <div style={{flex:1}}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>News Blocking Guard</div>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginTop:2}}>
+                  {newsBlocker.enabled ? "Automatically blocks trading during high-impact news" : "Blocking is disabled"}
+                </div>
+              </div>
+              {/* Toggle */}
+              <div onClick={()=>saveNewsBlocker({...newsBlocker,enabled:!newsBlocker.enabled})}
+                style={{width:48,height:26,borderRadius:13,background:newsBlocker.enabled?`${C.green}44`:C.surface,border:`1px solid ${newsBlocker.enabled?C.green:C.border}`,cursor:"pointer",position:"relative",transition:"all 0.2s",flexShrink:0}}>
+                <div style={{position:"absolute",top:3,left:newsBlocker.enabled?24:3,width:18,height:18,borderRadius:"50%",background:newsBlocker.enabled?C.green:C.muted,transition:"left 0.2s",boxShadow:newsBlocker.enabled?`0 0 8px ${C.green}`:"none"}}/>
+              </div>
+            </div>
+
+            {newsBlocker.enabled && (
+              <div style={{padding:"0 20px 18px",display:"flex",flexDirection:"column",gap:14}}>
+                {/* Impact type */}
+                <div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Impact Type to Block</div>
+                  <div style={{display:"flex",gap:7}}>
+                    {[{id:"high",label:"High Impact",color:C.red},{id:"medium_high",label:"Medium & High",color:C.amber}].map(opt=>(
+                      <button key={opt.id} onClick={()=>saveNewsBlocker({...newsBlocker,impact:opt.id})}
+                        style={{padding:"7px 16px",borderRadius:8,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:newsBlocker.impact===opt.id?700:400,background:newsBlocker.impact===opt.id?`${opt.color}22`:C.surface,border:`1px solid ${newsBlocker.impact===opt.id?opt.color+"66":C.border}`,color:newsBlocker.impact===opt.id?opt.color:C.muted,display:"flex",alignItems:"center",gap:6}}>
+                        <span style={{width:8,height:8,borderRadius:"50%",background:opt.color,display:"inline-block",flexShrink:0}}/>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Minutes before / after */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                  {[{key:"before",label:"Minutes Before News"},{key:"after",label:"Minutes After News"}].map(({key,label})=>(
+                    <div key={key}>
+                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>{label}</div>
+                      <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                        {MINS.map(m=>(
+                          <button key={m} onClick={()=>saveNewsBlocker({...newsBlocker,[key]:m})}
+                            style={{padding:"6px 12px",borderRadius:7,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:newsBlocker[key]===m?700:400,background:newsBlocker[key]===m?C.accentDim:C.surface,border:`1px solid ${newsBlocker[key]===m?C.accent+"66":C.border}`,color:newsBlocker[key]===m?C.accent:C.muted}}>
+                            {m} min
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Today's blocking windows */}
+                <div style={{background:C.surface,borderRadius:10,padding:"12px 16px"}}>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Today's Blocking Windows</div>
+                  {blockingWindows.length === 0 ? (
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.green,display:"flex",alignItems:"center",gap:7}}>
+                      <span>✓</span> No blocking events today
+                    </div>
+                  ) : (
+                    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                      {blockingWindows.map((w,i)=>(
+                        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 12px",borderRadius:7,background:w.active?`${C.red}11`:C.card,border:`1px solid ${w.active?C.red+"44":C.border}`}}>
+                          <div style={{width:8,height:8,borderRadius:"50%",background:w.active?C.red:C.muted,boxShadow:w.active?`0 0 6px ${C.red}`:"none",flexShrink:0,animation:w.active?"pulse 1.5s ease-in-out infinite":"none"}}/>
+                          <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:w.active?C.red:C.accent,fontWeight:700}}>{w.startFmt} – {w.endFmt}</span>
+                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,flex:1}}>{w.name}</span>
+                          {w.active && <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.red,background:`${C.red}18`,border:`1px solid ${C.red}33`,borderRadius:4,padding:"2px 7px",flexShrink:0}}>ACTIVE NOW</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {loading && (
         <div style={{display:"flex",alignItems:"center",gap:12,padding:20,color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:12}}>
@@ -1532,6 +1631,14 @@ export default function TradingPlatform({ session }) {
   const [tagFilter,  setTagFilter ] = useState("All");
   const [newRule,    setNewRule   ] = useState({label:"",type:"loss",value:""});
   const [econFilter, setEconFilter] = useState("all");
+  const [newsBlocker, setNewsBlocker] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("fv_newsblocker") || '{"enabled":true,"impact":"high","before":5,"after":5}'); }
+    catch { return {enabled:true, impact:"high", before:5, after:5}; }
+  });
+  const saveNewsBlocker = (val) => {
+    setNewsBlocker(val);
+    localStorage.setItem("fv_newsblocker", JSON.stringify(val));
+  };
 
   // ── Trade Copier state ─────────────────────────────────────────────────────
   const [copierAccounts, setCopierAccounts] = useState(() => {
@@ -2540,7 +2647,7 @@ export default function TradingPlatform({ session }) {
           </div>;
         })()}
         {/* ── NEWS / ECONOMIC CALENDAR ────────────────────────────────────────── */}
-        {tab==="news"&&<NewsTab econFilter={econFilter} setEconFilter={setEconFilter} C={C}/>}
+        {tab==="news"&&<NewsTab econFilter={econFilter} setEconFilter={setEconFilter} C={C} newsBlocker={newsBlocker} saveNewsBlocker={saveNewsBlocker}/>}
 
         {/* ── ACCOUNTS ────────────────────────────────────────────────────────── */}
         {tab==="accounts"&&(()=>{
