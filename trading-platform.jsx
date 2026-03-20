@@ -766,15 +766,36 @@ function NewsTab({ econFilter, setEconFilter }) {
   const fetchCalendar = async () => {
     setLoading(true); setError(null);
     try {
-      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
-      const res = await fetch(`${API}/calendar/thisweek`, { cache: "no-store" });
-      if (!res.ok) throw new Error(`Backend returned ${res.status}`);
-      const data = await res.json();
+      // Try ForexFactory public JSON directly (no backend needed)
+      const res = await fetch("https://nfs.faireconomy.media/ff_calendar_thisweek.json?version=" + Date.now(), { cache: "no-store" });
+      if (!res.ok) throw new Error(`FF returned ${res.status}`);
+      const raw = await res.json();
+      // Normalize FF format → our format
+      const data = raw.map(e => ({
+        date:     e.date ? e.date.slice(0,10) : "",
+        time:     e.date ? new Date(e.date).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",timeZone:"America/New_York"}) : "",
+        currency: e.country,
+        impact:   e.impact === "High" ? "high" : e.impact === "Medium" ? "medium" : "low",
+        event:    e.title,
+        forecast: e.forecast || null,
+        previous: e.previous || null,
+        actual:   e.actual && e.actual !== "" ? e.actual : null,
+      }));
       setEvents(data);
       setLastFetch(new Date());
-    } catch (err) {
-      setError("Failed to fetch calendar: " + err.message);
-      setEvents([]);
+    } catch (ffErr) {
+      // Fallback: try backend proxy
+      try {
+        const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+        const res2 = await fetch(`${API}/calendar/thisweek`, { cache: "no-store" });
+        if (!res2.ok) throw new Error(`Backend returned ${res2.status}`);
+        const data2 = await res2.json();
+        setEvents(data2);
+        setLastFetch(new Date());
+      } catch (backendErr) {
+        setError("Could not load calendar. Check your connection.");
+        setEvents([]);
+      }
     }
     setLoading(false);
   };
