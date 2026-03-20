@@ -20,7 +20,7 @@ const C = {
 
 // ── Auth Screen ───────────────────────────────────────────────────────────────
 function AuthScreen() {
-  const [mode,     setMode    ] = useState("login"); // "login" | "register" | "forgot"
+  const [mode,     setMode    ] = useState("login");
   const [email,    setEmail   ] = useState("");
   const [password, setPassword] = useState("");
   const [name,     setName    ] = useState("");
@@ -30,7 +30,6 @@ function AuthScreen() {
 
   const clearMessages = () => { setError(""); setSuccess(""); };
 
-  // ── Sign in ──────────────────────────────────────────────────────────────
   const handleLogin = async () => {
     if (!email || !password) return setError("Fill in email and password");
     setLoading(true); clearMessages();
@@ -39,7 +38,6 @@ function AuthScreen() {
     setLoading(false);
   };
 
-  // ── Sign up ──────────────────────────────────────────────────────────────
   const handleRegister = async () => {
     if (!email || !password || !name) return setError("Fill in all fields");
     if (password.length < 8) return setError("Password must be at least 8 characters");
@@ -54,7 +52,6 @@ function AuthScreen() {
     setLoading(false);
   };
 
-  // ── Forgot password ───────────────────────────────────────────────────────
   const handleForgot = async () => {
     if (!email) return setError("Enter your email address");
     setLoading(true); clearMessages();
@@ -89,25 +86,30 @@ function AuthScreen() {
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 40 }}>
           <div style={{
-            display: "inline-flex", alignItems: "center", gap: 12,
-            marginBottom: 8,
+            display: "inline-flex", alignItems: "center", gap: 12, marginBottom: 8,
           }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 10,
-              background: `linear-gradient(135deg, ${C.accent}, #0070f3)`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 20, fontWeight: 900, color: "#000",
-              fontFamily: "'Syne', sans-serif",
-            }}>E</div>
-            <span style={{
-              fontFamily: "'Syne', sans-serif", fontWeight: 800,
-              fontSize: 26, color: C.text, letterSpacing: "0.05em",
-            }}>EDGESTAT</span>
+            {/* FundVault SVG logo */}
+            <svg width="42" height="42" viewBox="0 0 40 40" fill="none">
+              <circle cx="20" cy="20" r="18.5" fill="#0d1420" stroke="#00e5ff" strokeWidth="2"/>
+              <circle cx="20" cy="20" r="14.5" fill="#111827"/>
+              <rect x="18.2" y="1" width="3.6" height="5" rx="1.8" fill="#00e5ff"/>
+              <rect x="18.2" y="34" width="3.6" height="5" rx="1.8" fill="#00e5ff"/>
+              <rect x="1" y="18.2" width="5" height="3.6" rx="1.8" fill="#00e5ff"/>
+              <rect x="34" y="18.2" width="5" height="3.6" rx="1.8" fill="#00e5ff"/>
+              <text x="9.5" y="25" fontFamily="Arial Black,sans-serif" fontWeight="900" fontSize="15" fill="#00e5ff" letterSpacing="1.5">F</text>
+              <text x="21" y="25" fontFamily="Arial Black,sans-serif" fontWeight="900" fontSize="15" fill="#a78bfa" letterSpacing="1.5">V</text>
+            </svg>
+            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              <span style={{
+                fontFamily: "'Syne', sans-serif", fontWeight: 800,
+                fontSize: 24, color: C.text, letterSpacing: "0.07em", lineHeight: 1.1,
+              }}>FUNDVAULT</span>
+              <span style={{
+                fontFamily: "'Space Mono', monospace", fontSize: 8,
+                color: C.accent, letterSpacing: "0.14em", textTransform: "uppercase",
+              }}>PROP TRADING JOURNAL</span>
+            </div>
           </div>
-          <div style={{
-            fontFamily: "'Space Mono', monospace", fontSize: 10,
-            color: C.amber, letterSpacing: "0.15em", textTransform: "uppercase",
-          }}>Futures · Prop Firm Tracker</div>
         </div>
 
         {/* Card */}
@@ -121,7 +123,7 @@ function AuthScreen() {
             background: `linear-gradient(90deg, ${C.accent}, ${C.purple})`,
           }}/>
 
-          {/* Tab switcher (login / register) */}
+          {/* Tab switcher */}
           {mode !== "forgot" && (
             <div style={{
               display: "flex", background: C.surface, borderRadius: 8,
@@ -130,7 +132,7 @@ function AuthScreen() {
               {["login", "register"].map(m => (
                 <button key={m} onClick={() => { setMode(m); clearMessages(); }} style={{
                   flex: 1, padding: "8px 0", borderRadius: 6, border: "none",
-                  background: mode === m ? C.accentDim || `${C.accent}22` : "transparent",
+                  background: mode === m ? `${C.accent}22` : "transparent",
                   color: mode === m ? C.accent : C.muted,
                   fontFamily: "'Space Mono', monospace", fontSize: 11,
                   letterSpacing: "0.08em", textTransform: "uppercase",
@@ -159,11 +161,7 @@ function AuthScreen() {
           {/* Name field (register only) */}
           {mode === "register" && (
             <div style={{ marginBottom: 14 }}>
-              <label style={{
-                display: "block", fontFamily: "'Space Mono', monospace",
-                fontSize: 10, color: C.muted, letterSpacing: "0.1em",
-                textTransform: "uppercase", marginBottom: 6,
-              }}>Full Name</label>
+              <label style={labelStyle}>Full Name</label>
               <input
                 value={name} onChange={e => setName(e.target.value)}
                 placeholder="Your name"
@@ -198,7 +196,7 @@ function AuthScreen() {
             </div>
           )}
 
-          {/* Error / Success messages */}
+          {/* Error / Success */}
           {error && (
             <div style={{
               background: `${C.red}15`, border: `1px solid ${C.red}44`,
@@ -239,14 +237,12 @@ function AuthScreen() {
           {/* Forgot / Back links */}
           <div style={{ marginTop: 18, textAlign: "center" }}>
             {mode === "login" && (
-              <button onClick={() => { setMode("forgot"); clearMessages(); }}
-                style={linkStyle}>
+              <button onClick={() => { setMode("forgot"); clearMessages(); }} style={linkStyle}>
                 Forgot password?
               </button>
             )}
             {mode === "forgot" && (
-              <button onClick={() => { setMode("login"); clearMessages(); }}
-                style={linkStyle}>
+              <button onClick={() => { setMode("login"); clearMessages(); }} style={linkStyle}>
                 ← Back to sign in
               </button>
             )}
@@ -265,7 +261,7 @@ function AuthScreen() {
 
       {/* Google Fonts */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: ${C.bg}; }
         input::placeholder { color: ${C.muted}; }
@@ -274,6 +270,26 @@ function AuthScreen() {
     </div>
   );
 }
+
+// ── Shared input styles ───────────────────────────────────────────────────────
+const inputStyle = {
+  width: "100%", padding: "11px 14px",
+  background: "#080c14", border: "1px solid #1e2d40",
+  borderRadius: 8, color: "#c8d8e8",
+  fontFamily: "'DM Sans', sans-serif", fontSize: 14,
+  transition: "border-color 0.15s",
+};
+const labelStyle = {
+  display: "block", fontFamily: "'Space Mono', monospace",
+  fontSize: 10, color: "#6b859e", letterSpacing: "0.1em",
+  textTransform: "uppercase", marginBottom: 6,
+};
+const linkStyle = {
+  background: "none", border: "none", color: "#4a6080",
+  fontFamily: "'Space Mono', monospace", fontSize: 10,
+  cursor: "pointer", letterSpacing: "0.05em",
+  textDecoration: "underline",
+};
 
 // ── Shared input styles ───────────────────────────────────────────────────────
 const inputStyle = {
