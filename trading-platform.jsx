@@ -435,7 +435,7 @@ const ECON_EVENTS = [
 // ── Shared UI ─────────────────────────────────────────────────────────────────
 
 // ── FlattenWidget — Flytande widget för öppna positioner ─────────────────────
-function FlattenWidget({ tvStatus }) {
+function FlattenWidget({ tvStatus, mobileMode = false }) {
   const [positions,  setPositions ] = useState([]);
   const [selected,   setSelected  ] = useState({});
   const [loading,    setLoading   ] = useState(false);
@@ -582,8 +582,11 @@ function FlattenWidget({ tvStatus }) {
 
   return (
     <div className="fv-flatten-widget" style={{
-      position: "fixed", bottom: 24, right: 24, zIndex: 9999,
-      width: expanded ? 340 : 200,
+      position: mobileMode ? "relative" : "fixed",
+      bottom: mobileMode ? undefined : 24,
+      right: mobileMode ? undefined : 24,
+      zIndex: mobileMode ? undefined : 9999,
+      width: mobileMode ? "100%" : (expanded ? 340 : 200),
       background: "#0d1420",
       border: `2px solid ${demoMode ? "#a78bfa66" : hasPositions ? "#ff3d5a66" : "#1e2d40"}`,
       borderRadius: 14,
@@ -2241,6 +2244,7 @@ export default function TradingPlatform({ session }) {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("fv_theme") !== "light");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [mobileMore, setMobileMore] = useState(false);
+  const [showMobilePositions, setShowMobilePositions] = useState(false);
   // Onboarding
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem("fv_onboarded"));
   const [onboardStep, setOnboardStep] = useState(0);
@@ -2880,6 +2884,8 @@ export default function TradingPlatform({ session }) {
           .fv-hide-mobile{display:none!important}
           /* Flatten widget above bottom nav */
           .fv-flatten-widget{bottom:72px!important;right:12px!important}
+          /* Hide flatten floating widget on mobile — accessible via bottom nav instead */
+          .fv-flatten-widget{display:none!important}
           /* Onboarding above bottom nav */
           .fv-onboard-guide{bottom:80px!important;left:12px!important}
           /* Trade modal: stack columns */
@@ -4445,7 +4451,7 @@ export default function TradingPlatform({ session }) {
           {id:"dashboard", icon:"📊", label:"Today"},
           {id:"trades",    icon:"📋", label:"Trades"},
           {id:"__add__",   icon:"➕", label:"Log",    accent:true},
-          {id:"guard",     icon:"🧠", label:"Guard"},
+          {id:"__pos__",   icon:"⚡", label:"Positions"},
           {id:"__more__",  icon:"•••", label:"More"},
         ].map(item=>{
           if(item.id==="__add__") return (
@@ -4455,6 +4461,21 @@ export default function TradingPlatform({ session }) {
               <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.accent,letterSpacing:"0.05em",marginTop:2}}>Log</span>
             </button>
           );
+          if(item.id==="__pos__") {
+            // Get position count from FlattenWidget's demo or live data
+            const posCount = tvStatus?.connected ? (positions?.length || 0) : 0;
+            const isActive = showMobilePositions;
+            return (
+              <button key="pos" onClick={()=>setShowMobilePositions(m=>!m)}
+                style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,background:"transparent",border:"none",cursor:"pointer",position:"relative",borderTop:`2px solid ${isActive?C.red:"transparent"}`}}>
+                <div style={{position:"relative",display:"inline-flex"}}>
+                  <span style={{fontSize:18,filter:isActive?"none":"grayscale(0.3)"}}>⚡</span>
+                  {posCount>0&&<span style={{position:"absolute",top:-4,right:-6,background:C.red,color:"#fff",borderRadius:"50%",width:14,height:14,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Space Mono',monospace",fontSize:8,fontWeight:700}}>{posCount}</span>}
+                </div>
+                <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:isActive?C.red:C.muted,letterSpacing:"0.05em"}}>Positions</span>
+              </button>
+            );
+          }
           if(item.id==="__more__") return (
             <button key="more" onClick={()=>setMobileMore(m=>!m)}
               style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,background:"transparent",border:"none",cursor:"pointer"}}>
@@ -4472,6 +4493,20 @@ export default function TradingPlatform({ session }) {
           );
         })}
       </div>
+
+      {/* ── Mobile Positions Sheet ───────────────────────────────────────────── */}
+      {showMobilePositions && (
+        <div className="fv-more-sheet" style={{position:"fixed",bottom:64,left:0,right:0,zIndex:199,background:C.card,borderTop:`1px solid ${C.red}44`,borderRadius:"16px 16px 0 0",padding:"16px 16px 8px",animation:"slideUp 0.2s ease",maxHeight:"60vh",overflowY:"auto"}}>
+          <div style={{width:36,height:4,borderRadius:2,background:C.border,margin:"0 auto 14px"}}/>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>⚡ Open Positions</div>
+            <button onClick={()=>setShowMobilePositions(false)} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:18}}>✕</button>
+          </div>
+          {/* Embed FlattenWidget content inline */}
+          <FlattenWidget tvStatus={tvStatus} mobileMode={true}/>
+        </div>
+      )}
+      {showMobilePositions && <div onClick={()=>setShowMobilePositions(false)} style={{position:"fixed",inset:0,zIndex:198}} className="fv-more-sheet"/>}
 
       {/* ── More Sheet ───────────────────────────────────────────────────────── */}
       {mobileMore && (
