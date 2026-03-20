@@ -581,7 +581,7 @@ function FlattenWidget({ tvStatus }) {
   const hasPositions = positions.length > 0;
 
   return (
-    <div style={{
+    <div className="fv-flatten-widget" style={{
       position: "fixed", bottom: 24, right: 24, zIndex: 9999,
       width: expanded ? 340 : 200,
       background: "#0d1420",
@@ -2866,6 +2866,10 @@ export default function TradingPlatform({ session }) {
           .fv-stat-cards>*{min-width:calc(50% - 6px)!important;flex:1 1 calc(50% - 6px)!important}
           /* Hide non-essential columns in tables */
           .fv-hide-mobile{display:none!important}
+          /* Flatten widget above bottom nav */
+          .fv-flatten-widget{bottom:72px!important;right:12px!important}
+          /* Onboarding above bottom nav */
+          .fv-onboard-guide{bottom:80px!important;left:12px!important}
           /* Trade modal: stack columns */
           .fv-trade-modal-grid{grid-template-columns:1fr!important}
           /* Charts: shorter on mobile */
@@ -2913,8 +2917,8 @@ export default function TradingPlatform({ session }) {
         const isLast = onboardStep === STEPS.length - 1;
 
         return (
-          <div style={{
-            position:"fixed", bottom:32, left:28, zIndex:3000,
+          <div className="fv-onboard-guide" style={{
+          position:"fixed", bottom:32, left:28, zIndex:3000,
             width:300, background:C.card,
             border:`1px solid ${C.accent}55`,
             borderRadius:16, overflow:"hidden",
