@@ -639,7 +639,7 @@ function FlattenWidget({ tvStatus }) {
               {/* Last update */}
               {lastUpdate && (
                 <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: "#4a6080", textAlign: "center" }}>
-                  Uppdaterad {lastUpdate.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                  Uppdaterad {lastUpdate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                 </div>
               )}
 
@@ -751,15 +751,21 @@ function FlattenWidget({ tvStatus }) {
 
 // ── NewsTab — Live Economic Calendar (ForexFactory feed) ─────────────────────
 function NewsTab({ econFilter, setEconFilter }) {
-  const [events,  setEvents ] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError  ] = useState(null);
+  const [events,    setEvents  ] = useState([]);
+  const [loading,   setLoading ] = useState(true);
+  const [error,     setError   ] = useState(null);
   const [lastFetch, setLastFetch] = useState(null);
+  const [nowTime,   setNowTime ] = useState(new Date());
+
+  // Refresh current time every minute for News Guard
+  useEffect(() => {
+    const t = setInterval(() => setNowTime(new Date()), 60000);
+    return () => clearInterval(t);
+  }, []);
 
   const fetchCalendar = async () => {
     setLoading(true); setError(null);
     try {
-      // Hämtar via vår backend som proxar ForexFactory (undviker CORS)
       const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
       const res = await fetch(`${API}/calendar/thisweek`, { cache: "no-store" });
       if (!res.ok) throw new Error(`Backend returned ${res.status}`);
@@ -780,19 +786,43 @@ function NewsTab({ econFilter, setEconFilter }) {
   const dayNames    = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   const today       = new Date().toISOString().slice(0, 10);
 
-  const filtered = econFilter === "all" ? events : events.filter(e => e.impact === econFilter);
-  const days     = [...new Set(filtered.map(e => e.date))].sort();
-  const upcoming = events.filter(e => e.impact === "high" && e.date >= today && !e.actual).slice(0, 3);
+  // Only today and future — filter out past days
+  const futureEvents = events.filter(e => e.date >= today);
+  const filtered = econFilter === "all" ? futureEvents : futureEvents.filter(e => e.impact === econFilter);
+  const days = [...new Set(filtered.map(e => e.date))].sort();
+
+  // ── News Guard: high-impact events within next 2 hours ──────────────────
+  const parseEventMinutes = (ev) => {
+    if (!ev.time || ev.date !== today) return null;
+    try {
+      const t = ev.time.trim();
+      const [hm, ampm] = [t.replace(/ ?[AaPp][Mm]/,""), t.match(/[AaPp][Mm]/)?.[0]?.toUpperCase()];
+      let [h, m] = hm.split(":").map(Number);
+      if (ampm === "PM" && h < 12) h += 12;
+      if (ampm === "AM" && h === 12) h = 0;
+      return h * 60 + (m || 0);
+    } catch { return null; }
+  };
+  const nowMinutes = nowTime.getHours() * 60 + nowTime.getMinutes();
+  const upcomingHigh = futureEvents.filter(ev => {
+    if (ev.impact !== "high" || ev.actual) return false;
+    const evMin = parseEventMinutes(ev);
+    if (evMin === null) return ev.date === today; // today but no parseable time → show
+    return evMin >= nowMinutes && evMin <= nowMinutes + 120;
+  });
+  const guardBlocked = upcomingHigh.length > 0;
+  const nextEv = upcomingHigh[0];
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:22}}>
+      {/* Header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
         <div>
           <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:"#6b859e",letterSpacing:"0.1em",textTransform:"uppercase"}}>Economic Calendar</div>
           <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>News & Events</div>
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-          {lastFetch && <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:"#4a6080"}}>Updated {lastFetch.toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"})}</span>}
+          {lastFetch && <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:"#4a6080"}}>Updated {lastFetch.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</span>}
           <button onClick={fetchCalendar} disabled={loading} style={{background:"transparent",border:"1px solid #1e2d40",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:"#4a6080"}}>
             {loading ? "..." : "↻ Refresh"}
           </button>
@@ -805,42 +835,49 @@ function NewsTab({ econFilter, setEconFilter }) {
         </div>
       </div>
 
-      {/* Loading */}
+      {/* ── News Guard ─────────────────────────────────────────────────────── */}
+      <div style={{background:guardBlocked?"#ff3d5a0f":"#00d0840f",border:`2px solid ${guardBlocked?"#ff3d5a55":"#00d08444"}`,borderRadius:14,padding:"18px 22px",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+        <div style={{fontSize:38}}>{guardBlocked ? "🚨" : "✅"}</div>
+        <div style={{flex:1,minWidth:180}}>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:guardBlocked?"#ff3d5a":"#00d084",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:3}}>
+            News Guard — {guardBlocked ? "HIGH IMPACT EVENT INCOMING" : "CLEAR TO TRADE"}
+          </div>
+          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,color:guardBlocked?"#ff3d5a":"#00d084"}}>
+            {guardBlocked
+              ? `${nextEv?.event || nextEv?.name || "High impact event"} — ${nextEv?.time || "today"}`
+              : "No high-impact news in the next 2 hours"}
+          </div>
+          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#6b859e",marginTop:4}}>
+            {guardBlocked
+              ? "Most prop firms prohibit trading 2 min before and after high-impact releases. Stay flat."
+              : "You're in a safe window. Check back before every session."}
+          </div>
+        </div>
+        {guardBlocked && upcomingHigh.length > 1 && (
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:"#f59e0b",background:"#f59e0b11",border:"1px solid #f59e0b33",borderRadius:8,padding:"8px 14px",textAlign:"center",flexShrink:0}}>
+            +{upcomingHigh.length-1} more<br/>high-impact today
+          </div>
+        )}
+      </div>
+
       {loading && (
         <div style={{display:"flex",alignItems:"center",gap:12,padding:20,color:"#6b859e",fontFamily:"'Space Mono',monospace",fontSize:12}}>
           <div style={{width:16,height:16,borderRadius:"50%",border:"2px solid #1e2d40",borderTop:"2px solid #00e5ff",animation:"spin 0.8s linear infinite"}}/>
-          Hämtar live kalender från ForexFactory...
+          Fetching live calendar...
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       )}
 
-      {/* Error */}
       {error && <div style={{background:"#f59e0b11",border:"1px solid #f59e0b44",borderRadius:8,padding:"12px 16px",fontFamily:"'Space Mono',monospace",fontSize:11,color:"#f59e0b"}}>⚠ {error}</div>}
 
-      {/* Upcoming high-impact banner */}
-      {!loading && upcoming.length > 0 && (
-        <div style={{background:"#f59e0b11",border:"1px solid #f59e0b44",borderRadius:10,padding:"14px 18px",display:"flex",alignItems:"center",gap:14}}>
-          <span style={{fontSize:22}}>⚡</span>
-          <div>
-            <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:"#f59e0b",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Kommande High-Impact Events</div>
-            <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-              {upcoming.map(e => (
-                <span key={e.id} style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#c8d8e8"}}>
-                  <span style={{color:"#f59e0b"}}>{e.date.slice(5)} {e.time}</span> — {e.event}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* No events */}
       {!loading && !error && days.length === 0 && (
         <div style={{background:"#111827",border:"1px solid #1e2d40",borderRadius:12,padding:40,textAlign:"center",fontFamily:"'Space Mono',monospace",fontSize:12,color:"#4a6080"}}>
-          Inga USD-händelser denna vecka
+          <div style={{fontSize:32,marginBottom:10}}>📅</div>
+          No upcoming events this week
         </div>
       )}
 
-      {/* Calendar grouped by day */}
+      {/* Events grouped by day — today + future only */}
       <div style={{display:"flex",flexDirection:"column",gap:14}}>
         {days.map(date => {
           const dayEvents = filtered.filter(e => e.date === date);
@@ -857,8 +894,8 @@ function NewsTab({ econFilter, setEconFilter }) {
                 </div>
                 <div>
                   <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,display:"flex",alignItems:"center",gap:8}}>
-                    {d.toLocaleDateString("sv-SE",{month:"long",day:"numeric",year:"numeric"})}
-                    {isToday && <span style={{background:"#00e5ff22",color:"#00e5ff",border:"1px solid #00e5ff44",borderRadius:4,padding:"1px 8px",fontFamily:"'Space Mono',monospace",fontSize:9}}>IDAG</span>}
+                    {d.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}
+                    {isToday && <span style={{background:"#00e5ff22",color:"#00e5ff",border:"1px solid #00e5ff44",borderRadius:4,padding:"1px 8px",fontFamily:"'Space Mono',monospace",fontSize:9}}>TODAY</span>}
                   </div>
                   <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:"#6b859e",marginTop:2}}>{dayEvents.length} event{dayEvents.length>1?"s":""} · {dayEvents.filter(e=>e.impact==="high").length} high impact</div>
                 </div>
@@ -872,15 +909,16 @@ function NewsTab({ econFilter, setEconFilter }) {
                 </tr></thead>
                 <tbody>
                   {dayEvents.map((e, i) => (
-                    <tr key={e.id} style={{borderBottom:i<dayEvents.length-1?"1px solid #1e2d40":"none",background:e.impact==="high"?"#ff3d5a06":"transparent"}} onMouseEnter={ev=>ev.currentTarget.style.background="#0d1420"} onMouseLeave={ev=>ev.currentTarget.style.background=e.impact==="high"?"#ff3d5a06":"transparent"}>
-                      <td style={{padding:"11px 18px",fontFamily:"'Space Mono',monospace",fontSize:12,color:"#00e5ff"}}>{e.time}</td>
-                      <td style={{padding:"11px 18px"}}><span style={{background:"#00e5ff11",color:"#00e5ff",borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{e.currency}</span></td>
+                    <tr key={i} style={{borderBottom:i<dayEvents.length-1?"1px solid #1e2d40":"none",background:e.impact==="high"?"#ff3d5a06":"transparent"}}
+                      onMouseEnter={ev=>ev.currentTarget.style.background="#0d1420"} onMouseLeave={ev=>ev.currentTarget.style.background=e.impact==="high"?"#ff3d5a06":"transparent"}>
+                      <td style={{padding:"11px 18px",fontFamily:"'Space Mono',monospace",fontSize:12,color:"#00e5ff"}}>{e.time||"—"}</td>
+                      <td style={{padding:"11px 18px"}}><span style={{background:"#00e5ff11",color:"#00e5ff",borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{e.currency||"—"}</span></td>
                       <td style={{padding:"11px 18px"}}>
                         <div style={{display:"flex",gap:2}}>
                           {Array.from({length:3},(_,k) => <div key={k} style={{width:7,height:7,borderRadius:"50%",background:k<impactDots(e.impact)?impactColor(e.impact):"#1e2d40"}}/>)}
                         </div>
                       </td>
-                      <td style={{padding:"11px 18px",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#c8d8e8",fontWeight:500}}>{e.event}</td>
+                      <td style={{padding:"11px 18px",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#c8d8e8",fontWeight:500}}>{e.event||e.name||"—"}</td>
                       <td style={{padding:"11px 18px",fontFamily:"'Space Mono',monospace",fontSize:12,color:"#6b859e"}}>{e.forecast||"—"}</td>
                       <td style={{padding:"11px 18px",fontFamily:"'Space Mono',monospace",fontSize:12,color:"#6b859e"}}>{e.previous||"—"}</td>
                       <td style={{padding:"11px 18px"}}>
@@ -1562,7 +1600,7 @@ export default function TradingPlatform({ session }) {
 
   const cats=[...new Set(habits.map(h=>h.category))];
 
-  const TABS = ["dashboard","analytics","calendar","trades","psychology","guard","propfirm","news","accounts","copier"];
+  const TABS = ["dashboard","analytics","calendar","trades","psychology","propfirm","news","accounts","copier"];
 
   // Re-load trades when mode changes
   useEffect(() => { loadTrades(); }, [appMode, loadTrades]);
@@ -1845,8 +1883,39 @@ export default function TradingPlatform({ session }) {
           const lowPnl  = hasPsychData ? livePsychData.filter(d=>d.mood<=2).reduce((a,b)=>a+b.pnl,0) : 0;
           const checked = Object.values(hChecks).filter(Boolean).length;
 
+          // Psychology Guard verdict
+          const gHabitScore = Object.values(hChecks).filter(Boolean).length;
+          const gTotalHabits = habits.length;
+          const gHabitPct = gTotalHabits ? Math.round((gHabitScore/gTotalHabits)*100) : 0;
+          const gCleared = mood>=3 && gHabitPct>=60;
+          const gCaution = (mood===3 || gHabitPct>=40) && !gCleared;
+          const gVerdict = gCleared ? "CLEAR TO TRADE" : gCaution ? "TRADE WITH CAUTION" : mood===0 ? "COMPLETE CHECK-IN FIRST" : "DO NOT TRADE";
+          const gColor = gCleared ? C.green : gCaution ? C.amber : mood===0 ? C.muted : C.red;
+          const gEmoji = gCleared ? "✅" : gCaution ? "⚠️" : mood===0 ? "📋" : "🛑";
+          const gScore = mood>0 ? Math.round((mood/5*0.5 + gHabitPct/100*0.5)*100) : null;
+
           return <div style={{display:"flex",flexDirection:"column",gap:22}}>
             <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Mental Edge</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Psychology Tracker</div></div>
+
+            {/* ── Psychology Guard ── */}
+            <div style={{background:`${gColor}0f`,border:`2px solid ${gColor}44`,borderRadius:14,padding:"18px 24px",display:"flex",alignItems:"center",gap:18,flexWrap:"wrap"}}>
+              <div style={{fontSize:38}}>{gEmoji}</div>
+              <div style={{flex:1,minWidth:180}}>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:gColor,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:3}}>Psychology Guard — Today's Verdict</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:gColor}}>{gVerdict}</div>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginTop:4}}>
+                  {mood===0 ? "Fill in your mood and habits in the check-in below before you start trading." :
+                   gCleared ? "Mental state looks good. Trade your plan with normal size." :
+                   gCaution ? "Some risk flags. Reduce position size and follow rules strictly." :
+                   "Elevated risk detected. Consider skipping today or paper trading only."}
+                </div>
+              </div>
+              {gScore!==null && <div style={{textAlign:"center",flexShrink:0}}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:40,color:gColor,lineHeight:1}}>{gScore}</div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:2}}>READINESS /100</div>
+              </div>}
+            </div>
+
             <div style={{display:"flex",gap:12}}>
               <StatCard label="Avg Mood"       value={`${avgMood}/5`}                          sub="This month"   color={C.accent}/>
               <StatCard label="High Mood P&L"  value={`$${Math.round(highPnl).toLocaleString()}`} sub="Mood ≥ 4 days" color={C.green}/>
@@ -1866,7 +1935,7 @@ export default function TradingPlatform({ session }) {
                   <Bar yAxisId="pnl" dataKey="pnl" radius={[3,3,0,0]} opacity={.5}>{livePsychData.map((d,i)=><Cell key={i} fill={d.pnl>=0?C.green:C.red}/>)}</Bar>
                   <Area yAxisId="mood" type="monotone" dataKey="mood" stroke={C.purple} strokeWidth={2.5} fill="url(#mg)" dot={{fill:C.purple,r:4}}/>
                 </AreaChart>
-              </ResponsiveContainer> : <div style={{height:180,display:"flex",alignItems:"center",justifyContent:"center",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>Ingen data ännu — logga trades och check-ins</div>}
+              </ResponsiveContainer> : <div style={{height:180,display:"flex",alignItems:"center",justifyContent:"center",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>No data yet — log trades and check-ins</div>}
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
@@ -2655,7 +2724,7 @@ export default function TradingPlatform({ session }) {
                         {copierLog.map((entry,i)=>(
                           <tr key={entry.id||i} style={{borderBottom:i<copierLog.length-1?`1px solid ${C.border}`:"none"}}
                             onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                            <td style={{padding:"9px 16px",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>{new Date(entry.timestamp).toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</td>
+                            <td style={{padding:"9px 16px",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>{new Date(entry.timestamp).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</td>
                             <td style={{padding:"9px 16px"}}><span style={{background:entry.action==="Buy"?C.green+"18":C.red+"18",color:entry.action==="Buy"?C.green:C.red,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{entry.action}</span></td>
                             <td style={{padding:"9px 16px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.text}}>{entry.qty}</td>
                             <td style={{padding:"9px 16px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim}}>{entry.price}</td>
