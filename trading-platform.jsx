@@ -2245,7 +2245,7 @@ export default function TradingPlatform({ session }) {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [mobileMore, setMobileMore] = useState(false);
   const [showMobilePositions, setShowMobilePositions] = useState(false);
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= 768);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener("resize", handler);
@@ -4609,15 +4609,12 @@ export default function TradingPlatform({ session }) {
             </button>
           );
           if(item.id==="__pos__") {
-            // Get position count from FlattenWidget's demo or live data
-            const posCount = tvStatus?.connected ? (positions?.length || 0) : 0;
             const isActive = showMobilePositions;
             return (
               <button key="pos" onClick={()=>setShowMobilePositions(m=>!m)}
                 style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,background:"transparent",border:"none",cursor:"pointer",position:"relative",borderTop:`2px solid ${isActive?C.red:"transparent"}`}}>
                 <div style={{position:"relative",display:"inline-flex"}}>
                   <span style={{fontSize:18,filter:isActive?"none":"grayscale(0.3)"}}>⚡</span>
-                  {posCount>0&&<span style={{position:"absolute",top:-4,right:-6,background:C.red,color:"#fff",borderRadius:"50%",width:14,height:14,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Space Mono',monospace",fontSize:8,fontWeight:700}}>{posCount}</span>}
                 </div>
                 <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:isActive?C.red:C.muted,letterSpacing:"0.05em"}}>Positions</span>
               </button>
