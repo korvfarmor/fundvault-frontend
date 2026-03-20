@@ -454,7 +454,7 @@ function FlattenWidget({ tvStatus }) {
       });
       setSelected({});
       await fetchPositions();
-    } catch (err) { setError("Flatten misslyckades: " + err.message); }
+    } catch (err) { setError("Flatten failed: " + err.message); }
     setFlattening(false);
   };
 
@@ -478,7 +478,7 @@ function FlattenWidget({ tvStatus }) {
       });
       setSelected({});
       await fetchPositions();
-    } catch (err) { setError("Flatten misslyckades: " + err.message); }
+    } catch (err) { setError("Flatten failed: " + err.message); }
     setFlattening(false);
   };
 
@@ -491,7 +491,7 @@ function FlattenWidget({ tvStatus }) {
       setCancellingOrders(false);
       setError(null);
       // Visa en bekräftelse i demo-läge
-      setError("🎭 DEMO: Alla väntande orders cancelerade!");
+      setError("🎭 DEMO: All pending orders cancelled!");
       setTimeout(() => setError(null), 3000);
       return;
     }
@@ -505,7 +505,7 @@ function FlattenWidget({ tvStatus }) {
       const result = await res.json();
       setError(`✓ ${result.message}`);
       setTimeout(() => setError(null), 3000);
-    } catch (err) { setError("Cancel misslyckades: " + err.message); }
+    } catch (err) { setError("Cancel failed: " + err.message); }
     setCancellingOrders(false);
   };
 
@@ -558,7 +558,7 @@ function FlattenWidget({ tvStatus }) {
           <button
             onClick={e => { e.stopPropagation(); setDemoMode(d => !d); setPositions([]); setSelected({}); }}
             style={{ background: demoMode ? "#a78bfa22" : "transparent", border: `1px solid ${demoMode ? "#a78bfa66" : "#1e2d40"}`, borderRadius: 4, padding: "2px 7px", cursor: "pointer", fontFamily: "'Space Mono',monospace", fontSize: 8, color: demoMode ? "#a78bfa" : "#4a6080", letterSpacing: "0.05em" }}
-            title="Testa utan Tradovate"
+            title="Test without Tradovate"
           >DEMO</button>
           <span style={{ color: "#4a6080", fontSize: 12 }}>{expanded ? "▼" : "▲"}</span>
         </div>
@@ -571,7 +571,7 @@ function FlattenWidget({ tvStatus }) {
           {/* Demo banner */}
           {demoMode && (
             <div style={{ background: "#a78bfa15", border: "1px solid #a78bfa44", borderRadius: 6, padding: "6px 10px", fontSize: 10, color: "#a78bfa", fontFamily: "'Space Mono',monospace", textAlign: "center" }}>
-              🎭 DEMO-LÄGE — ingen riktig order skickas
+              🎭 DEMO MODE — no real orders sent
             </div>
           )}
 
@@ -707,8 +707,8 @@ function FlattenWidget({ tvStatus }) {
             </div>
             <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: "#6b859e", marginBottom: 8 }}>
               {confirmAll === "positions"
-                ? <>Detta stänger <strong style={{ color: "#c8d8e8" }}>alla {positions.length} öppna positioner</strong> omedelbart med market orders.</>
-                : <>Detta cancelerar <strong style={{ color: "#c8d8e8" }}>alla väntande limit- och stop-orders</strong>. Öppna positioner påverkas inte.</>
+                ? <>This will close <strong style={{ color: "#c8d8e8" }}>all {positions.length} open positions</strong> immediately with market orders.</>
+                : <>This will cancel <strong style={{ color: "#c8d8e8" }}>all pending limit and stop orders</strong>. Open positions are not affected.</>
               }
             </div>
             {confirmAll === "positions" && (
@@ -721,13 +721,13 @@ function FlattenWidget({ tvStatus }) {
                 onClick={() => setConfirmAll(false)}
                 style={{ flex: 1, padding: "12px", borderRadius: 10, cursor: "pointer", background: "transparent", border: "1px solid #1e2d40", color: "#6b859e", fontFamily: "'Space Mono',monospace", fontSize: 11 }}
               >
-                Avbryt
+                Cancel
               </button>
               <button
                 onClick={() => { confirmAll === "positions" ? flattenAll() : cancelAllOrders(); }}
                 style={{ flex: 1, padding: "12px", borderRadius: 10, cursor: "pointer", background: confirmAll === "positions" ? "#ff3d5a22" : "#f59e0b22", border: `1px solid ${confirmAll === "positions" ? "#ff3d5a" : "#f59e0b"}`, color: confirmAll === "positions" ? "#ff3d5a" : "#f59e0b", fontFamily: "'Space Mono',monospace", fontSize: 11, fontWeight: 700 }}
               >
-                {confirmAll === "positions" ? "Ja, stäng allt" : "Ja, cancelera allt"}
+                {confirmAll === "positions" ? "Yes, close all" : "Yes, cancel all"}
               </button>
             </div>
           </div>
@@ -754,12 +754,12 @@ function NewsTab({ econFilter, setEconFilter }) {
       // Hämtar via vår backend som proxar ForexFactory (undviker CORS)
       const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
       const res = await fetch(`${API}/calendar/thisweek`, { cache: "no-store" });
-      if (!res.ok) throw new Error(`Backend svarade ${res.status}`);
+      if (!res.ok) throw new Error(`Backend returned ${res.status}`);
       const data = await res.json();
       setEvents(data);
       setLastFetch(new Date());
     } catch (err) {
-      setError("Kunde inte hämta kalender: " + err.message);
+      setError("Failed to fetch calendar: " + err.message);
       setEvents([]);
     }
     setLoading(false);
@@ -1190,7 +1190,7 @@ export default function TradingPlatform({ session }) {
       setCopierEnabled(true);
       pollCopierStatus();
     } catch (err) {
-      alert("Kunde inte starta copier: " + err.message);
+      alert("Could not start copier: " + err.message);
     }
   };
 
@@ -1408,8 +1408,8 @@ export default function TradingPlatform({ session }) {
     try {
       const result = await tradovateApi.sync();
       if (result?.synced > 0) { await loadTrades(); alert(`✅ Synced ${result.synced} new trades!`); }
-      else alert("Inga nya trades hittades i Tradovate.");
-    } catch (err) { alert("Sync misslyckades: " + err.message); }
+      else alert("No new trades found in Tradovate.");
+    } catch (err) { alert("Sync failed: " + err.message); }
     setSyncingTV(false);
   };
 
@@ -1545,7 +1545,7 @@ export default function TradingPlatform({ session }) {
 
   const cats=[...new Set(habits.map(h=>h.category))];
 
-  const TABS = ["dashboard","analytics","calendar","trades","psychology","propfirm","news","accounts","copier"];
+  const TABS = ["dashboard","analytics","calendar","trades","psychology","guard","propfirm","news","accounts","copier"];
 
   // Re-load trades when mode changes
   useEffect(() => { loadTrades(); }, [appMode, loadTrades]);
@@ -1560,8 +1560,8 @@ export default function TradingPlatform({ session }) {
       {/* Nav */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",height:58,borderBottom:`1px solid ${C.border}`,background:C.surface,position:"sticky",top:0,zIndex:100}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:28,height:28,borderRadius:6,background:`linear-gradient(135deg,${C.accent},#0070f3)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color:"#000",fontFamily:"'Syne',sans-serif"}}>E</div>
-          <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,letterSpacing:"0.05em"}}>EDGESTAT</span>
+          <svg width="26" height="26" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="7" fill="url(#fvg)"/><path d="M8 22 L14 10 L20 17 L24 12" stroke="#000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/><defs><linearGradient id="fvg" x1="0" y1="0" x2="32" y2="32"><stop stopColor="#00e5ff"/><stop offset="1" stopColor="#0070f3"/></linearGradient></defs></svg>
+          <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15,letterSpacing:"0.05em"}}>FUNDVAULT</span>
           <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.amber,background:"#f59e0b18",border:"1px solid #f59e0b44",borderRadius:4,padding:"2px 8px"}}>PROP FOCUS</span>
         </div>
         <div style={{display:"flex",gap:3}}>
@@ -1606,31 +1606,35 @@ export default function TradingPlatform({ session }) {
               <StatCard label="Avg Win"  value={`$${avgWin}`}                    sub="Per winning trade"   color={C.green}/>
               <StatCard label="Avg Loss" value={`$${avgLoss}`}                   sub="Per losing trade"    color={C.red}/>
               <StatCard label="Max DD"   value={maxDD ? `$${maxDD.toLocaleString()}` : "–"}  sub="Peak-to-trough"  color={C.red}/>
-              <StatCard label="Avg R:R"  value="1.8R"                            sub="Risk/reward ratio"   color={C.accent}/>
+              <StatCard label="Avg R:R"  value={trades.length ? `${(trades.reduce((a,b)=>a+(b.rr||0),0)/trades.length).toFixed(1)}R` : "–"} sub="Risk/reward ratio"   color={C.accent}/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Equity Curve</div>
+                {LIVE_EQUITY.length ? (
                 <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={LIVE_EQUITY.length ? LIVE_EQUITY : EQUITY_DATA}><defs><linearGradient id="eg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={C.accent} stopOpacity={.25}/><stop offset="95%" stopColor={C.accent} stopOpacity={0}/></linearGradient></defs>
+                  <AreaChart data={LIVE_EQUITY}><defs><linearGradient id="eg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={C.accent} stopOpacity={.25}/><stop offset="95%" stopColor={C.accent} stopOpacity={0}/></linearGradient></defs>
                     <CartesianGrid stroke={C.border} strokeDasharray="3 3" vertical={false}/>
-                    <XAxis dataKey="day" tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false}/>
                     <YAxis tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`$${(v/1000).toFixed(1)}k`}/>
                     <Tooltip content={<PnlTip/>}/>
                     <Area type="monotone" dataKey="equity" stroke={C.accent} strokeWidth={2} fill="url(#eg)" dot={false}/>
                   </AreaChart>
                 </ResponsiveContainer>
+                ) : <div style={{height:180,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:C.muted,gap:8}}><div style={{fontSize:28}}>📈</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11}}>No trades yet</div></div>}
               </div>
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Daily P&L</div>
+                {LIVE_PNL_DATA.length ? (
                 <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={LIVE_PNL_DATA.length ? LIVE_PNL_DATA : PNL_DATA}><CartesianGrid stroke={C.border} strokeDasharray="3 3" vertical={false}/>
-                    <XAxis dataKey="day" tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false}/>
+                  <BarChart data={LIVE_PNL_DATA}><CartesianGrid stroke={C.border} strokeDasharray="3 3" vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false}/>
                     <YAxis tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`$${v}`}/>
                     <Tooltip content={<PnlTip/>}/><ReferenceLine y={0} stroke={C.border}/>
-                    <Bar dataKey="pnl" radius={[4,4,0,0]}>{(LIVE_PNL_DATA.length ? LIVE_PNL_DATA : PNL_DATA).map((d,i)=><Cell key={i} fill={d.pnl>=0?C.green:C.red}/>)}</Bar>
+                    <Bar dataKey="pnl" radius={[4,4,0,0]}>{LIVE_PNL_DATA.map((d,i)=><Cell key={i} fill={d.pnl>=0?C.green:C.red}/>)}</Bar>
                   </BarChart>
                 </ResponsiveContainer>
+                ) : <div style={{height:180,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:C.muted,gap:8}}><div style={{fontSize:28}}>📊</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11}}>No trades yet</div></div>}
               </div>
             </div>
             <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
@@ -1648,7 +1652,7 @@ export default function TradingPlatform({ session }) {
                     <td style={{padding:"11px 18px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:t.pnl>=0?C.green:C.red}}>{t.pnl>=0?"+":""}${t.pnl}</td>
                   </tr>
                 ))}</tbody>
-              </table>
+              </table>}
             </div>
           </div>
         )}
@@ -1715,7 +1719,7 @@ export default function TradingPlatform({ session }) {
           const now        = new Date();
           const year       = now.getFullYear();
           const month      = now.getMonth();
-          const monthLabel = now.toLocaleString("sv-SE",{month:"long",year:"numeric"});
+          const monthLabel = now.toLocaleString("en-US",{month:"long",year:"numeric"});
           const daysInMonth= new Date(year,month+1,0).getDate();
           // firstDay: 0=Sun → remap to Mon-first (0=Mon)
           const firstDay   = ((new Date(year,month,1).getDay()+6)%7);
@@ -1903,7 +1907,7 @@ export default function TradingPlatform({ session }) {
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                 {liveAcctData
                   ? <span style={{background:"#00d08418",border:"1px solid #00d08444",borderRadius:6,padding:"3px 10px",fontFamily:"'Space Mono',monospace",fontSize:9,color:"#00d084"}}>⚡ LIVE — Tradovate</span>
-                  : <span style={{background:"#00e5ff11",border:"1px solid #00e5ff33",borderRadius:6,padding:"3px 10px",fontFamily:"'Space Mono',monospace",fontSize:9,color:"#00e5ff"}}>📊 Beräknat från loggade trades</span>
+                  : trades.length > 0 ? <span style={{background:"#00e5ff11",border:"1px solid #00e5ff33",borderRadius:6,padding:"3px 10px",fontFamily:"'Space Mono',monospace",fontSize:9,color:"#00e5ff"}}>📊 Calculated from logged trades</span> : null
                 }
               </div>
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -2132,7 +2136,7 @@ export default function TradingPlatform({ session }) {
                 body: JSON.stringify(tvLoginForm),
               });
               const data = await res.json();
-              if (!res.ok) throw new Error(data.error || "Inloggning misslyckades");
+              if (!res.ok) throw new Error(data.error || "Login failed");
               // Om flera konton — låt användaren välja vilket
               if (data.accounts?.length > 1) {
                 setTvLoginAccounts(data.accounts);
@@ -2173,7 +2177,7 @@ export default function TradingPlatform({ session }) {
               </div>
               <button onClick={()=>{setShowTvLogin(true);setTvLoginStep("credentials");setTvLoginError("");}}
                 style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"8px 18px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.accent,fontWeight:700}}>
-                + Anslut Tradovate-konto
+                + Connect Tradovate Account
               </button>
             </div>
 
@@ -2181,9 +2185,9 @@ export default function TradingPlatform({ session }) {
             <div style={{background:"#00e5ff08",border:"1px solid #00e5ff22",borderRadius:10,padding:"14px 18px",display:"flex",gap:14,alignItems:"flex-start"}}>
               <span style={{fontSize:20,flexShrink:0}}>🔐</span>
               <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,lineHeight:1.6}}>
-                Dina Tradovate-credentials används <strong style={{color:C.text}}>bara för att hämta en access token</strong> som sparas krypterat i databasen.
-                Lösenordet lagras aldrig. Tokens förnyas automatiskt vid behov.
-                <br/>Varje konto du ansluter här blir tillgängligt i <strong style={{color:C.text}}>Trade Copier</strong>-fliken.
+                Your Tradovate credentials are used <strong style={{color:C.text}}>only to obtain an access token</strong> stored encrypted in the database.
+                Your password is never stored. Tokens are refreshed automatically.
+                <br/>Every account you connect here is available in the <strong style={{color:C.text}}>Trade Copier</strong> tab.
               </div>
             </div>
 
@@ -2192,8 +2196,8 @@ export default function TradingPlatform({ session }) {
               {tvAccounts.length===0 ? (
                 <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:12,padding:40,textAlign:"center"}}>
                   <div style={{fontSize:32,marginBottom:12}}>📡</div>
-                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,marginBottom:6}}>Inga konton anslutna</div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted}}>Anslut dina Tradovate-konton för att aktivera Trade Copier och live P&L-tracking</div>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,marginBottom:6}}>No accounts connected</div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted}}>Connect your Tradovate accounts to enable Trade Copier and live P&amp;L tracking</div>
                 </div>
               ) : tvAccounts.map(acc => (
                 <div key={acc.tradovate_account_id} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -2208,11 +2212,11 @@ export default function TradingPlatform({ session }) {
                     {acc.balance!=null && <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:20,color:C.green}}>${Math.round(acc.balance).toLocaleString()}</div>}
                     <div style={{display:"flex",alignItems:"center",gap:6}}>
                       <div style={{width:6,height:6,borderRadius:"50%",background:C.green,boxShadow:`0 0 6px ${C.green}`}}/>
-                      <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.green}}>Ansluten</span>
+                      <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.green}}>Connected</span>
                     </div>
                     <button onClick={()=>disconnectAccount(acc.tradovate_account_id)}
                       style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>
-                      Koppla från
+                      Disconnect
                     </button>
                   </div>
                 </div>
@@ -2225,13 +2229,13 @@ export default function TradingPlatform({ session }) {
                 <div style={{background:"#0d1420",border:"1px solid #1e2d40",borderRadius:16,padding:32,width:440,maxWidth:"95vw"}}>
 
                   {tvLoginStep==="credentials" && <>
-                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,marginBottom:4}}>Anslut Tradovate</div>
-                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,marginBottom:24}}>Logga in med dina Tradovate-uppgifter</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,marginBottom:4}}>Connect Tradovate</div>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,marginBottom:24}}>Log in with your Tradovate credentials</div>
 
                     <div style={{display:"flex",flexDirection:"column",gap:12}}>
                       {[
-                        {label:"Användarnamn",  key:"username", type:"text",     placeholder:"ditt.namn@email.com"},
-                        {label:"Lösenord",       key:"password", type:"password", placeholder:"••••••••"},
+                        {label:"Username",  key:"username", type:"text",     placeholder:"your.name@email.com"},
+                        {label:"Password",  key:"password", type:"password", placeholder:"••••••••"},
                       ].map(f=>(
                         <div key={f.key}>
                           <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.07em"}}>{f.label}</div>
@@ -2246,7 +2250,7 @@ export default function TradingPlatform({ session }) {
                       {/* CID/Secret — behövs för Tradovate API-app */}
                       <details style={{marginTop:4}}>
                         <summary style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,cursor:"pointer",userSelect:"none",letterSpacing:"0.07em",textTransform:"uppercase"}}>
-                          Avancerat — API App credentials (valfritt)
+                          Advanced — API App credentials (optional)
                         </summary>
                         <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:10}}>
                           {[
@@ -2262,7 +2266,7 @@ export default function TradingPlatform({ session }) {
                             </div>
                           ))}
                           <div style={{background:"#00e5ff08",border:"1px solid #00e5ff22",borderRadius:8,padding:"10px 12px",fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim}}>
-                            💡 Krävs bara om du har en egen Tradovate API-app. Annars används EdgeStats inbyggda app-credentials.
+                            💡 Only required if you have your own Tradovate API app. Otherwise FundVault's built-in credentials are used.
                           </div>
                         </div>
                       </details>
@@ -2274,25 +2278,25 @@ export default function TradingPlatform({ session }) {
                       )}
 
                       <div style={{background:"#f59e0b11",border:"1px solid #f59e0b33",borderRadius:8,padding:"10px 14px",fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim}}>
-                        🔒 Ditt lösenord skickas direkt till Tradovate och lagras <strong style={{color:C.text}}>aldrig</strong> i vår databas. Bara access token sparas.
+                        🔒 Your password is sent directly to Tradovate and is <strong style={{color:C.text}}>never</strong> stored in our database. Only the access token is saved.
                       </div>
                     </div>
 
                     <div style={{display:"flex",gap:10,marginTop:20}}>
                       <button onClick={()=>{setShowTvLogin(false);setTvLoginError("");}}
                         style={{flex:1,padding:"12px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>
-                        Avbryt
+                        Cancel
                       </button>
                       <button onClick={doTvLogin} disabled={tvLoginLoading||!tvLoginForm.username||!tvLoginForm.password}
                         style={{flex:2,padding:"12px",borderRadius:10,cursor:tvLoginLoading?"wait":"pointer",background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:!tvLoginForm.username||!tvLoginForm.password?.5:1}}>
-                        {tvLoginLoading ? "Ansluter…" : "Anslut konto →"}
+                        {tvLoginLoading ? "Connecting…" : "Connect account →"}
                       </button>
                     </div>
                   </>}
 
                   {tvLoginStep==="select_account" && <>
-                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,marginBottom:4}}>Välj konto</div>
-                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,marginBottom:20}}>Flera konton hittades — välj vilket du vill ansluta</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,marginBottom:4}}>Select Account</div>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,marginBottom:20}}>Multiple accounts found — choose which one to connect</div>
                     <div style={{display:"flex",flexDirection:"column",gap:8}}>
                       {tvLoginAccounts.map(acc=>(
                         <div key={acc.id} onClick={()=>selectTvAccount(acc)}
@@ -2304,12 +2308,12 @@ export default function TradingPlatform({ session }) {
                           </div>
                           <div style={{textAlign:"right"}}>
                             <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,color:C.green}}>${Math.round(acc.cashBalance||0).toLocaleString()}</div>
-                            <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:acc.active?C.green:C.muted,marginTop:2}}>{acc.active?"Aktiv":"Inaktiv"}</div>
+                            <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:acc.active?C.green:C.muted,marginTop:2}}>{acc.active?"Active":"Inactive"}</div>
                           </div>
                         </div>
                       ))}
                     </div>
-                    <button onClick={()=>setTvLoginStep("credentials")} style={{marginTop:16,background:"transparent",border:"none",cursor:"pointer",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Tillbaka</button>
+                    <button onClick={()=>setTvLoginStep("credentials")} style={{marginTop:16,background:"transparent",border:"none",cursor:"pointer",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
                   </>}
 
                 </div>
@@ -2374,10 +2378,10 @@ export default function TradingPlatform({ session }) {
               <div style={{background:"#00d08411",border:`1px solid ${C.green}44`,borderRadius:12,padding:"14px 20px",display:"flex",alignItems:"center",gap:14}}>
                 <div style={{width:10,height:10,borderRadius:"50%",background:C.green,boxShadow:`0 0 10px ${C.green}`,animation:"pulse 1.5s ease-in-out infinite"}}/>
                 <div style={{flex:1}}>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.green,letterSpacing:"0.08em",textTransform:"uppercase"}}>Aktiv grupp — kopierar till {activeGroup.accountIds.length} konton</div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.green,letterSpacing:"0.08em",textTransform:"uppercase"}}>Active group — copying to {activeGroup.accountIds.length} accounts</div>
                   <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:18,marginTop:2}}>{activeGroup.name}</div>
                 </div>
-                <button onClick={()=>{setActiveGroup(null);setCopierEnabled(false);}} style={{background:"#ff3d5a22",border:"1px solid #ff3d5a44",borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red}}>Stoppa</button>
+                <button onClick={()=>{setActiveGroup(null);setCopierEnabled(false);}} style={{background:"#ff3d5a22",border:"1px solid #ff3d5a44",borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red}}>Stop</button>
               </div>
             )}
 
@@ -2386,13 +2390,13 @@ export default function TradingPlatform({ session }) {
               {/* ── Konton ─────────────────────────────────────────────────── */}
               <div style={{display:"flex",flexDirection:"column",gap:12}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Mina konton ({copierAccounts.length})</div>
-                  <button onClick={()=>setShowAddAccount(true)} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent}}>+ Lägg till</button>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>My Accounts ({copierAccounts.length})</div>
+                  <button onClick={()=>setShowAddAccount(true)} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent}}>+ Add</button>
                 </div>
 
                 {copierAccounts.length===0 && (
                   <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:12,padding:32,textAlign:"center",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>
-                    Inga konton tillagda ännu<br/><span style={{fontSize:9,marginTop:6,display:"block"}}>Lägg till dina Tradovate-konton för att börja</span>
+                    No accounts added yet<br/><span style={{fontSize:9,marginTop:6,display:"block"}}>Add your Tradovate accounts to get started</span>
                   </div>
                 )}
 
@@ -2414,7 +2418,7 @@ export default function TradingPlatform({ session }) {
                           <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{acc.name}</div>
                           <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,marginTop:1}}>{FIRM_LABELS[acc.firm]} · ${parseInt(acc.accountSize).toLocaleString()} · ID: {acc.accountId||"—"}</div>
                         </div>
-                        <button onClick={()=>saveCopierAccounts(copierAccounts.map(a=>a.id===acc.id?{...a,isMaster:!a.isMaster}:a.isMaster?{...a,isMaster:false}:a))} style={{background:"transparent",border:"none",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:acc.isMaster?C.amber:C.muted,padding:"4px 6px"}} title="Sätt som master">★</button>
+                        <button onClick={()=>saveCopierAccounts(copierAccounts.map(a=>a.id===acc.id?{...a,isMaster:!a.isMaster}:a.isMaster?{...a,isMaster:false}:a))} style={{background:"transparent",border:"none",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:acc.isMaster?C.amber:C.muted,padding:"4px 6px"}} title="Set as master">★</button>
                         <button onClick={()=>saveCopierAccounts(copierAccounts.filter(a=>a.id!==acc.id))} style={{background:"transparent",border:"none",cursor:"pointer",color:C.red,fontSize:13,opacity:.5,padding:"4px 6px"}}>✕</button>
                       </div>
                       {warnings.length>0 && (
@@ -2435,13 +2439,13 @@ export default function TradingPlatform({ session }) {
               {/* ── Grupper ────────────────────────────────────────────────── */}
               <div style={{display:"flex",flexDirection:"column",gap:12}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Grupper ({copierGroups.length})</div>
-                  <button onClick={()=>{setNewGroupForm({name:"",accountIds:[]});setShowAddGroup(true);setEditGroupId(null);}} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent}}>+ Ny grupp</button>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Groups ({copierGroups.length})</div>
+                  <button onClick={()=>{setNewGroupForm({name:"",accountIds:[]});setShowAddGroup(true);setEditGroupId(null);}} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent}}>+ New Group</button>
                 </div>
 
                 {copierGroups.length===0 && (
                   <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:12,padding:32,textAlign:"center",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>
-                    Inga grupper skapade<br/><span style={{fontSize:9,marginTop:6,display:"block"}}>Skapa grupper för att välja vilka konton som kopierar varje trade</span>
+                    No groups created yet<br/><span style={{fontSize:9,marginTop:6,display:"block"}}>Create groups to select which accounts copy each trade</span>
                   </div>
                 )}
 
@@ -2456,7 +2460,7 @@ export default function TradingPlatform({ session }) {
                       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                         <div>
                           <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>{grp.name}</div>
-                          <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,marginTop:2}}>{grpAccounts.length} konton · {slaveAccs.length} slaves</div>
+                          <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,marginTop:2}}>{grpAccounts.length} accounts · {slaveAccs.length} slaves</div>
                         </div>
                         <div style={{display:"flex",gap:6}}>
                           <button onClick={()=>{setEditGroupId(grp.id);setNewGroupForm({name:grp.name,accountIds:[...grp.accountIds]});setShowAddGroup(true);}} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.textDim}}>✏ Redigera</button>
@@ -2476,13 +2480,13 @@ export default function TradingPlatform({ session }) {
                             </span>
                           );
                         })}
-                        {grpAccounts.length===0&&<span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>Inga konton tillagda</span>}
+                        {grpAccounts.length===0&&<span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>No accounts added</span>}
                       </div>
 
                       {/* Aktivera knapp */}
                       {anyDanger && (
                         <div style={{background:C.red+"11",border:`1px solid ${C.red}33`,borderRadius:6,padding:"5px 10px",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.red,marginBottom:8}}>
-                          ⚠ Ett eller flera konton är nära breach — överväg att ta bort dem från gruppen
+                          ⚠ One or more accounts are near breach — consider removing them from this group
                         </div>
                       )}
                       <button
@@ -2490,7 +2494,7 @@ export default function TradingPlatform({ session }) {
                         disabled={grpAccounts.length<2||!masterAcc}
                         style={{width:"100%",padding:"9px",borderRadius:8,cursor:grpAccounts.length<2||!masterAcc?"not-allowed":"pointer",background:isActive?"#00d08422":grpAccounts.length<2||!masterAcc?"#1e2d40":C.accentDim,border:`1px solid ${isActive?C.green:grpAccounts.length<2||!masterAcc?C.border:C.accent+"44"}`,color:isActive?C.green:grpAccounts.length<2||!masterAcc?C.muted:C.accent,fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700,letterSpacing:"0.05em",transition:"all 0.15s"}}
                       >
-                        {isActive?"⏹ Stoppa kopiering":grpAccounts.length<2?"Lägg till minst 2 konton":!masterAcc?"Sätt ett master-konto":"▶ Aktivera grupp"}
+                        {isActive?"⏹ Stop copying":grpAccounts.length<2?"Add at least 2 accounts":!masterAcc?"Set a master account":"▶ Activate group"}
                       </button>
                     </div>
                   );
@@ -2502,12 +2506,12 @@ export default function TradingPlatform({ session }) {
             {showAddAccount&&(
               <div style={{position:"fixed",inset:0,background:"#00000088",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center"}}>
                 <div style={{background:"#0d1420",border:"1px solid #1e2d40",borderRadius:16,padding:32,width:440,maxWidth:"95vw"}}>
-                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginBottom:20}}>Lägg till konto</div>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginBottom:20}}>Add Account</div>
                   <div style={{display:"flex",flexDirection:"column",gap:12}}>
                     {[
-                      {label:"Kontonamn",key:"name",placeholder:"t.ex. 50k Flex · MFFU #1"},
-                      {label:"Tradovate konto-ID",key:"accountId",placeholder:"t.ex. 12345678"},
-                      {label:"Kontobalans (startbalans)",key:"accountSize",placeholder:"50000"},
+                      {label:"Account Name",key:"name",placeholder:"e.g. 50k Flex · MFFU #1"},
+                      {label:"Tradovate Account ID",key:"accountId",placeholder:"e.g. 12345678"},
+                      {label:"Account Balance (start balance)",key:"accountSize",placeholder:"50000"},
                     ].map(f=>(
                       <div key={f.key}>
                         <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.07em"}}>{f.label}</div>
@@ -2527,19 +2531,19 @@ export default function TradingPlatform({ session }) {
                       </div>
                     </div>
                     <div style={{background:"#00e5ff08",border:"1px solid #00e5ff22",borderRadius:8,padding:"10px 14px",fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,lineHeight:1.5}}>
-                      💡 Tradovate konto-ID hittar du under <strong style={{color:C.text}}>Account → Account Info</strong> i Tradovate-appen.
-                      Kopieringen sker via Tradovates egna API med dina befintliga inloggade konton.
+                      💡 Find your Tradovate account ID under <strong style={{color:C.text}}>Account → Account Info</strong> in the Tradovate app.
+                      Copying happens via Tradovate's own API using your existing logged-in accounts.
                     </div>
                   </div>
                   <div style={{display:"flex",gap:10,marginTop:20}}>
-                    <button onClick={()=>setShowAddAccount(false)} style={{flex:1,padding:"11px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>Avbryt</button>
+                    <button onClick={()=>setShowAddAccount(false)} style={{flex:1,padding:"11px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>Cancel</button>
                     <button onClick={()=>{
                       if(!newAcctForm.name.trim()||!newAcctForm.accountId.trim()) return;
                       saveCopierAccounts([...copierAccounts,{...newAcctForm,id:Date.now().toString(),isMaster:copierAccounts.length===0}]);
                       setShowAddAccount(false);
                       setNewAcctForm({name:"",firm:"mffu",accountSize:"50000",username:"",password:"",accountId:""});
                     }} style={{flex:2,padding:"11px",borderRadius:10,cursor:"pointer",background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700}}>
-                      + Lägg till konto
+                      + Add Account
                     </button>
                   </div>
                 </div>
@@ -2550,17 +2554,17 @@ export default function TradingPlatform({ session }) {
             {showAddGroup&&(
               <div style={{position:"fixed",inset:0,background:"#00000088",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center"}}>
                 <div style={{background:"#0d1420",border:"1px solid #1e2d40",borderRadius:16,padding:32,width:460,maxWidth:"95vw"}}>
-                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginBottom:20}}>{editGroupId?"Redigera grupp":"Skapa grupp"}</div>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginBottom:20}}>{editGroupId?"Edit Group":"Create Group"}</div>
                   <div style={{display:"flex",flexDirection:"column",gap:14}}>
                     <div>
-                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.07em"}}>Gruppnamn</div>
-                      <input value={newGroupForm.name} onChange={e=>setNewGroupForm(x=>({...x,name:e.target.value}))} placeholder="t.ex. Alla konton · Bara Tradeify · Safe mode"
+                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.07em"}}>Group Name</div>
+                      <input value={newGroupForm.name} onChange={e=>setNewGroupForm(x=>({...x,name:e.target.value}))} placeholder="e.g. All accounts · Only Tradeify · Safe mode"
                         style={{width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"}}/>
                     </div>
                     <div>
-                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.07em"}}>Välj konton</div>
+                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.07em"}}>Select Accounts</div>
                       {copierAccounts.length===0
-                        ? <div style={{color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,padding:"12px 0"}}>Lägg till konton först</div>
+                        ? <div style={{color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,padding:"12px 0"}}>Add accounts first</div>
                         : <div style={{display:"flex",flexDirection:"column",gap:7}}>
                             {copierAccounts.map(acc=>{
                               const checked = newGroupForm.accountIds.includes(acc.id);
@@ -2586,11 +2590,11 @@ export default function TradingPlatform({ session }) {
                       }
                     </div>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,padding:"6px 0"}}>
-                      {newGroupForm.accountIds.length} konton valda · {newGroupForm.accountIds.length>=2?"Redo att spara":"Välj minst 2 konton"}
+                      {newGroupForm.accountIds.length} accounts selected · {newGroupForm.accountIds.length>=2?"Ready to save":"Select at least 2 accounts"}
                     </div>
                   </div>
                   <div style={{display:"flex",gap:10,marginTop:20}}>
-                    <button onClick={()=>{setShowAddGroup(false);setEditGroupId(null);}} style={{flex:1,padding:"11px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>Avbryt</button>
+                    <button onClick={()=>{setShowAddGroup(false);setEditGroupId(null);}} style={{flex:1,padding:"11px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>Cancel</button>
                     <button onClick={()=>{
                       if(!newGroupForm.name.trim()||newGroupForm.accountIds.length<2) return;
                       if(editGroupId) {
@@ -2601,7 +2605,7 @@ export default function TradingPlatform({ session }) {
                       setShowAddGroup(false); setEditGroupId(null);
                     }} disabled={!newGroupForm.name.trim()||newGroupForm.accountIds.length<2}
                       style={{flex:2,padding:"11px",borderRadius:10,cursor:!newGroupForm.name.trim()||newGroupForm.accountIds.length<2?"not-allowed":"pointer",background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:!newGroupForm.name.trim()||newGroupForm.accountIds.length<2?.5:1}}>
-                      {editGroupId?"Spara ändringar":"Skapa grupp"}
+                      {editGroupId?"Save Changes":"Create Group"}
                     </button>
                   </div>
                 </div>
@@ -2611,21 +2615,21 @@ export default function TradingPlatform({ session }) {
             {/* ── Live stats + log ──────────────────────────────────────── */}
             {copierEnabled && copierStatus && (
               <div style={{display:"flex",flexDirection:"column",gap:14}}>
-                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Live Statistik</div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Live Statistics</div>
                 <div style={{display:"flex",gap:12}}>
-                  <StatCard label="Kopierade trades" value={String(copierStatus.stats?.copiedTrades||0)} sub="Denna session" color={C.green}/>
-                  <StatCard label="Misslyckade"       value={String(copierStatus.stats?.failedTrades||0)} sub="Kontrollera log" color={copierStatus.stats?.failedTrades>0?C.red:C.muted}/>
+                  <StatCard label="Copied trades" value={String(copierStatus.stats?.copiedTrades||0)} sub="This session" color={C.green}/>
+                  <StatCard label="Failed"       value={String(copierStatus.stats?.failedTrades||0)} sub="Check log" color={copierStatus.stats?.failedTrades>0?C.red:C.muted}/>
                   <StatCard label="WebSocket"         value={copierStatus.connected?"✓ Live":"⚠ Reconnecting"} sub={copierStatus.wsState} color={copierStatus.connected?C.green:C.amber}/>
-                  <StatCard label="Slaves"            value={String(copierStatus.slaveCount||0)} sub="Aktiva konton" color={C.accent}/>
+                  <StatCard label="Slaves"            value={String(copierStatus.slaveCount||0)} sub="Active accounts" color={C.accent}/>
                 </div>
 
                 {/* Kopieringslogg */}
                 {copierLog.length>0 && (
                   <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
-                    <div style={{padding:"12px 18px",borderBottom:`1px solid ${C.border}`,fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Kopieringslogg</div>
+                    <div style={{padding:"12px 18px",borderBottom:`1px solid ${C.border}`,fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Copy Log</div>
                     <table style={{width:"100%",borderCollapse:"collapse"}}>
                       <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>
-                        {["Tid","Action","Qty","Pris","Lyckade","Misslyckade"].map(h=><th key={h} style={{padding:"8px 16px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",fontWeight:400}}>{h}</th>)}
+                        {["Time","Action","Qty","Price","Succeeded","Failed"].map(h=><th key={h} style={{padding:"8px 16px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",fontWeight:400}}>{h}</th>)}
                       </tr></thead>
                       <tbody>
                         {copierLog.map((entry,i)=>(
