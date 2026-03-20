@@ -1198,18 +1198,24 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
   const score=Object.values(checks).filter(Boolean).length;
   const total=globalRules.length;
 
-  // Map FundVault symbols → TradingView symbols
+  // Map FundVault symbols → TradingView free CFD proxies (CME futures require paid plan)
   const tvSymbol = (() => {
     const s = (trade.symbol||"NQ").toUpperCase();
     const map = {
-      "NQ":"CME_MINI:NQ1!","MNQ":"CME_MINI:MNQ1!",
-      "ES":"CME_MINI:ES1!","MES":"CME_MINI:MES1!",
-      "YM":"CBOT_MINI:YM1!","MYM":"CBOT_MINI:MYM1!",
-      "RTY":"CME_MINI:RTY1!","M2K":"CME_MINI:M2K1!",
-      "CL":"NYMEX:CL1!","GC":"COMEX:GC1!",
-      "SI":"COMEX:SI1!","6E":"CME:6E1!",
+      "NQ":"CAPITALCOM:US100",   // Nasdaq 100 — near-identical to NQ
+      "MNQ":"CAPITALCOM:US100",
+      "ES":"CAPITALCOM:US500",   // S&P 500 — near-identical to ES
+      "MES":"CAPITALCOM:US500",
+      "YM":"CAPITALCOM:US30",    // Dow Jones — near-identical to YM
+      "MYM":"CAPITALCOM:US30",
+      "RTY":"CAPITALCOM:US2000", // Russell 2000 — near-identical to RTY
+      "M2K":"CAPITALCOM:US2000",
+      "CL":"CAPITALCOM:OIL",     // Crude Oil
+      "GC":"CAPITALCOM:GOLD",    // Gold
+      "SI":"CAPITALCOM:SILVER",  // Silver
+      "6E":"FX:EURUSD",          // Euro/USD
     };
-    return map[s] || `CME_MINI:${s}1!`;
+    return map[s] || "CAPITALCOM:US100";
   })();
 
   // Build TradingView widget URL with trade date pre-set
