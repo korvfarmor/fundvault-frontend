@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
 import TradingPlatform from "./trading-platform";
 
-// ── Design tokens (same as trading platform) ──────────────────────────────────
+// ── Design tokens ─────────────────────────────────────────────────────────────
 const C = {
   bg:      "#080c14",
   surface: "#0d1420",
@@ -88,7 +88,6 @@ function AuthScreen() {
           <div style={{
             display: "inline-flex", alignItems: "center", gap: 12, marginBottom: 8,
           }}>
-            {/* FundVault SVG logo */}
             <svg width="42" height="42" viewBox="0 0 40 40" fill="none">
               <circle cx="20" cy="20" r="18.5" fill="#0d1420" stroke="#00e5ff" strokeWidth="2"/>
               <circle cx="20" cy="20" r="14.5" fill="#111827"/>
@@ -291,37 +290,15 @@ const linkStyle = {
   textDecoration: "underline",
 };
 
-// ── Shared input styles ───────────────────────────────────────────────────────
-const inputStyle = {
-  width: "100%", padding: "11px 14px",
-  background: "#080c14", border: "1px solid #1e2d40",
-  borderRadius: 8, color: "#c8d8e8",
-  fontFamily: "'DM Sans', sans-serif", fontSize: 14,
-  transition: "border-color 0.15s",
-};
-const labelStyle = {
-  display: "block", fontFamily: "'Space Mono', monospace",
-  fontSize: 10, color: "#6b859e", letterSpacing: "0.1em",
-  textTransform: "uppercase", marginBottom: 6,
-};
-const linkStyle = {
-  background: "none", border: "none", color: "#4a6080",
-  fontFamily: "'Space Mono', monospace", fontSize: 10,
-  cursor: "pointer", letterSpacing: "0.05em",
-  textDecoration: "underline",
-};
-
 // ── App root — handles auth state ─────────────────────────────────────────────
 export default function App() {
-  const [session, setSession] = useState(undefined); // undefined = loading
+  const [session, setSession] = useState(undefined);
 
   useEffect(() => {
-    // Get current session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
 
-    // Listen for login / logout events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
