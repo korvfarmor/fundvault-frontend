@@ -2738,7 +2738,7 @@ export default function TradingPlatform({ session }) {
       {selTrade  && <TradeModal trade={selTrade} onClose={()=>setSelTrade(null)} onSave={saveTrade} globalRules={rules}/>}
       {showImportCSV && <CSVImportModal onClose={()=>setShowImportCSV(false)} onImport={async (trades)=>{ for(const t of trades){ await saveTrade({...t,id:"csv-"+Date.now()+Math.random()}); } setShowImportCSV(false); }} C={C}/>}
       {showEdgeModal && <EdgeModal onClose={()=>{setShowEdgeModal(false);setEditingEdge(null);}} onSave={(e)=>{ if(editingEdge){ saveEdges(edges.map(x=>x.id===editingEdge.id?e:x)); }else{ saveEdges([...edges,{...e,id:Date.now().toString()}]); } setShowEdgeModal(false);setEditingEdge(null); }} existing={editingEdge} C={C}/>}
-      {showAddTrade && <AddTradeModal onClose={()=>setShowAddTrade(false)} onSave={async (t)=>{ await saveTrade({...t,id:"new-"+Date.now()}); setShowAddTrade(false); }} globalRules={rules} C={C} newsBlocker={newsBlocker} calendarEvents={events}/>}
+      {showAddTrade && <AddTradeModal onClose={()=>setShowAddTrade(false)} onSave={async (t)=>{ await saveTrade({...t,id:"new-"+Date.now()}); setShowAddTrade(false); }} globalRules={rules} C={C} newsBlocker={newsBlocker} calendarEvents={calendarEvents}/>}
       <FlattenWidget tvStatus={tvStatus}/>
       {showRules && <RuleManager rules={rules} onChange={setRules} onClose={()=>setShowRules(false)}/>}
 
