@@ -2867,68 +2867,86 @@ export default function TradingPlatform({ session }) {
         const STEPS = [
           {
             icon:"🏢", title:"Add your prop account",
-            body:"Start by telling FundVault which prop firm you're trading with and what account type. We'll track your drawdown, consistency rules and payout progress automatically.",
+            body:"Start in Prop Firm → click '+ Add Account' to set up your firm and account type.",
             action:"Go to Prop Firm", tab:"propfirm",
           },
           {
             icon:"📥", title:"Import your trades",
-            body:"Export a CSV from Tradovate (Account → Trade History → Export) and import it here. Or add trades manually with the + Add Trade button.",
+            body:"Export a CSV from Tradovate and use '⬆ Import CSV', or add trades manually.",
             action:"Go to Trades", tab:"trades",
           },
           {
             icon:"⚡", title:"Define your edge",
-            body:"Create your first Edge in the Edge Library — a named setup with entry rules. FundVault will automatically track its win rate and how often you follow the rules.",
+            body:"Create a named setup in Edge Library. FundVault auto-tracks its win rate and compliance.",
             action:"Go to Edge Library", tab:"edge",
           },
           {
-            icon:"🧠", title:"Set up your psychology",
-            body:"Log your mood and habits before each session. The Psychology Guard will tell you if you're clear to trade based on your mental state.",
+            icon:"🧠", title:"Set up psychology",
+            body:"Log mood and habits before each session. Psychology Guard tells you if you're clear to trade.",
             action:"Go to Psychology", tab:"psychology",
           },
           {
             icon:"🎉", title:"You're all set!",
-            body:"FundVault will now automatically generate alerts when you're near drawdown limits, ready for a payout, or showing signs of revenge trading. Check the 🔔 bell in the top right.",
-            action:"Start trading", tab:null,
+            body:"FundVault now auto-generates alerts for drawdown, payout readiness and revenge trading. Check the 🔔 bell.",
+            action:"Get started", tab:null,
           },
         ];
         const step = STEPS[onboardStep];
         const isLast = onboardStep === STEPS.length - 1;
-        const progress = ((onboardStep) / (STEPS.length - 1)) * 100;
+
         return (
-          <div style={{position:"fixed",inset:0,zIndex:3000,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:20,width:"100%",maxWidth:480,overflow:"hidden",animation:"slideIn 0.25s ease"}}>
-              {/* Progress bar */}
-              <div style={{height:3,background:C.border}}>
-                <div style={{height:"100%",width:`${progress}%`,background:`linear-gradient(90deg,${C.accent},${C.purple})`,transition:"width 0.4s ease"}}/>
-              </div>
-              <div style={{padding:"32px 36px"}}>
-                {/* Step counter */}
-                <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:20}}>
+          <div style={{
+            position:"fixed", bottom:32, right:28, zIndex:3000,
+            width:300, background:C.card,
+            border:`1px solid ${C.accent}55`,
+            borderRadius:16, overflow:"hidden",
+            boxShadow:`0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px ${C.accent}22`,
+            animation:"slideIn 0.25s ease",
+          }}>
+            {/* Progress bar */}
+            <div style={{height:3,background:C.border}}>
+              <div style={{height:"100%",width:`${(onboardStep/(STEPS.length-1))*100}%`,background:`linear-gradient(90deg,${C.accent},${C.purple})`,transition:"width 0.4s ease"}}/>
+            </div>
+
+            <div style={{padding:"18px 20px"}}>
+              {/* Step + close */}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>
                   Step {onboardStep+1} of {STEPS.length}
                 </div>
-                {/* Icon + title */}
-                <div style={{fontSize:48,marginBottom:16}}>{step.icon}</div>
-                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:24,marginBottom:12}}>{step.title}</div>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:C.textDim,lineHeight:1.7,marginBottom:32}}>{step.body}</div>
-                {/* Step dots */}
-                <div style={{display:"flex",gap:6,marginBottom:28,justifyContent:"center"}}>
-                  {STEPS.map((_,i)=><div key={i} style={{width:i===onboardStep?20:7,height:7,borderRadius:4,background:i===onboardStep?C.accent:i<onboardStep?C.accent+"44":C.border,transition:"all 0.3s"}}/>)}
-                </div>
-                {/* Buttons */}
-                <div style={{display:"flex",gap:10}}>
+                <button onClick={()=>{localStorage.setItem("fv_onboarded","1");setShowOnboarding(false);}}
+                  style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:16,lineHeight:1,padding:"0 2px"}}>✕</button>
+              </div>
+
+              {/* Icon + title */}
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                <span style={{fontSize:28}}>{step.icon}</span>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:16}}>{step.title}</div>
+              </div>
+
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,lineHeight:1.6,marginBottom:16}}>{step.body}</div>
+
+              {/* Step dots */}
+              <div style={{display:"flex",gap:5,marginBottom:14,justifyContent:"center"}}>
+                {STEPS.map((_,i)=><div key={i} style={{width:i===onboardStep?16:6,height:6,borderRadius:3,background:i===onboardStep?C.accent:i<onboardStep?C.accent+"55":C.border,transition:"all 0.3s"}}/>)}
+              </div>
+
+              {/* Buttons */}
+              <div style={{display:"flex",gap:8}}>
+                {!isLast && (
                   <button onClick={()=>{localStorage.setItem("fv_onboarded","1");setShowOnboarding(false);}}
-                    style={{flex:1,padding:"11px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>
-                    Skip guide
+                    style={{flex:1,padding:"8px",borderRadius:8,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:10}}>
+                    Skip
                   </button>
-                  <button onClick={()=>{
-                    if(step.tab){setTab(step.tab);}
-                    if(isLast){localStorage.setItem("fv_onboarded","1");setShowOnboarding(false);}
-                    else{setOnboardStep(s=>s+1);}
-                  }}
-                    style={{flex:2,padding:"11px",borderRadius:10,cursor:"pointer",background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>
-                    {isLast ? "🚀 Get started" : `${step.action} →`}
-                  </button>
-                </div>
+                )}
+                <button onClick={()=>{
+                  if(step.tab) setTab(step.tab);
+                  if(isLast){ localStorage.setItem("fv_onboarded","1"); setShowOnboarding(false); }
+                  else setOnboardStep(s=>s+1);
+                }}
+                  style={{flex:isLast?1:2,padding:"8px",borderRadius:8,cursor:"pointer",background:C.accentDim,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700,letterSpacing:"0.05em"}}>
+                  {isLast ? "🚀 Get started" : `${step.action} →`}
+                </button>
               </div>
             </div>
           </div>
