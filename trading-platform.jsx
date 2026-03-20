@@ -1217,15 +1217,40 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
   const isDark   = document.documentElement.style.background !== "rgb(240, 244, 248)";
   const tvTheme  = isDark ? "dark" : "light";
 
-  // Construct iframe src for TradingView chart
-  // We use the Advanced Chart widget with a 5min timeframe centered on trade date
-  const entryH = trade.entry ? parseInt(trade.entry.split(":")[0]) : 9;
-  const entryM = trade.entry ? parseInt(trade.entry.split(":")[1]||0) : 30;
-  const exitH  = trade.exit  ? parseInt(trade.exit.split(":")[0])  : entryH;
-  const exitM  = trade.exit  ? parseInt(trade.exit.split(":")[1]||0) : entryM + 15;
+  // Detect dark mode from C colors
+  const darkMode = C.bg === "#080c14";
 
-  // TradingView chart embed
-  const tvSrc = `https://www.tradingview.com/widgetbar-chart/?symbol=${encodeURIComponent(tvSymbol)}&interval=5&hide_side_toolbar=1&allow_symbol_change=0&save_image=0&theme=${tvTheme}&style=1&withdateranges=1&details=0&studies=[]`;
+  // TradingView widget via official embed
+  const tvContainerRef = useRef();
+  useEffect(() => {
+    if (chartTab !== "replay" || !tvContainerRef.current) return;
+    tvContainerRef.current.innerHTML = "";
+    const container = document.createElement("div");
+    container.id = "tv-widget-" + Date.now();
+    container.style.height = "100%";
+    container.style.width = "100%";
+    tvContainerRef.current.appendChild(container);
+    const script = document.createElement("script");
+    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol: tvSymbol,
+      interval: "5",
+      timezone: "America/New_York",
+      theme: darkMode ? "dark" : "light",
+      style: "1",
+      locale: "en",
+      allow_symbol_change: false,
+      calendar: false,
+      hide_side_toolbar: false,
+      withdateranges: true,
+      save_image: false,
+      container_id: container.id,
+    });
+    container.appendChild(script);
+    return () => { if (tvContainerRef.current) tvContainerRef.current.innerHTML = ""; };
+  }, [chartTab, tvSymbol, darkMode]);
 
   return (
     <div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
@@ -1268,18 +1293,11 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
 
             {/* TradingView chart */}
             {chartTab==="replay" && (
-              <div style={{flex:1,minHeight:380,borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`,position:"relative"}}>
-                <iframe
-                  ref={tvRef}
-                  src={tvSrc}
-                  style={{width:"100%",height:"100%",border:"none",minHeight:380}}
-                  allowTransparency={true}
-                  title="Trade Replay"
-                />
-                {/* Entry/Exit overlay info */}
-                <div style={{position:"absolute",top:8,left:8,display:"flex",gap:6,pointerEvents:"none"}}>
-                  {trade.entry && <span style={{background:`${C.green}cc`,color:"#000",borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>▲ Entry {trade.entry}</span>}
-                  {trade.exit  && <span style={{background:`${C.red}cc`,color:"#fff",borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>▼ Exit {trade.exit}</span>}
+              <div style={{flex:1,minHeight:380,borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`,position:"relative",background:C.surface}}>
+                <div ref={tvContainerRef} style={{width:"100%",height:"100%",minHeight:380}} className="tradingview-widget-container"/>
+                <div style={{position:"absolute",top:8,left:8,display:"flex",gap:6,pointerEvents:"none",zIndex:10}}>
+                  {trade.entry && <span style={{background:`${C.green}ee`,color:"#000",borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>▲ Entry {trade.entry}</span>}
+                  {trade.exit  && <span style={{background:`${C.red}ee`,color:"#fff",borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>▼ Exit {trade.exit}</span>}
                 </div>
               </div>
             )}
