@@ -2896,7 +2896,7 @@ export default function TradingPlatform({ session }) {
 
         return (
           <div style={{
-            position:"fixed", bottom:32, right:28, zIndex:3000,
+            position:"fixed", bottom:32, left:28, zIndex:3000,
             width:300, background:C.card,
             border:`1px solid ${C.accent}55`,
             borderRadius:16, overflow:"hidden",
