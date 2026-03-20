@@ -1246,14 +1246,14 @@ Respond ONLY with this JSON (no markdown, no preamble):
 
 // ── Add Trade Modal ───────────────────────────────────────────────────────────
 const INSTRUMENTS = [
-  {value:"NQ",  label:"NQ (Nasdaq-100)",   pts:{standard:20, micro:2}},
-  {value:"ES",  label:"ES (S&P 500)",      pts:{standard:50, micro:5}},
-  {value:"MNQ", label:"MNQ (Micro Nasdaq)",pts:{standard:2,  micro:2}},
-  {value:"MES", label:"MES (Micro S&P)",   pts:{standard:5,  micro:5}},
-  {value:"YM",  label:"YM (Dow Jones)",    pts:{standard:5,  micro:0.5}},
-  {value:"RTY", label:"RTY (Russell)",     pts:{standard:50, micro:5}},
+  {value:"NQ",  label:"NQ (Nasdaq-100)",   pts:{standard:20,  micro:2}},
+  {value:"ES",  label:"ES (S&P 500)",      pts:{standard:50,  micro:5}},
+  {value:"YM",  label:"YM (Dow Jones)",    pts:{standard:5,   micro:0.5}},
+  {value:"RTY", label:"RTY (Russell 2000)",pts:{standard:50,  micro:5}},
   {value:"CL",  label:"CL (Crude Oil)",    pts:{standard:1000,micro:100}},
   {value:"GC",  label:"GC (Gold)",         pts:{standard:100, micro:10}},
+  {value:"SI",  label:"SI (Silver)",       pts:{standard:50,  micro:1000}},
+  {value:"6E",  label:"6E (Euro FX)",      pts:{standard:125000,micro:12500}},
 ];
 const ADD_TAGS = ["Kill Zone","Displacement","FVG","OB","BOS","CHoCH","Liquidity Sweep","FOMO","Revenge","Late entry","Oversize","News trade"];
 
@@ -1350,10 +1350,10 @@ const AddTradeModal = ({onClose, onSave, globalRules, C}) => {
               <div>
                 <label style={labelStyle}>Contract Type <span style={{color:C.accent}}>${ptVal}/pt</span></label>
                 <div style={{display:"flex",gap:6}}>
-                  {["standard","micro"].map(ct=>(
-                    <button key={ct} onClick={()=>set("contractType",ct)}
-                      style={{padding:"10px 16px",borderRadius:8,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,background:form.contractType===ct?C.accentDim:C.surface,border:`1px solid ${form.contractType===ct?C.accent+"66":C.border}`,color:form.contractType===ct?C.accent:C.textDim,textTransform:"capitalize"}}>
-                      {ct.charAt(0).toUpperCase()+ct.slice(1)}
+                  {[{id:"standard",label:"Standard"},{id:"micro",label:"Micro"}].map(ct=>(
+                    <button key={ct.id} onClick={()=>set("contractType",ct.id)}
+                      style={{padding:"10px 16px",borderRadius:8,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,background:form.contractType===ct.id?C.accentDim:C.surface,border:`1px solid ${form.contractType===ct.id?C.accent+"66":C.border}`,color:form.contractType===ct.id?C.accent:C.textDim}}>
+                      {ct.label}
                     </button>
                   ))}
                 </div>
