@@ -2326,12 +2326,20 @@ export default function TradingPlatform({ session }) {
       {/* Nav */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",height:58,borderBottom:`1px solid ${C.border}`,background:C.surface,position:"sticky",top:0,zIndex:100}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="7" fill="url(#nav-fvg)"/>
-            <path d="M7 22 L13 10 L19 17 L25 10" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"/>
-            <defs><linearGradient id="nav-fvg" x1="0" y1="0" x2="32" y2="32"><stop stopColor="#00e5ff"/><stop offset="1" stopColor="#0070f3"/></linearGradient></defs>
+          <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
+            <circle cx="20" cy="20" r="18.5" fill="#0d1420" stroke="#00e5ff" strokeWidth="2"/>
+            <circle cx="20" cy="20" r="14.5" fill="#111827"/>
+            <rect x="18.2" y="1" width="3.6" height="5" rx="1.8" fill="#00e5ff"/>
+            <rect x="18.2" y="34" width="3.6" height="5" rx="1.8" fill="#00e5ff"/>
+            <rect x="1" y="18.2" width="5" height="3.6" rx="1.8" fill="#00e5ff"/>
+            <rect x="34" y="18.2" width="5" height="3.6" rx="1.8" fill="#00e5ff"/>
+            <text x="9.5" y="25" fontFamily="Arial Black,sans-serif" fontWeight="900" fontSize="15" fill="#00e5ff" letterSpacing="1.5">F</text>
+            <text x="21" y="25" fontFamily="Arial Black,sans-serif" fontWeight="900" fontSize="15" fill="#a78bfa" letterSpacing="1.5">V</text>
           </svg>
-          <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15,letterSpacing:"0.05em"}}>FUNDVAULT</span>
+          <div style={{display:"flex",flexDirection:"column",gap:0}}>
+            <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:14,letterSpacing:"0.07em",color:C.text,lineHeight:1.1}}>FUNDVAULT</span>
+            <span style={{fontFamily:"'Space Mono',monospace",fontSize:8,color:C.accent,letterSpacing:"0.12em"}}>PROP TRADING JOURNAL</span>
+          </div>
           <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.amber,background:"#f59e0b18",border:"1px solid #f59e0b44",borderRadius:4,padding:"2px 8px"}}>PROP FOCUS</span>
         </div>
         <div style={{display:"flex",gap:3}}>
