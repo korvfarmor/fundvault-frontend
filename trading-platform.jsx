@@ -2228,6 +2228,7 @@ export default function TradingPlatform({ session }) {
   const handleSignOut = () => supabase.auth.signOut();
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("fv_theme") !== "light");
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [mobileMore, setMobileMore] = useState(false);
   // Onboarding
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem("fv_onboarded"));
   const [onboardStep, setOnboardStep] = useState(0);
@@ -2842,24 +2843,41 @@ export default function TradingPlatform({ session }) {
   useEffect(() => { loadTrades(); }, [appMode, loadTrades]);
 
   return (
-    <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'DM Sans',sans-serif",display:"flex",flexDirection:"column"}}>
+    <div className="fv-root" style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'DM Sans',sans-serif",display:"flex",flexDirection:"column"}}>
       <style>{`
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes slideUp{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
+        * { box-sizing: border-box; }
         @media(max-width:768px){
+          /* Hide desktop nav tabs and right side clutter */
           .fv-nav-tabs{display:none!important}
-          .fv-nav-tabs.open{display:flex!important;flex-direction:column;position:fixed;top:58px;left:0;right:0;background:var(--fv-surface,#0d1420);border-bottom:1px solid #1e2d40;z-index:99;padding:12px;gap:4px}
-          .fv-nav-tabs.open button{text-align:left;padding:10px 14px!important;border-radius:8px!important}
-          .fv-menu-btn{display:flex!important}
-          .fv-content{padding:16px!important}
-          .fv-stat-cards{flex-wrap:wrap}
-          .fv-stat-cards>*{min-width:calc(50% - 6px)!important}
-          .fv-grid-2{grid-template-columns:1fr!important}
-          .fv-grid-3{grid-template-columns:1fr!important}
+          .fv-nav-right{display:none!important}
+          .fv-menu-btn{display:none!important}
+          /* Compact mobile navbar */
+          .fv-navbar{padding:0 14px!important;height:50px!important}
+          /* Content padding + bottom nav space */
+          .fv-content{padding:12px!important;padding-bottom:80px!important}
+          /* Stack grids to single column */
+          .fv-grid-2,.fv-grid-3{grid-template-columns:1fr!important}
+          /* Stat cards: 2 per row */
+          .fv-stat-cards{flex-wrap:wrap!important}
+          .fv-stat-cards>*{min-width:calc(50% - 6px)!important;flex:1 1 calc(50% - 6px)!important}
+          /* Hide non-essential columns in tables */
           .fv-hide-mobile{display:none!important}
+          /* Trade modal: stack columns */
+          .fv-trade-modal-grid{grid-template-columns:1fr!important}
+          /* Charts: shorter on mobile */
+          .recharts-responsive-container{min-height:140px!important}
+          /* Prevent horizontal overflow */
+          body{overflow-x:hidden!important}
+          .fv-root{overflow-x:hidden!important}
         }
-        @media(min-width:769px){.fv-menu-btn{display:none!important}}
+        @media(min-width:769px){
+          .fv-bottom-nav{display:none!important}
+          .fv-more-sheet{display:none!important}
+        }
       `}</style>
 
       {/* ── Onboarding Wizard ────────────────────────────────────────────────── */}
@@ -2997,7 +3015,7 @@ export default function TradingPlatform({ session }) {
       {showRules && <RuleManager rules={rules} onChange={setRules} onClose={()=>setShowRules(false)}/>}
 
       {/* Nav */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",height:58,borderBottom:`1px solid ${C.border}`,background:C.surface,position:"sticky",top:0,zIndex:100}}>
+      <div className="fv-navbar" style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",height:58,borderBottom:`1px solid ${C.border}`,background:C.surface,position:"sticky",top:0,zIndex:100}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
             <circle cx="20" cy="20" r="18.5" fill="#0d1420" stroke="#00e5ff" strokeWidth="2"/>
@@ -3018,7 +3036,7 @@ export default function TradingPlatform({ session }) {
         <div style={{display:"flex",gap:3}} className={`fv-nav-tabs${mobileMenu?" open":""}`}>
           {TABS.map(t=><button key={t} onClick={()=>{setTab(t);setMobileMenu(false);}} style={{background:tab===t?C.accentDim:"transparent",border:tab===t?`1px solid ${C.accent}44`:"1px solid transparent",color:tab===t?C.accent:C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.05em",textTransform:"uppercase",transition:"all 0.15s"}}>{t==="propfirm"?"prop firm":t==="edge"?"edge":t}</button>)}
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
+        <div className="fv-nav-right" style={{display:"flex",alignItems:"center",gap:12}}>
           <div style={{width:8,height:8,borderRadius:"50%",background:C.green,boxShadow:`0 0 8px ${C.green}`}}/>
           <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim}}>Tradovate · Live</span>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -3047,7 +3065,7 @@ export default function TradingPlatform({ session }) {
         </div>
       </div>
 
-      <div style={{flex:1,padding:"26px 28px",maxWidth:1300,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
+      <div className="fv-content" style={{flex:1,padding:"26px 28px",maxWidth:1300,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
 
         {/* ── DASHBOARD ───────────────────────────────────────────────────────── */}
         {tab==="dashboard"&&(
@@ -4404,6 +4422,82 @@ export default function TradingPlatform({ session }) {
         })()}
 
       </div>
+
+      {/* ── Mobile Bottom Navigation ─────────────────────────────────────────── */}
+      <div className="fv-bottom-nav" style={{position:"fixed",bottom:0,left:0,right:0,zIndex:200,background:C.surface,borderTop:`1px solid ${C.border}`,display:"flex",alignItems:"stretch",height:64,paddingBottom:"env(safe-area-inset-bottom)"}}>
+        {[
+          {id:"dashboard", icon:"📊", label:"Today"},
+          {id:"trades",    icon:"📋", label:"Trades"},
+          {id:"__add__",   icon:"➕", label:"Log",    accent:true},
+          {id:"guard",     icon:"🧠", label:"Guard"},
+          {id:"__more__",  icon:"•••", label:"More"},
+        ].map(item=>{
+          if(item.id==="__add__") return (
+            <button key="add" onClick={()=>setShowAddTrade(true)}
+              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,background:"transparent",border:"none",cursor:"pointer",position:"relative"}}>
+              <div style={{width:44,height:44,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.purple})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,boxShadow:`0 4px 16px ${C.accent}44`,marginTop:-20}}>➕</div>
+              <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.accent,letterSpacing:"0.05em",marginTop:2}}>Log</span>
+            </button>
+          );
+          if(item.id==="__more__") return (
+            <button key="more" onClick={()=>setMobileMore(m=>!m)}
+              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,background:"transparent",border:"none",cursor:"pointer"}}>
+              <div style={{fontSize:18,color:mobileMore?C.accent:C.muted,fontWeight:700,letterSpacing:2}}>•••</div>
+              <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:mobileMore?C.accent:C.muted,letterSpacing:"0.05em"}}>More</span>
+            </button>
+          );
+          const isActive = tab===item.id;
+          return (
+            <button key={item.id} onClick={()=>{setTab(item.id);setMobileMore(false);}}
+              style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,background:"transparent",border:"none",cursor:"pointer",borderTop:`2px solid ${isActive?C.accent:"transparent"}`,transition:"all 0.15s"}}>
+              <div style={{fontSize:18,filter:isActive?"none":"grayscale(1) opacity(0.5)"}}>{item.icon}</div>
+              <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:isActive?C.accent:C.muted,letterSpacing:"0.05em"}}>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── More Sheet ───────────────────────────────────────────────────────── */}
+      {mobileMore && (
+        <div className="fv-more-sheet" style={{position:"fixed",bottom:64,left:0,right:0,zIndex:199,background:C.card,borderTop:`1px solid ${C.border}`,borderRadius:"16px 16px 0 0",padding:"16px 16px 8px",animation:"slideUp 0.2s ease"}}>
+          <div style={{width:36,height:4,borderRadius:2,background:C.border,margin:"0 auto 16px"}}/>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+            {[
+              {id:"analytics", icon:"📈", label:"Analytics"},
+              {id:"calendar",  icon:"📅", label:"Calendar"},
+              {id:"edge",      icon:"⚡", label:"Edges"},
+              {id:"psychology",icon:"💭", label:"Psych"},
+              {id:"propfirm",  icon:"🏢", label:"Prop Firm"},
+              {id:"news",      icon:"📰", label:"News"},
+              {id:"accounts",  icon:"🔗", label:"Accounts"},
+              {id:"copier",    icon:"📡", label:"Copier"},
+            ].map(item=>(
+              <button key={item.id} onClick={()=>{setTab(item.id);setMobileMore(false);}}
+                style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,padding:"12px 8px",borderRadius:10,background:tab===item.id?C.accentDim:C.surface,border:`1px solid ${tab===item.id?C.accent+"44":C.border}`,cursor:"pointer"}}>
+                <div style={{fontSize:22}}>{item.icon}</div>
+                <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:tab===item.id?C.accent:C.muted,letterSpacing:"0.04em",textAlign:"center"}}>{item.label}</span>
+              </button>
+            ))}
+          </div>
+          {/* Settings row */}
+          <div style={{display:"flex",gap:8,marginTop:10,paddingTop:10,borderTop:`1px solid ${C.border}`}}>
+            <button onClick={toggleMode} style={{flex:1,padding:"10px",borderRadius:8,background:isDemo?"#a78bfa22":"#00e5ff11",border:`1px solid ${isDemo?"#a78bfa44":"#00e5ff22"}`,color:isDemo?"#a78bfa":"#00e5ff",fontFamily:"'Space Mono',monospace",fontSize:10,cursor:"pointer",fontWeight:700}}>
+              {isDemo?"🎭 DEMO":"⚡ LIVE"}
+            </button>
+            <button onClick={()=>{setShowAlerts(s=>!s);setMobileMore(false);}} style={{flex:1,padding:"10px",borderRadius:8,background:unreadCount>0?`${C.red}18`:C.surface,border:`1px solid ${unreadCount>0?C.red+"44":C.border}`,color:unreadCount>0?C.red:C.muted,fontFamily:"'Space Mono',monospace",fontSize:10,cursor:"pointer",position:"relative"}}>
+              🔔 Alerts{unreadCount>0?` (${unreadCount})`:""}
+            </button>
+            <button onClick={toggleTheme} style={{padding:"10px 14px",borderRadius:8,background:C.surface,border:`1px solid ${C.border}`,color:C.muted,fontSize:16,cursor:"pointer"}}>
+              {darkMode?"☀️":"🌙"}
+            </button>
+            <button onClick={handleSignOut} style={{flex:1,padding:"10px",borderRadius:8,background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:10,cursor:"pointer"}}>
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
+      {mobileMore && <div onClick={()=>setMobileMore(false)} style={{position:"fixed",inset:0,zIndex:198}} className="fv-more-sheet"/>}
+
     </div>
   );
 }
