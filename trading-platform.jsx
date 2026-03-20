@@ -2613,68 +2613,6 @@ export default function TradingPlatform({ session }) {
       });
     }
   }, [trades, propAccounts, mood, hChecks]);
-    setLoadingTrades(true);
-    // Demo-läge: använd INITIAL_TRADES direkt
-    if (localStorage.getItem("edgestat_mode") === "demo") {
-      const today = new Date().toISOString().slice(0,10);
-      const dates = Array.from({length:20},(_,i)=>{
-        const d = new Date(); d.setDate(d.getDate()-i*1.4|0);
-        // Skip weekends
-        while(d.getDay()===0||d.getDay()===6) d.setDate(d.getDate()-1);
-        return d.toISOString().slice(0,10);
-      });
-      const demoTrades = [
-        {id:1, symbol:"NQ",  side:"Long",  entry:"09:32",exit:"09:47",pnl:820,  rr:2.1,status:"win", tags:["Kill Zone","Displacement","mffu"],   rating:5,checks:{},review:"Perfect execution on AM kill zone. FVG respected.",screenshot:null,holdMin:15,trade_date:dates[0]},
-        {id:2, symbol:"ES",  side:"Short", entry:"10:15",exit:"10:28",pnl:-180, rr:-0.9,status:"loss",tags:["FOMO","tradeify"],                   rating:2,checks:{},review:"Chased the move. No confirmation.",screenshot:null,holdMin:13,trade_date:dates[0]},
-        {id:3, symbol:"NQ",  side:"Long",  entry:"11:02",exit:"11:19",pnl:1250, rr:3.2,status:"win", tags:["Kill Zone","FVG","mffu"],             rating:5,checks:{},review:"",screenshot:null,holdMin:17,trade_date:dates[1]},
-        {id:4, symbol:"NQ",  side:"Short", entry:"13:45",exit:"14:01",pnl:610,  rr:1.5,status:"win", tags:["OB","Displacement","lucid"],          rating:4,checks:{},review:"",screenshot:null,holdMin:16,trade_date:dates[1]},
-        {id:5, symbol:"ES",  side:"Long",  entry:"14:30",exit:"14:43",pnl:-90,  rr:-0.4,status:"loss",tags:["Revenge","tradeify"],               rating:1,checks:{},review:"",screenshot:null,holdMin:13,trade_date:dates[2]},
-        {id:6, symbol:"NQ",  side:"Long",  entry:"09:15",exit:"09:38",pnl:1640, rr:4.1,status:"win", tags:["Kill Zone","Displacement","mffu"],   rating:5,checks:{},review:"",screenshot:null,holdMin:23,trade_date:dates[2]},
-        {id:7, symbol:"NQ",  side:"Short", entry:"15:45",exit:"15:58",pnl:-320, rr:-1.6,status:"loss",tags:["FOMO","Late entry","lucid"],        rating:1,checks:{},review:"",screenshot:null,holdMin:13,trade_date:dates[3]},
-        {id:8, symbol:"ES",  side:"Long",  entry:"09:48",exit:"10:05",pnl:1080, rr:2.7,status:"win", tags:["Kill Zone","FVG","tradeify"],        rating:4,checks:{},review:"",screenshot:null,holdMin:17,trade_date:dates[3]},
-        {id:9, symbol:"NQ",  side:"Long",  entry:"10:30",exit:"10:44",pnl:760,  rr:1.9,status:"win", tags:["OB","mffu"],                        rating:4,checks:{},review:"",screenshot:null,holdMin:14,trade_date:dates[4]},
-        {id:10,symbol:"ES",  side:"Short", entry:"13:00",exit:"13:12",pnl:-150, rr:-0.7,status:"loss",tags:["Revenge","Late entry","lucid"],     rating:2,checks:{},review:"",screenshot:null,holdMin:12,trade_date:dates[4]},
-        {id:11,symbol:"MNQ", side:"Long",  entry:"09:05",exit:"09:22",pnl:380,  rr:2.4,status:"win", tags:["Kill Zone","BOS","tradeify"],       rating:4,checks:{},review:"",screenshot:null,holdMin:17,trade_date:dates[5]},
-        {id:12,symbol:"NQ",  side:"Long",  entry:"10:45",exit:"11:02",pnl:920,  rr:2.8,status:"win", tags:["FVG","Displacement","mffu"],        rating:5,checks:{},review:"",screenshot:null,holdMin:17,trade_date:dates[5]},
-        {id:13,symbol:"ES",  side:"Short", entry:"14:15",exit:"14:29",pnl:-210, rr:-0.8,status:"loss",tags:["FOMO","lucid"],                    rating:2,checks:{},review:"",screenshot:null,holdMin:14,trade_date:dates[6]},
-        {id:14,symbol:"NQ",  side:"Long",  entry:"09:35",exit:"09:58",pnl:1420, rr:3.6,status:"win", tags:["Kill Zone","OB","mffu"],            rating:5,checks:{},review:"",screenshot:null,holdMin:23,trade_date:dates[6]},
-        {id:15,symbol:"NQ",  side:"Short", entry:"11:30",exit:"11:44",pnl:540,  rr:1.7,status:"win", tags:["CHoCH","Displacement","tradeify"],  rating:4,checks:{},review:"",screenshot:null,holdMin:14,trade_date:dates[7]},
-        {id:16,symbol:"ES",  side:"Long",  entry:"15:00",exit:"15:08",pnl:-80,  rr:-0.3,status:"loss",tags:["Late entry","lucid"],             rating:2,checks:{},review:"",screenshot:null,holdMin:8, trade_date:dates[7]},
-        {id:17,symbol:"NQ",  side:"Long",  entry:"09:20",exit:"09:41",pnl:1820, rr:4.4,status:"win", tags:["Kill Zone","Liquidity Sweep","mffu"],rating:5,checks:{},review:"",screenshot:null,holdMin:21,trade_date:dates[8]},
-        {id:18,symbol:"MNQ", side:"Short", entry:"13:20",exit:"13:35",pnl:290,  rr:1.4,status:"win", tags:["FVG","tradeify"],                  rating:3,checks:{},review:"",screenshot:null,holdMin:15,trade_date:dates[8]},
-        {id:19,symbol:"NQ",  side:"Long",  entry:"10:05",exit:"10:19",pnl:680,  rr:2.1,status:"win", tags:["OB","Kill Zone","lucid"],           rating:4,checks:{},review:"",screenshot:null,holdMin:14,trade_date:dates[9]},
-        {id:20,symbol:"ES",  side:"Short", entry:"14:50",exit:"15:03",pnl:-130, rr:-0.5,status:"loss",tags:["FOMO","mffu"],                    rating:2,checks:{},review:"",screenshot:null,holdMin:13,trade_date:dates[9]},
-      ];
-      setTrades(demoTrades);
-      setLoadingTrades(false);
-      return;
-    }
-    try {
-      const data = await tradesApi.list();
-      setTrades(data.map(t => ({
-        id:         t.id,
-        symbol:     t.symbol,
-        side:       t.side,
-        entry:      t.entry_time,
-        exit:       t.exit_time,
-        pnl:        t.pnl,
-        rr:         t.rr,
-        holdMin:    t.hold_min,
-        status:     t.pnl >= 0 ? "win" : "loss",
-        tags:       t.tags || [],
-        rating:     t.rating || 0,
-        review:     t.review || "",
-        screenshot: t.screenshot || null,
-        checks:     t.rule_checks || {},
-        trade_date: t.trade_date,
-      })));
-    } catch (err) {
-      console.error("Failed to load trades:", err);
-      setTrades([]); // Visa tom lista istället för mock-data
-    }
-    setLoadingTrades(false);
-  }, []);
-
   // ── Load rules, habits, check-in, tradovate status on mount ───────────────
   useEffect(() => {
     loadTrades();
@@ -3158,7 +3096,7 @@ export default function TradingPlatform({ session }) {
                     <td style={{padding:"11px 18px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:t.pnl>=0?C.green:C.red}}>{t.pnl>=0?"+":""}${t.pnl}</td>
                   </tr>
                 ))}</tbody>
-              </table>}
+              </table>
             </div>
           </div>
         )}
