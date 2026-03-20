@@ -1375,6 +1375,138 @@ Respond ONLY with this JSON (no markdown, no preamble):
   );
 };
 
+// ── Prop Firm Wizard Modal ────────────────────────────────────────────────────
+const PropFirmWizardModal = ({
+  C, wizardStep, setWizardStep,
+  wizardFirmId, setWizardFirmId,
+  wizardTypeId, setWizardTypeId,
+  wizardBalance, setWizardBalance,
+  wizardNickname, setWizardNickname,
+  editingPropAcc, addPropAccount,
+  onClose,
+}) => {
+  const wizFirm = DEFAULT_PROP_FIRMS.find(f=>f.id===wizardFirmId);
+  const wizType = wizFirm?.accountTypes.find(t=>t.id===wizardTypeId);
+  const inputS  = {width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"11px 14px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"};
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",backdropFilter:"blur(4px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:560,overflow:"hidden"}}>
+        {/* Header */}
+        <div style={{padding:"18px 24px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>
+              Step {wizardStep} of 3 — {wizardStep===1?"Choose Firm":wizardStep===2?"Account Type":"Start Balance"}
+            </div>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginTop:2}}>
+              {editingPropAcc ? "Edit Account" : "Add Prop Account"}
+            </div>
+          </div>
+          <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22}}>✕</button>
+        </div>
+
+        {/* Step indicator */}
+        <div style={{display:"flex",padding:"12px 24px 0",gap:6}}>
+          {[1,2,3].map(s=>(
+            <div key={s} style={{flex:1,height:3,borderRadius:2,background:s<=wizardStep?C.accent:C.border,transition:"background 0.2s"}}/>
+          ))}
+        </div>
+
+        <div style={{padding:24}}>
+          {/* Step 1 — Choose firm */}
+          {wizardStep===1 && (
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:4}}>Which prop firm are you trading with?</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                {DEFAULT_PROP_FIRMS.map(f=>(
+                  <button key={f.id} onClick={()=>setWizardFirmId(f.id)}
+                    style={{padding:"14px 16px",borderRadius:10,cursor:"pointer",textAlign:"left",background:wizardFirmId===f.id?`${f.color}18`:C.surface,border:`2px solid ${wizardFirmId===f.id?f.color:C.border}`,transition:"all 0.15s",position:"relative",overflow:"hidden"}}>
+                    {wizardFirmId===f.id&&<div style={{position:"absolute",top:0,left:0,right:0,height:2,background:f.color}}/>}
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:wizardFirmId===f.id?f.color:C.text}}>{f.name}</div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:3}}>{f.accountTypes.length} account type{f.accountTypes.length>1?"s":""}</div>
+                  </button>
+                ))}
+              </div>
+              <button onClick={()=>wizardFirmId&&setWizardStep(2)} disabled={!wizardFirmId}
+                style={{width:"100%",padding:"12px",borderRadius:10,cursor:wizardFirmId?"pointer":"not-allowed",background:wizardFirmId?C.accentDim:C.surface,border:`1px solid ${wizardFirmId?C.accent+"55":C.border}`,color:wizardFirmId?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:wizardFirmId?1:0.5}}>
+                Next →
+              </button>
+            </div>
+          )}
+
+          {/* Step 2 — Account type */}
+          {wizardStep===2 && wizFirm && (
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:4}}>Which account type are you on at <strong style={{color:wizFirm.color}}>{wizFirm.name}</strong>?</div>
+              <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:360,overflowY:"auto"}}>
+                {wizFirm.accountTypes.map(t=>{
+                  const cs = t.rules.find(r=>r.type==="consist");
+                  const dd = t.rules.find(r=>r.type==="drawdown");
+                  const isActive = wizardTypeId===t.id;
+                  return (
+                    <button key={t.id} onClick={()=>setWizardTypeId(t.id)}
+                      style={{padding:"14px 16px",borderRadius:10,cursor:"pointer",textAlign:"left",background:isActive?`${wizFirm.color}15`:C.surface,border:`2px solid ${isActive?wizFirm.color:C.border}`,transition:"all 0.15s"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                        <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:isActive?wizFirm.color:C.text}}>{t.label}</span>
+                        <span style={{background:isActive?`${wizFirm.color}22`:C.surface,color:isActive?wizFirm.color:C.muted,border:`1px solid ${isActive?wizFirm.color+"44":C.border}`,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:9}}>{t.badge}</span>
+                      </div>
+                      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:8}}>{t.description}</div>
+                      <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
+                        {[["Split",`${t.payoutSplit}%`],["Size",`$${(t.accountSize/1000).toFixed(0)}K`],["DD",dd?`$${dd.value.toLocaleString()}`:"—"],["Consistency",cs&&cs.value<900?`${cs.value}% max`:"None ✓"]].map(([l,v])=>(
+                          <div key={l} style={{fontFamily:"'Space Mono',monospace",fontSize:10}}>
+                            <span style={{color:C.muted}}>{l}: </span><span style={{color:C.text,fontWeight:700}}>{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>{setWizardStep(1);setWizardTypeId(null);}} style={{flex:1,padding:"12px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
+                <button onClick={()=>wizardTypeId&&setWizardStep(3)} disabled={!wizardTypeId}
+                  style={{flex:2,padding:"12px",borderRadius:10,cursor:wizardTypeId?"pointer":"not-allowed",background:wizardTypeId?C.accentDim:C.surface,border:`1px solid ${wizardTypeId?C.accent+"55":C.border}`,color:wizardTypeId?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:wizardTypeId?1:0.5}}>
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3 — Balance + nickname */}
+          {wizardStep===3 && wizFirm && wizType && (
+            <div style={{display:"flex",flexDirection:"column",gap:16}}>
+              <div style={{background:`${wizFirm.color}10`,border:`1px solid ${wizFirm.color}33`,borderRadius:10,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:wizFirm.color}}>{wizFirm.name}</div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:2}}>{wizType.label} · {wizType.payoutSplit}% split</div>
+                </div>
+                <button onClick={()=>setWizardStep(2)} style={{background:"transparent",border:"none",cursor:"pointer",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:10}}>✏ Change</button>
+              </div>
+              <div>
+                <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6,display:"block"}}>Starting Account Balance</label>
+                <input type="number" value={wizardBalance} onChange={e=>setWizardBalance(e.target.value)}
+                  placeholder={`Default: $${wizType.accountSize.toLocaleString()}`} style={inputS}/>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,marginTop:5}}>Your balance when you started tracking — usually the funded account size.</div>
+              </div>
+              <div>
+                <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6,display:"block"}}>Nickname (optional)</label>
+                <input type="text" value={wizardNickname} onChange={e=>setWizardNickname(e.target.value)}
+                  placeholder={`e.g. "My MFFU 50K"`} style={inputS}/>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setWizardStep(2)} style={{flex:1,padding:"12px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
+                <button onClick={addPropAccount}
+                  style={{flex:2,padding:"12px",borderRadius:10,cursor:"pointer",background:C.accentDim,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
+                  {editingPropAcc ? "Save Changes" : "✓ Add Account"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Add Trade Modal ───────────────────────────────────────────────────────────
 const INSTRUMENTS = [
   {value:"NQ",  label:"NQ (Nasdaq-100)",   pts:{standard:20,  micro:2}},
@@ -2550,149 +2682,22 @@ export default function TradingPlatform({ session }) {
         {tab==="propfirm"&&(()=>{
 
           // ── Wizard modal ─────────────────────────────────────────────────────
-          const WizardModal = () => {
-            const wizFirm = DEFAULT_PROP_FIRMS.find(f=>f.id===wizardFirmId);
-            const wizType = wizFirm?.accountTypes.find(t=>t.id===wizardTypeId);
-            const inputS  = {width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"11px 14px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"};
-            return (
-              <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",backdropFilter:"blur(4px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-                <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:560,overflow:"hidden"}}>
-                  {/* Header */}
-                  <div style={{padding:"18px 24px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div>
-                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>
-                        Step {wizardStep} of 3 — {wizardStep===1?"Choose Firm":wizardStep===2?"Account Type":"Start Balance"}
-                      </div>
-                      <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginTop:2}}>
-                        {editingPropAcc ? "Edit Account" : "Add Prop Account"}
-                      </div>
-                    </div>
-                    <button onClick={()=>{setShowPropWizard(false);setWizardStep(1);setWizardFirmId(null);setWizardTypeId(null);setWizardBalance("");setWizardNickname("");setEditingPropAcc(null);}}
-                      style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22}}>✕</button>
-                  </div>
 
-                  {/* Step indicator */}
-                  <div style={{display:"flex",padding:"12px 24px 0",gap:6}}>
-                    {[1,2,3].map(s=>(
-                      <div key={s} style={{flex:1,height:3,borderRadius:2,background:s<=wizardStep?C.accent:C.border,transition:"background 0.2s"}}/>
-                    ))}
-                  </div>
-
-                  <div style={{padding:24}}>
-                    {/* Step 1 — Choose firm */}
-                    {wizardStep===1 && (
-                      <div style={{display:"flex",flexDirection:"column",gap:14}}>
-                        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:4}}>Which prop firm are you trading with?</div>
-                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                          {DEFAULT_PROP_FIRMS.map(f=>(
-                            <button key={f.id} onClick={()=>setWizardFirmId(f.id)}
-                              style={{padding:"14px 16px",borderRadius:10,cursor:"pointer",textAlign:"left",background:wizardFirmId===f.id?`${f.color}18`:C.surface,border:`2px solid ${wizardFirmId===f.id?f.color:C.border}`,transition:"all 0.15s",position:"relative",overflow:"hidden"}}>
-                              {wizardFirmId===f.id&&<div style={{position:"absolute",top:0,left:0,right:0,height:2,background:f.color}}/>}
-                              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:wizardFirmId===f.id?f.color:C.text}}>{f.name}</div>
-                              <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:3}}>{f.accountTypes.length} account type{f.accountTypes.length>1?"s":""}</div>
-                            </button>
-                          ))}
-                        </div>
-                        <button onClick={()=>wizardFirmId&&setWizardStep(2)} disabled={!wizardFirmId}
-                          style={{width:"100%",padding:"12px",borderRadius:10,cursor:wizardFirmId?"pointer":"not-allowed",background:wizardFirmId?C.accentDim:C.surface,border:`1px solid ${wizardFirmId?C.accent+"55":C.border}`,color:wizardFirmId?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:wizardFirmId?1:0.5}}>
-                          Next →
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Step 2 — Account type */}
-                    {wizardStep===2 && wizFirm && (
-                      <div style={{display:"flex",flexDirection:"column",gap:14}}>
-                        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:4}}>Which account type are you on at <strong style={{color:wizFirm.color}}>{wizFirm.name}</strong>?</div>
-                        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                          {wizFirm.accountTypes.map(t=>{
-                            const cs = t.rules.find(r=>r.type==="consist");
-                            const dd = t.rules.find(r=>r.type==="drawdown");
-                            const isActive = wizardTypeId===t.id;
-                            return (
-                              <button key={t.id} onClick={()=>setWizardTypeId(t.id)}
-                                style={{padding:"14px 16px",borderRadius:10,cursor:"pointer",textAlign:"left",background:isActive?`${wizFirm.color}15`:C.surface,border:`2px solid ${isActive?wizFirm.color:C.border}`,transition:"all 0.15s"}}>
-                                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                                  <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:isActive?wizFirm.color:C.text}}>{t.label}</span>
-                                  <span style={{background:isActive?`${wizFirm.color}22`:C.surface,color:isActive?wizFirm.color:C.muted,border:`1px solid ${isActive?wizFirm.color+"44":C.border}`,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:9}}>{t.badge}</span>
-                                </div>
-                                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:8}}>{t.description}</div>
-                                <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
-                                  {[
-                                    ["Split", `${t.payoutSplit}%`],
-                                    ["Size",  `$${(t.accountSize/1000).toFixed(0)}K`],
-                                    ["DD",    dd?`$${dd.value.toLocaleString()}`:"—"],
-                                    ["Consistency", cs&&cs.value<900?`${cs.value}% max`:"None ✓"],
-                                  ].map(([l,v])=>(
-                                    <div key={l} style={{fontFamily:"'Space Mono',monospace",fontSize:10}}>
-                                      <span style={{color:C.muted}}>{l}: </span>
-                                      <span style={{color:C.text,fontWeight:700}}>{v}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <div style={{display:"flex",gap:8}}>
-                          <button onClick={()=>{setWizardStep(1);setWizardTypeId(null);}} style={{flex:1,padding:"12px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
-                          <button onClick={()=>wizardTypeId&&setWizardStep(3)} disabled={!wizardTypeId}
-                            style={{flex:2,padding:"12px",borderRadius:10,cursor:wizardTypeId?"pointer":"not-allowed",background:wizardTypeId?C.accentDim:C.surface,border:`1px solid ${wizardTypeId?C.accent+"55":C.border}`,color:wizardTypeId?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:wizardTypeId?1:0.5}}>
-                            Next →
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Step 3 — Start balance + nickname */}
-                    {wizardStep===3 && wizFirm && wizType && (
-                      <div style={{display:"flex",flexDirection:"column",gap:16}}>
-                        <div style={{background:`${wizFirm.color}10`,border:`1px solid ${wizFirm.color}33`,borderRadius:10,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                          <div>
-                            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:wizFirm.color}}>{wizFirm.name}</div>
-                            <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:2}}>{wizType.label} · {wizType.payoutSplit}% split</div>
-                          </div>
-                          <button onClick={()=>setWizardStep(2)} style={{background:"transparent",border:"none",cursor:"pointer",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:10}}>✏ Change</button>
-                        </div>
-
-                        <div>
-                          <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6,display:"block"}}>
-                            Starting Account Balance
-                          </label>
-                          <input type="number" value={wizardBalance} onChange={e=>setWizardBalance(e.target.value)}
-                            placeholder={`Default: $${wizType.accountSize.toLocaleString()}`} style={inputS}/>
-                          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,marginTop:5}}>
-                            This is your account balance when you started tracking — usually the funded account size.
-                          </div>
-                        </div>
-
-                        <div>
-                          <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6,display:"block"}}>
-                            Nickname (optional)
-                          </label>
-                          <input type="text" value={wizardNickname} onChange={e=>setWizardNickname(e.target.value)}
-                            placeholder={`e.g. "My MFFU 50K" or "Tradeify account 2"`} style={inputS}/>
-                        </div>
-
-                        <div style={{display:"flex",gap:8}}>
-                          <button onClick={()=>setWizardStep(2)} style={{flex:1,padding:"12px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
-                          <button onClick={addPropAccount}
-                            style={{flex:2,padding:"12px",borderRadius:10,cursor:"pointer",background:C.accentDim,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
-                            {editingPropAcc ? "Save Changes" : "✓ Add Account"}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          };
 
           // ── Empty state ───────────────────────────────────────────────────────
           if (propAccounts.length === 0) return (
             <div style={{display:"flex",flexDirection:"column",gap:22}}>
-              {showPropWizard && <WizardModal/>}
+              {showPropWizard && <PropFirmWizardModal
+            C={C}
+            wizardStep={wizardStep} setWizardStep={setWizardStep}
+            wizardFirmId={wizardFirmId} setWizardFirmId={setWizardFirmId}
+            wizardTypeId={wizardTypeId} setWizardTypeId={setWizardTypeId}
+            wizardBalance={wizardBalance} setWizardBalance={setWizardBalance}
+            wizardNickname={wizardNickname} setWizardNickname={setWizardNickname}
+            editingPropAcc={editingPropAcc}
+            addPropAccount={addPropAccount}
+            onClose={()=>{setShowPropWizard(false);setWizardStep(1);setWizardFirmId(null);setWizardTypeId(null);setWizardBalance("");setWizardNickname("");setEditingPropAcc(null);}}
+          />}
               <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.amber,letterSpacing:"0.1em",textTransform:"uppercase"}}>Live Tracking</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Prop Firm Tracker</div></div>
               <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:16,padding:"60px 40px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
                 <div style={{fontSize:48}}>🏢</div>
@@ -2740,7 +2745,17 @@ export default function TradingPlatform({ session }) {
           const ptRule = curType?.rules?.find(r=>r.type==="target");
 
           return <div style={{display:"flex",flexDirection:"column",gap:22}}>
-            {showPropWizard && <WizardModal/>}
+            {showPropWizard && <PropFirmWizardModal
+            C={C}
+            wizardStep={wizardStep} setWizardStep={setWizardStep}
+            wizardFirmId={wizardFirmId} setWizardFirmId={setWizardFirmId}
+            wizardTypeId={wizardTypeId} setWizardTypeId={setWizardTypeId}
+            wizardBalance={wizardBalance} setWizardBalance={setWizardBalance}
+            wizardNickname={wizardNickname} setWizardNickname={setWizardNickname}
+            editingPropAcc={editingPropAcc}
+            addPropAccount={addPropAccount}
+            onClose={()=>{setShowPropWizard(false);setWizardStep(1);setWizardFirmId(null);setWizardTypeId(null);setWizardBalance("");setWizardNickname("");setEditingPropAcc(null);}}
+          />}
 
             {/* Header */}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
