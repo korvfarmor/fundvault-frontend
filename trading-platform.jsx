@@ -1001,7 +1001,9 @@ function NewsTab({ econFilter, setEconFilter, C, newsBlocker, saveNewsBlocker, o
               <div style={{flex:1}}>
                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>News Blocking Guard</div>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginTop:2}}>
-                  {newsBlocker.enabled ? "Automatically blocks trading during high-impact news" : "Blocking is disabled"}
+                  {newsBlocker.enabled
+                    ? "Warns you when logging trades during news windows — requires confirmation to proceed"
+                    : "Blocking is disabled — no warnings will be shown"}
                 </div>
               </div>
               {/* Toggle */}
