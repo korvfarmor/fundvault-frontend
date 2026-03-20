@@ -2245,6 +2245,12 @@ export default function TradingPlatform({ session }) {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [mobileMore, setMobileMore] = useState(false);
   const [showMobilePositions, setShowMobilePositions] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
   // Onboarding
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem("fv_onboarded"));
   const [onboardStep, setOnboardStep] = useState(0);
@@ -3161,58 +3167,99 @@ export default function TradingPlatform({ session }) {
 
         {/* ── ANALYTICS ───────────────────────────────────────────────────────── */}
         {tab==="analytics"&&(
-          <div style={{display:"flex",flexDirection:"column",gap:22}}>
-            <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Deep Dive</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Analytics</div></div>
+          <div style={{display:"flex",flexDirection:"column",gap:isMobile?14:22}}>
+            <div>
+              <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Deep Dive</div>
+              <div style={{fontFamily:"'Syne',sans-serif",fontSize:isMobile?22:28,fontWeight:800,marginTop:4}}>Analytics</div>
+            </div>
 
             {/* Tag performance */}
-            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
-              <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}}>Performance by Setup Tag</div>
-              <div style={{display:"flex",flexDirection:"column",gap:9}}>
-                {tagStats.map(s=>(
-                  <div key={s.tag} style={{display:"grid",gridTemplateColumns:"150px 1fr 80px 80px 80px",alignItems:"center",gap:12,padding:"11px 16px",background:C.surface,borderRadius:10,border:`1px solid ${C.border}`}}>
-                    <TagBadge label={s.tag}/>
-                    <div style={{position:"relative",height:7,background:C.border,borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",width:`${s.winRate}%`,background:s.winRate>=60?C.green:s.winRate>=40?C.accent:C.red,borderRadius:4,transition:"width 0.5s"}}/></div>
-                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim,textAlign:"center"}}>{s.winRate}% WR</div>
-                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim,textAlign:"center"}}>{s.count} trades</div>
-                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:s.pnl>=0?C.green:C.red,textAlign:"right"}}>{s.pnl>=0?"+":""}${s.pnl}</div>
-                  </div>
-                ))}
-              </div>
+            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:isMobile?14:22}}>
+              <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Performance by Setup Tag</div>
+              {tagStats.length===0 ? (
+                <div style={{color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,padding:"20px 0",textAlign:"center"}}>No tagged trades yet</div>
+              ) : (
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {tagStats.map(s=>(
+                    isMobile ? (
+                      <div key={s.tag} style={{background:C.surface,borderRadius:10,padding:"12px 14px",border:`1px solid ${C.border}`}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                          <TagBadge label={s.tag}/>
+                          <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:s.pnl>=0?C.green:C.red}}>{s.pnl>=0?"+":""}${s.pnl}</span>
+                        </div>
+                        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                          <div style={{flex:1,height:6,background:C.border,borderRadius:3,overflow:"hidden"}}>
+                            <div style={{height:"100%",width:`${s.winRate}%`,background:s.winRate>=60?C.green:s.winRate>=40?C.accent:C.red,borderRadius:3}}/>
+                          </div>
+                          <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,flexShrink:0}}>{s.winRate}% · {s.count}t</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div key={s.tag} style={{display:"grid",gridTemplateColumns:"150px 1fr 80px 80px 80px",alignItems:"center",gap:12,padding:"11px 16px",background:C.surface,borderRadius:10,border:`1px solid ${C.border}`}}>
+                        <TagBadge label={s.tag}/>
+                        <div style={{position:"relative",height:7,background:C.border,borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",width:`${s.winRate}%`,background:s.winRate>=60?C.green:s.winRate>=40?C.accent:C.red,borderRadius:4,transition:"width 0.5s"}}/></div>
+                        <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim,textAlign:"center"}}>{s.winRate}% WR</div>
+                        <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim,textAlign:"center"}}>{s.count} trades</div>
+                        <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:s.pnl>=0?C.green:C.red,textAlign:"right"}}>{s.pnl>=0?"+":""}${s.pnl}</div>
+                      </div>
+                    )
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Time of day */}
-            <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:14}}>
-              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
-                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>P&L by Time of Day</div>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={liveTimeData}><CartesianGrid stroke={C.border} strokeDasharray="3 3" vertical={false}/>
-                    <XAxis dataKey="hour" tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`$${v}`}/>
-                    <Tooltip content={<PnlTip/>}/><ReferenceLine y={0} stroke={C.border}/>
-                    <Bar dataKey="pnl" radius={[4,4,0,0]}>{liveTimeData.map((d,i)=><Cell key={i} fill={d.pnl>=0?C.green:C.red}/>)}</Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-                <div style={{display:"flex",justifyContent:"center",gap:8,marginTop:10,flexWrap:"wrap"}}>
-                  {["London Kill Zone (08-10)","NY Kill Zone (14-16)"].map(z=><span key={z} style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.amber,background:"#f59e0b11",border:"1px solid #f59e0b33",borderRadius:20,padding:"3px 10px"}}>⚡ {z}</span>)}
-                </div>
-              </div>
-              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
-                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Win Rate by Hour</div>
-                <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            {/* Time analysis — full on desktop, simplified on mobile */}
+            {isMobile ? (
+              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:14}}>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Win Rate by Hour</div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {liveTimeData.length ? liveTimeData.map(d=>{
                     const wr=d.trades?Math.round((d.wins/d.trades)*100):0;
-                    return <div key={d.hour} style={{display:"flex",alignItems:"center",gap:10}}>
-                      <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,width:42,flexShrink:0}}>{d.hour}</span>
-                      <div style={{flex:1,height:6,background:C.border,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${wr}%`,background:wr>=60?C.green:wr>=40?C.accent:C.red,borderRadius:3}}/></div>
-                      <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:wr>=60?C.green:wr>=40?C.accent:C.red,width:32,textAlign:"right"}}>{wr}%</span>
-                    </div>;
-                  }) : <div style={{color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,textAlign:"center",padding:20}}>No trades yet</div>}
+                    return (
+                      <div key={d.hour} style={{display:"flex",alignItems:"center",gap:10}}>
+                        <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,width:46,flexShrink:0}}>{d.hour}</span>
+                        <div style={{flex:1,height:8,background:C.border,borderRadius:4,overflow:"hidden"}}>
+                          <div style={{height:"100%",width:`${wr}%`,background:wr>=60?C.green:wr>=40?C.accent:C.red,borderRadius:4}}/>
+                        </div>
+                        <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:wr>=60?C.green:wr>=40?C.accent:C.red,width:36,textAlign:"right",fontWeight:700}}>{wr}%</span>
+                        <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:d.pnl>=0?C.green:C.red,width:60,textAlign:"right"}}>{d.pnl>=0?"+":""}${d.pnl}</span>
+                      </div>
+                    );
+                  }) : <div style={{color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,textAlign:"center",padding:16}}>No trades yet</div>}
                 </div>
               </div>
-            </div>
+            ) : (
+              <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:14}}>
+                <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>P&L by Time of Day</div>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={liveTimeData}><CartesianGrid stroke={C.border} strokeDasharray="3 3" vertical={false}/>
+                      <XAxis dataKey="hour" tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false}/>
+                      <YAxis tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`$${v}`}/>
+                      <Tooltip content={<PnlTip/>}/><ReferenceLine y={0} stroke={C.border}/>
+                      <Bar dataKey="pnl" radius={[4,4,0,0]}>{liveTimeData.map((d,i)=><Cell key={i} fill={d.pnl>=0?C.green:C.red}/>)}</Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <div style={{display:"flex",justifyContent:"center",gap:8,marginTop:10,flexWrap:"wrap"}}>
+                    {["London Kill Zone (08-10)","NY Kill Zone (14-16)"].map(z=><span key={z} style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.amber,background:"#f59e0b11",border:"1px solid #f59e0b33",borderRadius:20,padding:"3px 10px"}}>⚡ {z}</span>)}
+                  </div>
+                </div>
+                <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Win Rate by Hour</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:9}}>
+                    {liveTimeData.length ? liveTimeData.map(d=>{
+                      const wr=d.trades?Math.round((d.wins/d.trades)*100):0;
+                      return <div key={d.hour} style={{display:"flex",alignItems:"center",gap:10}}>
+                        <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,width:42,flexShrink:0}}>{d.hour}</span>
+                        <div style={{flex:1,height:6,background:C.border,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${wr}%`,background:wr>=60?C.green:wr>=40?C.accent:C.red,borderRadius:3}}/></div>
+                        <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:wr>=60?C.green:wr>=40?C.accent:C.red,width:32,textAlign:"right"}}>{wr}%</span>
+                      </div>;
+                    }) : <div style={{color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,textAlign:"center",padding:20}}>No trades yet</div>}
+                  </div>
+                </div>
+              </div>
+            )}
 
-            {/* AI Feedback */}
-            {/* AI Coach — coming soon */}
             {false && <AIFeedback trades={trades}/>}
           </div>
         )}
@@ -3275,37 +3322,114 @@ export default function TradingPlatform({ session }) {
 
         {/* ── TRADES ──────────────────────────────────────────────────────────── */}
         {tab==="trades"&&(
-          <div style={{display:"flex",flexDirection:"column",gap:22}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
-              <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Trade Log</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>All Trades</div></div>
-              <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
-                <button onClick={()=>setShowAddTrade(true)} style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"7px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>+ Add Trade</button>
-                <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬆ Import CSV</button>
-                <button onClick={()=>setShowRules(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⚙ My Rules</button>
-                {["All",...allTags].map(f=><button key={f} onClick={()=>setTagFilter(f)} style={{background:tagFilter===f?`${tagColor(f)}22`:C.surface,border:`1px solid ${tagFilter===f?tagColor(f)+"66":C.border}`,color:tagFilter===f?tagColor(f):C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>{f}</button>)}
+          <div style={{display:"flex",flexDirection:"column",gap:isMobile?14:22}}>
+
+            {/* Header */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+              <div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Trade Log</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontSize:isMobile?22:28,fontWeight:800,marginTop:4}}>All Trades</div>
               </div>
+              {isMobile ? (
+                <div style={{display:"flex",gap:7}}>
+                  <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⬆ CSV</button>
+                  <button onClick={()=>setShowRules(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⚙</button>
+                </div>
+              ) : (
+                <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
+                  <button onClick={()=>setShowAddTrade(true)} style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"7px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>+ Add Trade</button>
+                  <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬆ Import CSV</button>
+                  <button onClick={()=>setShowRules(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⚙ My Rules</button>
+                  {["All",...allTags].map(f=><button key={f} onClick={()=>setTagFilter(f)} style={{background:tagFilter===f?`${tagColor(f)}22`:C.surface,border:`1px solid ${tagFilter===f?tagColor(f)+"66":C.border}`,color:tagFilter===f?tagColor(f):C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>{f}</button>)}
+                </div>
+              )}
             </div>
-            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
-              <table style={{width:"100%",borderCollapse:"collapse"}}>
-                <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>{["#","Symbol","Side","Entry","Exit","Tags","Rating","R:R","P&L","Review",""].map(h=><th key={h} style={{padding:"11px 14px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:400}}>{h}</th>)}</tr></thead>
-                <tbody>{filteredTrades.map((t,i)=>{
-                  const rs=t.checks?Object.values(t.checks).filter(Boolean).length:null;
-                  return <tr key={t.id} style={{borderBottom:i<filteredTrades.length-1?`1px solid ${C.border}`:"none"}} onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                    <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>#{t.id}</td>
-                    <td style={{padding:"11px 14px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15}}>{t.symbol}</td>
-                    <td style={{padding:"11px 14px"}}><span style={{background:t.side==="Long"?"#00d08418":"#ff3d5a18",color:t.side==="Long"?C.green:C.red,borderRadius:4,padding:"3px 8px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{t.side}</span></td>
-                    <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.textDim}}>{t.entry}</td>
-                    <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.textDim}}>{t.exit}</td>
-                    <td style={{padding:"11px 14px"}}><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{(t.tags||[]).slice(0,2).map(tag=><TagBadge key={tag} label={tag}/>)}</div></td>
-                    <td style={{padding:"11px 14px"}}>{t.rating?<span>{"⭐".repeat(t.rating)}</span>:<span style={{color:C.muted,fontSize:10}}>–</span>}</td>
-                    <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:12,color:t.rr>=0?C.green:C.red,fontWeight:700}}>{t.rr}R</td>
-                    <td style={{padding:"11px 14px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:t.pnl>=0?C.green:C.red}}>{t.pnl>=0?"+":""}${t.pnl}</td>
-                    <td style={{padding:"11px 14px"}}>{rs!==null?<span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:rs===rules.length?C.green:C.accent}}>{rs}/{rules.length} ✓</span>:<span style={{color:C.muted,fontSize:10}}>–</span>}</td>
-                    <td style={{padding:"11px 14px"}}><button onClick={()=>setSelTrade(t)} style={{background:C.accentDim,border:`1px solid ${C.accent}33`,color:C.accent,borderRadius:6,padding:"4px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10}}>Review →</button></td>
-                  </tr>;
-                })}</tbody>
-              </table>
-            </div>
+
+            {/* Tag filter pills — mobile */}
+            {isMobile && (
+              <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4,WebkitOverflowScrolling:"touch"}}>
+                {["All",...allTags].map(f=>(
+                  <button key={f} onClick={()=>setTagFilter(f)} style={{flexShrink:0,background:tagFilter===f?`${tagColor(f)}22`:C.surface,border:`1px solid ${tagFilter===f?tagColor(f)+"66":C.border}`,color:tagFilter===f?tagColor(f):C.muted,borderRadius:20,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,whiteSpace:"nowrap"}}>{f}</button>
+                ))}
+              </div>
+            )}
+
+            {/* Summary bar — mobile */}
+            {isMobile && filteredTrades.length > 0 && (
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+                {[
+                  {label:"Trades", value:filteredTrades.length, color:C.accent},
+                  {label:"Win Rate", value:`${Math.round(filteredTrades.filter(t=>t.pnl>0).length/filteredTrades.length*100)}%`, color:C.green},
+                  {label:"Net P&L", value:`${filteredTrades.reduce((a,t)=>a+t.pnl,0)>=0?"+":""}$${Math.abs(filteredTrades.reduce((a,t)=>a+t.pnl,0)).toLocaleString()}`, color:filteredTrades.reduce((a,t)=>a+t.pnl,0)>=0?C.green:C.red},
+                ].map(s=>(
+                  <div key={s.label} style={{background:C.card,borderRadius:10,padding:"10px 12px",border:`1px solid ${C.border}`,textAlign:"center"}}>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,textTransform:"uppercase",marginBottom:4}}>{s.label}</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,color:s.color}}>{s.value}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Mobile: card list */}
+            {isMobile ? (
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {filteredTrades.length === 0 ? (
+                  <div style={{background:C.card,borderRadius:12,padding:"40px 20px",textAlign:"center",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>
+                    No trades yet — tap ➕ to log your first trade
+                  </div>
+                ) : filteredTrades.map(t=>(
+                  <div key={t.id} onClick={()=>setSelTrade(t)}
+                    style={{background:C.card,border:`1px solid ${t.pnl>=0?C.green+"33":C.red+"33"}`,borderRadius:12,padding:"14px 16px",cursor:"pointer",position:"relative",overflow:"hidden"}}>
+                    <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:t.pnl>=0?C.green:C.red,borderRadius:"12px 0 0 12px"}}/>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:16}}>{t.symbol}</span>
+                        <span style={{background:t.side==="Long"?`${C.green}18`:`${C.red}18`,color:t.side==="Long"?C.green:C.red,borderRadius:4,padding:"2px 7px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{t.side}</span>
+                        {t.rating>0&&<span style={{fontSize:11}}>{"⭐".repeat(Math.min(t.rating,3))}</span>}
+                      </div>
+                      <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,color:t.pnl>=0?C.green:C.red}}>{t.pnl>=0?"+":""}${t.pnl}</span>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div style={{display:"flex",gap:10}}>
+                        <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>{t.trade_date}</span>
+                        <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>{t.entry}→{t.exit}</span>
+                        <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:t.rr>=0?C.green:C.red,fontWeight:700}}>{t.rr}R</span>
+                      </div>
+                      <div style={{display:"flex",gap:4}}>
+                        {(t.tags||[]).slice(0,2).map(tag=><TagBadge key={tag} label={tag}/>)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* Desktop: full table */
+              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
+                {filteredTrades.length===0 ? (
+                  <div style={{padding:40,textAlign:"center",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:12}}>No trades yet — they will appear here once logged</div>
+                ) : (
+                  <table style={{width:"100%",borderCollapse:"collapse"}}>
+                    <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>{["#","Symbol","Side","Entry","Exit","Tags","Rating","R:R","P&L","Review",""].map(h=><th key={h} style={{padding:"11px 14px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:400}}>{h}</th>)}</tr></thead>
+                    <tbody>{filteredTrades.map((t,i)=>{
+                      const rs=t.checks?Object.values(t.checks).filter(Boolean).length:null;
+                      return <tr key={t.id} style={{borderBottom:i<filteredTrades.length-1?`1px solid ${C.border}`:"none"}} onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                        <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>#{t.id}</td>
+                        <td style={{padding:"11px 14px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15}}>{t.symbol}</td>
+                        <td style={{padding:"11px 14px"}}><span style={{background:t.side==="Long"?"#00d08418":"#ff3d5a18",color:t.side==="Long"?C.green:C.red,borderRadius:4,padding:"3px 8px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{t.side}</span></td>
+                        <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.textDim}}>{t.entry}</td>
+                        <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.textDim}}>{t.exit}</td>
+                        <td style={{padding:"11px 14px"}}><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{(t.tags||[]).slice(0,2).map(tag=><TagBadge key={tag} label={tag}/>)}</div></td>
+                        <td style={{padding:"11px 14px"}}>{t.rating?<span>{"⭐".repeat(t.rating)}</span>:<span style={{color:C.muted,fontSize:10}}>–</span>}</td>
+                        <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:12,color:t.rr>=0?C.green:C.red,fontWeight:700}}>{t.rr}R</td>
+                        <td style={{padding:"11px 14px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:t.pnl>=0?C.green:C.red}}>{t.pnl>=0?"+":""}${t.pnl}</td>
+                        <td style={{padding:"11px 14px"}}>{rs!==null?<span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:rs===rules.length?C.green:C.accent}}>{rs}/{rules.length} ✓</span>:<span style={{color:C.muted,fontSize:10}}>–</span>}</td>
+                        <td style={{padding:"11px 14px"}}><button onClick={()=>setSelTrade(t)} style={{background:C.accentDim,border:`1px solid ${C.accent}33`,color:C.accent,borderRadius:6,padding:"4px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10}}>Review →</button></td>
+                      </tr>;
+                    })}</tbody>
+                  </table>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -3532,29 +3656,15 @@ export default function TradingPlatform({ session }) {
 
         {/* ── PSYCHOLOGY ──────────────────────────────────────────────────────── */}
         {tab==="psychology"&&(()=>{
-          // Build live psych data: join trades pnl per day with mood from hChecks
           const pnlByDate2 = {};
           trades.forEach(t => { pnlByDate2[t.trade_date] = (pnlByDate2[t.trade_date]||0) + t.pnl; });
-          // livePsychData uses trades — mood will be added when checkin API is fully wired
-          const livePsychData = Object.entries(pnlByDate2)
-            .sort(([a],[b])=>a.localeCompare(b))
-            .slice(-14) // last 14 trading days
-            .map(([date, pnl]) => ({
-              day:  date.slice(5),  // "03-11"
-              pnl,
-              mood: 3, // will be populated from checkin data when available
-            }));
-
+          const livePsychData = Object.entries(pnlByDate2).sort(([a],[b])=>a.localeCompare(b)).slice(-14).map(([date,pnl])=>({day:date.slice(5),pnl,mood:3}));
           const hasPsychData = livePsychData.length > 0;
           const avgMood = hasPsychData ? (livePsychData.reduce((a,b)=>a+b.mood,0)/livePsychData.length).toFixed(1) : "–";
           const highPnl = hasPsychData ? livePsychData.filter(d=>d.mood>=4).reduce((a,b)=>a+b.pnl,0) : 0;
           const lowPnl  = hasPsychData ? livePsychData.filter(d=>d.mood<=2).reduce((a,b)=>a+b.pnl,0) : 0;
           const checked = Object.values(hChecks).filter(Boolean).length;
-
-          // Psychology Guard verdict
-          const gHabitScore = Object.values(hChecks).filter(Boolean).length;
-          const gTotalHabits = habits.length;
-          const gHabitPct = gTotalHabits ? Math.round((gHabitScore/gTotalHabits)*100) : 0;
+          const gHabitPct = habits.length ? Math.round((checked/habits.length)*100) : 0;
           const gCleared = mood>=3 && gHabitPct>=60;
           const gCaution = (mood===3 || gHabitPct>=40) && !gCleared;
           const gVerdict = gCleared ? "CLEAR TO TRADE" : gCaution ? "TRADE WITH CAUTION" : mood===0 ? "COMPLETE CHECK-IN FIRST" : "DO NOT TRADE";
@@ -3562,72 +3672,109 @@ export default function TradingPlatform({ session }) {
           const gEmoji = gCleared ? "✅" : gCaution ? "⚠️" : mood===0 ? "📋" : "🛑";
           const gScore = mood>0 ? Math.round((mood/5*0.5 + gHabitPct/100*0.5)*100) : null;
 
-          return <div style={{display:"flex",flexDirection:"column",gap:22}}>
-            <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Mental Edge</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Psychology Tracker</div></div>
+          return <div style={{display:"flex",flexDirection:"column",gap:isMobile?14:22}}>
+            <div>
+              <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Mental Edge</div>
+              <div style={{fontFamily:"'Syne',sans-serif",fontSize:isMobile?22:28,fontWeight:800,marginTop:4}}>Psychology</div>
+            </div>
 
-            {/* ── Psychology Guard ── */}
-            <div style={{background:`${gColor}0f`,border:`2px solid ${gColor}44`,borderRadius:14,padding:"18px 24px",display:"flex",alignItems:"center",gap:18,flexWrap:"wrap"}}>
-              <div style={{fontSize:38}}>{gEmoji}</div>
-              <div style={{flex:1,minWidth:180}}>
-                <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:gColor,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:3}}>Psychology Guard — Today's Verdict</div>
-                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:gColor}}>{gVerdict}</div>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginTop:4}}>
-                  {mood===0 ? "Fill in your mood and habits in the check-in below before you start trading." :
-                   gCleared ? "Mental state looks good. Trade your plan with normal size." :
-                   gCaution ? "Some risk flags. Reduce position size and follow rules strictly." :
-                   "Elevated risk detected. Consider skipping today or paper trading only."}
-                </div>
+            {/* Guard verdict — compact on mobile */}
+            <div style={{background:`${gColor}0f`,border:`2px solid ${gColor}44`,borderRadius:14,padding:isMobile?"14px 16px":"18px 24px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+              <div style={{fontSize:isMobile?28:38}}>{gEmoji}</div>
+              <div style={{flex:1,minWidth:140}}>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:gColor,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:2}}>Today's Verdict</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:isMobile?16:22,color:gColor}}>{gVerdict}</div>
               </div>
               {gScore!==null && <div style={{textAlign:"center",flexShrink:0}}>
-                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:40,color:gColor,lineHeight:1}}>{gScore}</div>
-                <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:2}}>READINESS /100</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:isMobile?28:40,color:gColor,lineHeight:1}}>{gScore}</div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,marginTop:2}}>/ 100</div>
               </div>}
             </div>
 
-            <div style={{display:"flex",gap:12}}>
-              <StatCard label="Avg Mood"       value={`${avgMood}/5`}                          sub="This month"   color={C.accent}/>
-              <StatCard label="High Mood P&L"  value={`$${Math.round(highPnl).toLocaleString()}`} sub="Mood ≥ 4 days" color={C.green}/>
-              <StatCard label="Low Mood P&L"   value={`$${Math.round(lowPnl)}`}                sub="Mood ≤ 2 days" color={C.red}/>
-              <StatCard label="Today's Habits" value={`${checked}/${habits.length}`}           sub="Completed"    color={checked>=habits.length*.7?C.green:C.accent}/>
+            {/* Stat cards */}
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              <StatCard label="Avg Mood"      value={`${avgMood}/5`} sub="This month" color={C.accent}/>
+              <StatCard label="Today Habits"  value={`${checked}/${habits.length}`} sub="Completed" color={checked>=habits.length*.7?C.green:C.accent}/>
+              {!isMobile && <>
+                <StatCard label="High Mood P&L" value={`$${Math.round(highPnl).toLocaleString()}`} sub="Mood ≥ 4 days" color={C.green}/>
+                <StatCard label="Low Mood P&L"  value={`$${Math.round(lowPnl)}`} sub="Mood ≤ 2 days" color={C.red}/>
+              </>}
             </div>
-            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
-              <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Mood Score vs P&L Correlation</div>
-              {hasPsychData ? <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={livePsychData}><defs><linearGradient id="mg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={C.purple} stopOpacity={.3}/><stop offset="95%" stopColor={C.purple} stopOpacity={0}/></linearGradient></defs>
-                  <CartesianGrid stroke={C.border} strokeDasharray="3 3" vertical={false}/>
-                  <XAxis dataKey="day" tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false}/>
-                  <YAxis yAxisId="mood" orientation="right" domain={[0,5]} tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}★`}/>
-                  <YAxis yAxisId="pnl" tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`$${v}`}/>
-                  <Tooltip contentStyle={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,fontFamily:"'Space Mono',monospace",fontSize:11}}/>
-                  <ReferenceLine yAxisId="pnl" y={0} stroke={C.border}/>
-                  <Bar yAxisId="pnl" dataKey="pnl" radius={[3,3,0,0]} opacity={.5}>{livePsychData.map((d,i)=><Cell key={i} fill={d.pnl>=0?C.green:C.red}/>)}</Bar>
-                  <Area yAxisId="mood" type="monotone" dataKey="mood" stroke={C.purple} strokeWidth={2.5} fill="url(#mg)" dot={{fill:C.purple,r:4}}/>
-                </AreaChart>
-              </ResponsiveContainer> : <div style={{height:180,display:"flex",alignItems:"center",justifyContent:"center",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>No data yet — log trades and check-ins</div>}
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
-                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Today's Check-In</div>
-                <div style={{marginBottom:16}}><div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:10}}>How are you feeling before the session?</div>
-                  <div style={{display:"flex",gap:7}}>{MOOD_OPTIONS.map(m=><div key={m.val} onClick={()=>setMood(m.val)} style={{flex:1,padding:"9px 4px",borderRadius:8,cursor:"pointer",textAlign:"center",border:`1px solid ${mood===m.val?C.purple:C.border}`,background:mood===m.val?"#a78bfa22":C.surface,transition:"all 0.15s"}}><div style={{fontSize:18}}>{m.emoji}</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:mood===m.val?C.purple:C.muted,marginTop:3}}>{m.label}</div></div>)}</div>
-                </div>
-                <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:14}}>
-                  {habits.map(h=><label key={h.id} onClick={()=>setHChecks(c=>({...c,[h.id]:!c[h.id]}))} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"7px 10px",borderRadius:8,background:hChecks[h.id]?C.accentDim:C.surface,border:`1px solid ${hChecks[h.id]?C.accent+"44":C.border}`,transition:"all 0.15s"}}>
-                    <span style={{fontSize:14}}>{h.icon}</span><span style={{flex:1,fontFamily:"'DM Sans',sans-serif",fontSize:13,color:hChecks[h.id]?C.text:C.textDim}}>{h.label}</span>
-                    <div style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${hChecks[h.id]?C.green:C.border}`,background:hChecks[h.id]?C.green+"22":"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>{hChecks[h.id]&&<span style={{color:C.green,fontSize:10}}>✓</span>}</div>
-                  </label>)}
-                </div>
-                <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="How's your mindset today?" style={{width:"100%",minHeight:70,boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:12,resize:"vertical",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"}}/>
-                <button onClick={saveCheckin} style={{marginTop:10,width:"100%",background:"#a78bfa22",border:"1px solid #a78bfa66",color:C.purple,borderRadius:8,padding:"11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:12,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:700}}>💾 Save Check-In</button>
+
+            {/* Chart — hide on mobile */}
+            {!isMobile && (
+              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Mood vs P&L Correlation</div>
+                {hasPsychData ? <ResponsiveContainer width="100%" height={180}>
+                  <AreaChart data={livePsychData}><defs><linearGradient id="mg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={C.purple} stopOpacity={.3}/><stop offset="95%" stopColor={C.purple} stopOpacity={0}/></linearGradient></defs>
+                    <CartesianGrid stroke={C.border} strokeDasharray="3 3" vertical={false}/>
+                    <XAxis dataKey="day" tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false}/>
+                    <YAxis yAxisId="mood" orientation="right" domain={[0,5]} tick={{fill:C.muted,fontSize:10}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}★`}/>
+                    <YAxis yAxisId="pnl" tick={{fill:C.muted,fontSize:10}} axisLine={false} tickLine={false} tickFormatter={v=>`$${v}`}/>
+                    <Tooltip contentStyle={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,fontFamily:"'Space Mono',monospace",fontSize:11}}/>
+                    <ReferenceLine yAxisId="pnl" y={0} stroke={C.border}/>
+                    <Bar yAxisId="pnl" dataKey="pnl" radius={[3,3,0,0]} opacity={.5}>{livePsychData.map((d,i)=><Cell key={i} fill={d.pnl>=0?C.green:C.red}/>)}</Bar>
+                    <Area yAxisId="mood" type="monotone" dataKey="mood" stroke={C.purple} strokeWidth={2.5} fill="url(#mg)" dot={{fill:C.purple,r:4}}/>
+                  </AreaChart>
+                </ResponsiveContainer> : <div style={{height:180,display:"flex",alignItems:"center",justifyContent:"center",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>No data yet — log trades and check-ins</div>}
               </div>
-              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22,display:"flex",flexDirection:"column",gap:12}}>
+            )}
+
+            {/* Check-in + habits — stacked on mobile, grid on desktop */}
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:isMobile?14:14}}>
+              {/* Check-in */}
+              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:isMobile?16:22}}>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Today's Check-In</div>
+                <div style={{marginBottom:14}}>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:10}}>How are you feeling?</div>
+                  <div style={{display:"flex",gap:isMobile?5:7}}>
+                    {MOOD_OPTIONS.map(m=>(
+                      <div key={m.val} onClick={()=>setMood(m.val)} style={{flex:1,padding:isMobile?"8px 2px":"9px 4px",borderRadius:8,cursor:"pointer",textAlign:"center",border:`1px solid ${mood===m.val?C.purple:C.border}`,background:mood===m.val?"#a78bfa22":C.surface,transition:"all 0.15s"}}>
+                        <div style={{fontSize:isMobile?20:18}}>{m.emoji}</div>
+                        {!isMobile && <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:mood===m.val?C.purple:C.muted,marginTop:3}}>{m.label}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
+                  {habits.map(h=>(
+                    <label key={h.id} onClick={()=>setHChecks(c=>({...c,[h.id]:!c[h.id]}))}
+                      style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"8px 10px",borderRadius:8,background:hChecks[h.id]?C.accentDim:C.surface,border:`1px solid ${hChecks[h.id]?C.accent+"44":C.border}`,transition:"all 0.15s"}}>
+                      <span style={{fontSize:14}}>{h.icon}</span>
+                      <span style={{flex:1,fontFamily:"'DM Sans',sans-serif",fontSize:13,color:hChecks[h.id]?C.text:C.textDim}}>{h.label}</span>
+                      <div style={{width:18,height:18,borderRadius:4,border:`1.5px solid ${hChecks[h.id]?C.green:C.border}`,background:hChecks[h.id]?`${C.green}22`:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                        {hChecks[h.id]&&<span style={{color:C.green,fontSize:11}}>✓</span>}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                {!isMobile && <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="How's your mindset today?" style={{width:"100%",minHeight:60,boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:10,resize:"vertical",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none",marginBottom:10}}/>}
+                <button onClick={saveCheckin} style={{width:"100%",background:"#a78bfa22",border:"1px solid #a78bfa66",color:C.purple,borderRadius:8,padding:"12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:12,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:700}}>💾 Save Check-In</button>
+              </div>
+
+              {/* Manage habits */}
+              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:isMobile?16:22,display:"flex",flexDirection:"column",gap:10}}>
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Manage Habits</div>
-                {cats.map(cat=><div key={cat}><div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,letterSpacing:"0.1em",marginBottom:7}}>{cat.toUpperCase()}</div>
-                  <div style={{display:"flex",flexDirection:"column",gap:5}}>{habits.filter(h=>h.category===cat).map(h=><div key={h.id} style={{display:"flex",alignItems:"center",gap:10,background:C.surface,borderRadius:8,padding:"7px 12px",border:`1px solid ${C.border}`}}><span style={{fontSize:14}}>{h.icon}</span><span style={{flex:1,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>{h.label}</span><button onClick={()=>setHabits(hh=>hh.filter(x=>x.id!==h.id))} style={{background:"transparent",border:"none",color:C.red,cursor:"pointer",fontSize:13,opacity:.6}}>✕</button></div>)}</div>
-                </div>)}
+                {cats.map(cat=>(
+                  <div key={cat}>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,letterSpacing:"0.1em",marginBottom:6}}>{cat.toUpperCase()}</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                      {habits.filter(h=>h.category===cat).map(h=>(
+                        <div key={h.id} style={{display:"flex",alignItems:"center",gap:10,background:C.surface,borderRadius:8,padding:"7px 12px",border:`1px solid ${C.border}`}}>
+                          <span style={{fontSize:14}}>{h.icon}</span>
+                          <span style={{flex:1,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>{h.label}</span>
+                          <button onClick={()=>setHabits(hh=>hh.filter(x=>x.id!==h.id))} style={{background:"transparent",border:"none",color:C.red,cursor:"pointer",fontSize:13,opacity:.6}}>✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
                 <div style={{display:"flex",gap:7,marginTop:4}}>
-                  <input value={newHabit} onChange={e=>setNewHabit(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&newHabit.trim()){setHabits(hh=>[...hh,{id:Date.now().toString(),label:newHabit.trim(),icon:"⚡",category:"Mindset"}]);setNewHabit("");}}} placeholder="Add custom habit..." style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"}}/>
-                  <button onClick={()=>{if(newHabit.trim()){setHabits(hh=>[...hh,{id:Date.now().toString(),label:newHabit.trim(),icon:"⚡",category:"Mindset"}]);setNewHabit("");}}} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,borderRadius:8,padding:"9px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:12}}>+ Add</button>
+                  <input value={newHabit} onChange={e=>setNewHabit(e.target.value)}
+                    onKeyDown={e=>{if(e.key==="Enter"&&newHabit.trim()){setHabits(hh=>[...hh,{id:Date.now().toString(),label:newHabit.trim(),icon:"⚡",category:"Mindset"}]);setNewHabit("");}}}
+                    placeholder="Add custom habit..." style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"}}/>
+                  <button onClick={()=>{if(newHabit.trim()){setHabits(hh=>[...hh,{id:Date.now().toString(),label:newHabit.trim(),icon:"⚡",category:"Mindset"}]);setNewHabit("");}}}
+                    style={{background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,borderRadius:8,padding:"9px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:12}}>+ Add</button>
                 </div>
               </div>
             </div>
