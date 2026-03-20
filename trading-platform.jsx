@@ -1807,6 +1807,294 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
   );
 };
 
+// ── CSV Import Modal ──────────────────────────────────────────────────────────
+const CSV_COLUMN_MAP = {
+  // Tradovate format
+  "symbol":      ["symbol","instrument","contract"],
+  "side":        ["side","b/s","buysell","action","direction"],
+  "pnl":         ["p&l","pnl","profit","net p&l","realized p&l","netprofit"],
+  "entry":       ["entry time","entrytime","open time","time","datetime","date/time"],
+  "exit":        ["exit time","exittime","close time","closetime"],
+  "entryPrice":  ["entry price","entryprice","buy price","open price"],
+  "exitPrice":   ["exit price","exitprice","sell price","close price"],
+  "rr":          ["r:r","rr","risk reward","r/r"],
+  "contracts":   ["qty","quantity","contracts","size","shares"],
+};
+
+const CSVImportModal = ({onClose, onImport, C}) => {
+  const [step, setStep] = useState(1); // 1=upload, 2=map, 3=preview
+  const [rawRows, setRawRows] = useState([]);
+  const [headers, setHeaders] = useState([]);
+  const [mapping, setMapping] = useState({});
+  const [preview, setPreview] = useState([]);
+  const [error, setError] = useState("");
+  const fileRef = useRef();
+
+  const parseCSV = (text) => {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return setError("CSV must have at least a header row and one data row.");
+    const hdrs = lines[0].split(',').map(h=>h.trim().replace(/"/g,'').toLowerCase());
+    const rows = lines.slice(1).map(l=>{
+      const vals = []; let cur='', inQ=false;
+      for(const ch of l){ if(ch==='"'){inQ=!inQ;}else if(ch===','&&!inQ){vals.push(cur.trim());cur='';}else{cur+=ch;} }
+      vals.push(cur.trim());
+      return Object.fromEntries(hdrs.map((h,i)=>[h, vals[i]||'']));
+    });
+    setHeaders(hdrs);
+    setRawRows(rows);
+    // Auto-detect mapping
+    const autoMap = {};
+    for(const [field, aliases] of Object.entries(CSV_COLUMN_MAP)){
+      const match = hdrs.find(h=>aliases.some(a=>h.includes(a)));
+      if(match) autoMap[field] = match;
+    }
+    setMapping(autoMap);
+    setStep(2);
+  };
+
+  const handleFile = (f) => {
+    if(!f) return;
+    setError("");
+    const r = new FileReader();
+    r.onload = e => parseCSV(e.target.result);
+    r.readAsText(f);
+  };
+
+  const buildPreview = () => {
+    const INSTRUMENTS = ["NQ","ES","MNQ","MES","YM","RTY","CL","GC","SI","6E"];
+    const mapped = rawRows.slice(0,100).map((row,i)=>{
+      const sym = (row[mapping.symbol]||"").toUpperCase().replace(/[^A-Z0-9]/g,'');
+      const cleanSym = INSTRUMENTS.find(s=>sym.includes(s)) || sym || "NQ";
+      const rawSide = (row[mapping.side]||"").toLowerCase();
+      const side = rawSide.includes("b")||rawSide.includes("long")||rawSide==="buy" ? "Long" : "Short";
+      const pnl = parseFloat((row[mapping.pnl]||"0").replace(/[$,()]/g,'').replace(/\((.+)\)/,'−$1')) || 0;
+      const entryRaw = row[mapping.entry]||"";
+      const exitRaw  = row[mapping.exit]||"";
+      const entryDate = entryRaw.slice(0,10) || new Date().toISOString().slice(0,10);
+      const entryTime = entryRaw.slice(11,16) || "09:30";
+      const exitTime  = exitRaw.slice(11,16)  || "09:45";
+      const rr = parseFloat(row[mapping.rr]||"0") || 0;
+      return {
+        id: "csv-"+i,
+        symbol: cleanSym, side, pnl, rr,
+        entry: entryTime, exit: exitTime,
+        trade_date: entryDate,
+        tags: [], rating: 0, review: "", checks: {}, screenshot: null,
+        holdMin: 0, status: pnl>=0?"win":"loss",
+        _raw: row,
+      };
+    }).filter(t=>t.symbol && !isNaN(t.pnl));
+    setPreview(mapped);
+    setStep(3);
+  };
+
+  const inputS = {background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"};
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:1100,background:"rgba(0,0,0,0.8)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:720,maxHeight:"90vh",overflow:"hidden",display:"flex",flexDirection:"column"}}>
+
+        {/* Header */}
+        <div style={{padding:"18px 24px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+          <div>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Step {step} of 3 — {step===1?"Upload File":step===2?"Map Columns":"Preview & Import"}</div>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginTop:2}}>⬆ Import CSV</div>
+          </div>
+          <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22}}>✕</button>
+        </div>
+
+        <div style={{padding:24,overflowY:"auto",flex:1}}>
+
+          {/* Step 1 — Upload */}
+          {step===1 && (
+            <div style={{display:"flex",flexDirection:"column",gap:16}}>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,lineHeight:1.6}}>
+                Upload a CSV export from your broker. <strong style={{color:C.text}}>Tradovate</strong> format is auto-detected.
+                Other brokers work too — you'll map columns manually in the next step.
+              </div>
+              <div
+                onClick={()=>fileRef.current.click()}
+                style={{border:`2px dashed ${C.border}`,borderRadius:12,padding:"48px 24px",textAlign:"center",cursor:"pointer",background:C.surface,transition:"all 0.15s"}}
+                onMouseEnter={e=>e.currentTarget.style.borderColor=C.accent}
+                onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}
+              >
+                <div style={{fontSize:40,marginBottom:12}}>📄</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,marginBottom:6}}>Click to upload CSV</div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>or drag and drop</div>
+              </div>
+              <input ref={fileRef} type="file" accept=".csv,.txt" style={{display:"none"}}
+                onChange={e=>handleFile(e.target.files[0])}/>
+              {error && <div style={{background:`${C.red}15`,border:`1px solid ${C.red}33`,borderRadius:8,padding:"10px 14px",color:C.red,fontFamily:"'Space Mono',monospace",fontSize:11}}>⚠ {error}</div>}
+              <div style={{background:C.surface,borderRadius:10,padding:14,fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,lineHeight:1.8}}>
+                <div style={{color:C.text,marginBottom:6,fontWeight:700}}>TRADOVATE EXPORT:</div>
+                <div>Account → Trade History → Export → CSV</div>
+                <div style={{marginTop:8,color:C.text,fontWeight:700}}>COLUMNS DETECTED:</div>
+                <div>Symbol, B/S, Qty, Entry Price, Exit Price, P&L, Date/Time</div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2 — Map columns */}
+          {step===2 && (
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim}}>{rawRows.length} rows found. Map your CSV columns to FundVault fields:</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                {[
+                  {field:"symbol",label:"Instrument/Symbol",required:true},
+                  {field:"side",label:"Side (Buy/Sell)",required:true},
+                  {field:"pnl",label:"Net P&L ($)",required:true},
+                  {field:"entry",label:"Entry Date/Time"},
+                  {field:"exit",label:"Exit Date/Time"},
+                  {field:"entryPrice",label:"Entry Price"},
+                  {field:"exitPrice",label:"Exit Price"},
+                  {field:"rr",label:"R:R Ratio"},
+                ].map(({field,label,required})=>(
+                  <div key={field}>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:required?C.accent:C.muted,marginBottom:5,letterSpacing:"0.05em",textTransform:"uppercase"}}>{label}{required?" *":""}</div>
+                    <select value={mapping[field]||""} onChange={e=>setMapping(m=>({...m,[field]:e.target.value}))}
+                      style={{...inputS,width:"100%",cursor:"pointer"}}>
+                      <option value="">— not mapped —</option>
+                      {headers.map(h=><option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </div>
+              <div style={{display:"flex",gap:8,marginTop:8}}>
+                <button onClick={()=>setStep(1)} style={{flex:1,padding:"11px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
+                <button onClick={buildPreview} disabled={!mapping.symbol||!mapping.pnl}
+                  style={{flex:2,padding:"11px",borderRadius:10,cursor:"pointer",background:C.accentDim,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:!mapping.symbol||!mapping.pnl?0.5:1}}>
+                  Preview Import →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3 — Preview */}
+          {step===3 && (
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim}}>{preview.length} trades ready to import</div>
+                <div style={{display:"flex",gap:8}}>
+                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.green}}>{preview.filter(t=>t.pnl>=0).length} wins</span>
+                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.red}}>{preview.filter(t=>t.pnl<0).length} losses</span>
+                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:preview.reduce((a,t)=>a+t.pnl,0)>=0?C.green:C.red}}>
+                    ${Math.round(preview.reduce((a,t)=>a+t.pnl,0)).toLocaleString()} total
+                  </span>
+                </div>
+              </div>
+              <div style={{maxHeight:340,overflowY:"auto",border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden"}}>
+                <table style={{width:"100%",borderCollapse:"collapse"}}>
+                  <thead><tr style={{background:C.surface}}>{["Date","Symbol","Side","P&L","Entry","Exit"].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",fontWeight:400}}>{h}</th>)}</tr></thead>
+                  <tbody>{preview.slice(0,50).map((t,i)=>(
+                    <tr key={i} style={{borderTop:`1px solid ${C.border}`}}>
+                      <td style={{padding:"8px 12px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>{t.trade_date}</td>
+                      <td style={{padding:"8px 12px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13}}>{t.symbol}</td>
+                      <td style={{padding:"8px 12px"}}><span style={{background:t.side==="Long"?`${C.green}18`:`${C.red}18`,color:t.side==="Long"?C.green:C.red,borderRadius:4,padding:"2px 7px",fontFamily:"'Space Mono',monospace",fontSize:9}}>{t.side}</span></td>
+                      <td style={{padding:"8px 12px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,color:t.pnl>=0?C.green:C.red}}>{t.pnl>=0?"+":""}${t.pnl}</td>
+                      <td style={{padding:"8px 12px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim}}>{t.entry}</td>
+                      <td style={{padding:"8px 12px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim}}>{t.exit}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setStep(2)} style={{flex:1,padding:"11px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
+                <button onClick={()=>onImport(preview)}
+                  style={{flex:2,padding:"11px",borderRadius:10,cursor:"pointer",background:`linear-gradient(135deg,${C.green}33,${C.green}11)`,border:`1px solid ${C.green}55`,color:C.green,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
+                  ✓ Import {preview.length} Trades
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Edge Modal (create/edit an Edge) ─────────────────────────────────────────
+const EdgeModal = ({onClose, onSave, existing, C}) => {
+  const [form, setForm] = useState(existing || {
+    id:"", name:"", description:"", tags:[], rules:[""], color:"#00e5ff",
+  });
+  const [tagInput, setTagInput] = useState("");
+  const COLORS = ["#00e5ff","#00d084","#a78bfa","#f59e0b","#ff3d5a","#f472b6","#34d399","#60a5fa"];
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const addRule = () => set("rules",[...form.rules,""]);
+  const setRule = (i,v) => set("rules", form.rules.map((r,j)=>j===i?v:r));
+  const removeRule = (i) => set("rules", form.rules.filter((_,j)=>j!==i));
+  const addTag = () => { if(tagInput.trim()&&!form.tags.includes(tagInput.trim())) set("tags",[...form.tags,tagInput.trim()]); setTagInput(""); };
+  const inputS = {background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"};
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:1200,background:"rgba(0,0,0,0.8)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:520,maxHeight:"90vh",overflow:"hidden",display:"flex",flexDirection:"column"}}>
+        <div style={{padding:"18px 24px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20}}>{existing?"Edit Edge":"New Edge"}</div>
+          <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22}}>✕</button>
+        </div>
+        <div style={{padding:24,overflowY:"auto",display:"flex",flexDirection:"column",gap:16}}>
+
+          {/* Color */}
+          <div>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:8}}>Color</div>
+            <div style={{display:"flex",gap:8}}>
+              {COLORS.map(c=><div key={c} onClick={()=>set("color",c)} style={{width:28,height:28,borderRadius:"50%",background:c,cursor:"pointer",border:`3px solid ${form.color===c?"white":"transparent"}`,boxShadow:form.color===c?`0 0 10px ${c}`:"none",transition:"all 0.15s"}}/>)}
+            </div>
+          </div>
+
+          {/* Name */}
+          <div>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6}}>Edge Name *</div>
+            <input value={form.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. AM Kill Zone FVG, OB Reversal..." style={{...inputS,width:"100%",boxSizing:"border-box"}}/>
+          </div>
+
+          {/* Description */}
+          <div>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6}}>Description</div>
+            <textarea value={form.description} onChange={e=>set("description",e.target.value)} placeholder="When do you take this trade? What does the setup look like?" rows={3}
+              style={{...inputS,width:"100%",boxSizing:"border-box",resize:"vertical",lineHeight:1.6}}/>
+          </div>
+
+          {/* Tags to track */}
+          <div>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6}}>Trade Tags (auto-link trades with these tags)</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}}>
+              {form.tags.map(t=><span key={t} style={{background:`${form.color}22`,border:`1px solid ${form.color}44`,color:form.color,borderRadius:20,padding:"2px 10px",fontFamily:"'Space Mono',monospace",fontSize:10,display:"flex",alignItems:"center",gap:4}}>
+                {t}<span onClick={()=>set("tags",form.tags.filter(x=>x!==t))} style={{cursor:"pointer",opacity:.7,fontSize:10}}>✕</span>
+              </span>)}
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              <input value={tagInput} onChange={e=>setTagInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addTag()} placeholder="e.g. Kill Zone, FVG, OB..." style={{...inputS,flex:1}}/>
+              <button onClick={addTag} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>Add</button>
+            </div>
+          </div>
+
+          {/* Rules */}
+          <div>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:8}}>Entry Rules (compliance checklist)</div>
+            <div style={{display:"flex",flexDirection:"column",gap:7}}>
+              {form.rules.map((r,i)=>(
+                <div key={i} style={{display:"flex",gap:7,alignItems:"center"}}>
+                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:form.color,flexShrink:0}}>{i+1}.</span>
+                  <input value={r} onChange={e=>setRule(i,e.target.value)} placeholder={`Rule ${i+1}...`} style={{...inputS,flex:1}}/>
+                  {form.rules.length>1 && <button onClick={()=>removeRule(i)} style={{background:"transparent",border:"none",color:C.red,cursor:"pointer",fontSize:14,opacity:.6,flexShrink:0}}>✕</button>}
+                </div>
+              ))}
+              <button onClick={addRule} style={{background:"transparent",border:`1px dashed ${C.border}`,borderRadius:8,padding:"8px",cursor:"pointer",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>+ Add Rule</button>
+            </div>
+          </div>
+
+          <button onClick={()=>form.name.trim()&&onSave(form)} disabled={!form.name.trim()}
+            style={{width:"100%",padding:"13px",borderRadius:10,cursor:form.name.trim()?"pointer":"not-allowed",background:`${form.color}22`,border:`1px solid ${form.color}55`,color:form.color,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:form.name.trim()?1:0.5}}>
+            {existing?"Save Changes":"✓ Create Edge"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function TradingPlatform({ session }) {
   const user = session?.user;
@@ -1814,6 +2102,7 @@ export default function TradingPlatform({ session }) {
   const userInitial = userName.charAt(0).toUpperCase();
   const handleSignOut = () => supabase.auth.signOut();
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("fv_theme") !== "light");
+  const [mobileMenu, setMobileMenu] = useState(false);
   const toggleTheme = () => {
     setDarkMode(d => {
       const next = !d;
@@ -1826,6 +2115,16 @@ export default function TradingPlatform({ session }) {
   const [selTrade,   setSelTrade  ] = useState(null);
   const [showRules,  setShowRules ] = useState(false);
   const [showAddTrade, setShowAddTrade] = useState(false);
+  const [showImportCSV, setShowImportCSV] = useState(false);
+  // Edge Library state
+  const [edges, setEdges] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("fv_edges") || "[]"); }
+    catch { return []; }
+  });
+  const [showEdgeModal, setShowEdgeModal] = useState(false);
+  const [editingEdge, setEditingEdge] = useState(null);
+  const [selectedEdge, setSelectedEdge] = useState(null);
+  const saveEdges = (data) => { setEdges(data); localStorage.setItem("fv_edges", JSON.stringify(data)); };
   const [newTradeForm, setNewTradeForm] = useState({
     symbol:"NQ", contractType:"standard", side:"Long",
     trade_date: new Date().toISOString().slice(0,10),
@@ -2310,15 +2609,34 @@ export default function TradingPlatform({ session }) {
 
   const cats=[...new Set(habits.map(h=>h.category))];
 
-  const TABS = ["dashboard","analytics","calendar","trades","psychology","propfirm","news","accounts","copier"];
+  const TABS = ["dashboard","analytics","calendar","trades","edge","psychology","propfirm","news","accounts","copier"];
 
   // Re-load trades when mode changes
   useEffect(() => { loadTrades(); }, [appMode, loadTrades]);
 
   return (
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'DM Sans',sans-serif",display:"flex",flexDirection:"column"}}>
+      <style>{`
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @media(max-width:768px){
+          .fv-nav-tabs{display:none!important}
+          .fv-nav-tabs.open{display:flex!important;flex-direction:column;position:fixed;top:58px;left:0;right:0;background:var(--fv-surface,#0d1420);border-bottom:1px solid #1e2d40;z-index:99;padding:12px;gap:4px}
+          .fv-nav-tabs.open button{text-align:left;padding:10px 14px!important;border-radius:8px!important}
+          .fv-menu-btn{display:flex!important}
+          .fv-content{padding:16px!important}
+          .fv-stat-cards{flex-wrap:wrap}
+          .fv-stat-cards>*{min-width:calc(50% - 6px)!important}
+          .fv-grid-2{grid-template-columns:1fr!important}
+          .fv-grid-3{grid-template-columns:1fr!important}
+          .fv-hide-mobile{display:none!important}
+        }
+        @media(min-width:769px){.fv-menu-btn{display:none!important}}
+      `}</style>
       <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
       {selTrade  && <TradeModal trade={selTrade} onClose={()=>setSelTrade(null)} onSave={saveTrade} globalRules={rules}/>}
+      {showImportCSV && <CSVImportModal onClose={()=>setShowImportCSV(false)} onImport={async (trades)=>{ for(const t of trades){ await saveTrade({...t,id:"csv-"+Date.now()+Math.random()}); } setShowImportCSV(false); }} C={C}/>}
+      {showEdgeModal && <EdgeModal onClose={()=>{setShowEdgeModal(false);setEditingEdge(null);}} onSave={(e)=>{ if(editingEdge){ saveEdges(edges.map(x=>x.id===editingEdge.id?e:x)); }else{ saveEdges([...edges,{...e,id:Date.now().toString()}]); } setShowEdgeModal(false);setEditingEdge(null); }} existing={editingEdge} C={C}/>}
       {showAddTrade && <AddTradeModal onClose={()=>setShowAddTrade(false)} onSave={async (t)=>{ await saveTrade({...t,id:"new-"+Date.now()}); setShowAddTrade(false); }} globalRules={rules} C={C} newsBlocker={newsBlocker} calendarEvents={events}/>}
       <FlattenWidget tvStatus={tvStatus}/>
       {showRules && <RuleManager rules={rules} onChange={setRules} onClose={()=>setShowRules(false)}/>}
@@ -2342,8 +2660,8 @@ export default function TradingPlatform({ session }) {
           </div>
           <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.amber,background:"#f59e0b18",border:"1px solid #f59e0b44",borderRadius:4,padding:"2px 8px"}}>PROP FOCUS</span>
         </div>
-        <div style={{display:"flex",gap:3}}>
-          {TABS.map(t=><button key={t} onClick={()=>setTab(t)} style={{background:tab===t?C.accentDim:"transparent",border:tab===t?`1px solid ${C.accent}44`:"1px solid transparent",color:tab===t?C.accent:C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.05em",textTransform:"uppercase",transition:"all 0.15s"}}>{t==="propfirm"?"prop firm":t}</button>)}
+        <div style={{display:"flex",gap:3}} className={`fv-nav-tabs${mobileMenu?" open":""}`}>
+          {TABS.map(t=><button key={t} onClick={()=>{setTab(t);setMobileMenu(false);}} style={{background:tab===t?C.accentDim:"transparent",border:tab===t?`1px solid ${C.accent}44`:"1px solid transparent",color:tab===t?C.accent:C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.05em",textTransform:"uppercase",transition:"all 0.15s"}}>{t==="propfirm"?"prop firm":t==="edge"?"edge":t}</button>)}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <div style={{width:8,height:8,borderRadius:"50%",background:C.green,boxShadow:`0 0 8px ${C.green}`}}/>
@@ -2363,6 +2681,10 @@ export default function TradingPlatform({ session }) {
             </button>
             <button onClick={handleSignOut} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.05em",textTransform:"uppercase"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.red;e.currentTarget.style.color=C.red;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.color=C.muted;}}>Sign out</button>
           </div>
+          {/* Mobile burger */}
+          <button className="fv-menu-btn" onClick={()=>setMobileMenu(m=>!m)} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"6px 10px",cursor:"pointer",color:C.text,fontSize:16}}>
+            {mobileMenu?"✕":"☰"}
+          </button>
         </div>
       </div>
 
@@ -2558,6 +2880,7 @@ export default function TradingPlatform({ session }) {
               <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Trade Log</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>All Trades</div></div>
               <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
                 <button onClick={()=>setShowAddTrade(true)} style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"7px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>+ Add Trade</button>
+                <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬆ Import CSV</button>
                 <button onClick={()=>setShowRules(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⚙ My Rules</button>
                 {["All",...allTags].map(f=><button key={f} onClick={()=>setTagFilter(f)} style={{background:tagFilter===f?`${tagColor(f)}22`:C.surface,border:`1px solid ${tagFilter===f?tagColor(f)+"66":C.border}`,color:tagFilter===f?tagColor(f):C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>{f}</button>)}
               </div>
@@ -2585,6 +2908,227 @@ export default function TradingPlatform({ session }) {
             </div>
           </div>
         )}
+
+        {/* ── EDGE LIBRARY ────────────────────────────────────────────────────── */}
+        {tab==="edge"&&(()=>{
+          const getEdgeStats = (edge) => {
+            const linked = trades.filter(t =>
+              edge.tags.length > 0
+                ? edge.tags.some(tag => (t.tags||[]).includes(tag))
+                : false
+            );
+            if (!linked.length) return null;
+            const wins = linked.filter(t=>t.pnl>0);
+            const totalPnl = linked.reduce((a,t)=>a+t.pnl,0);
+            const winRate = Math.round((wins.length/linked.length)*100);
+            const avgPnl = Math.round(totalPnl/linked.length);
+            const avgWin = wins.length ? Math.round(wins.reduce((a,t)=>a+t.pnl,0)/wins.length) : 0;
+            const avgLoss = linked.filter(t=>t.pnl<0).length ? Math.round(Math.abs(linked.filter(t=>t.pnl<0).reduce((a,t)=>a+t.pnl,0)/linked.filter(t=>t.pnl<0).length)) : 0;
+            // Compliance: how often did trader follow the rules (rating >= 4 = following rules)
+            const compliance = linked.filter(t=>t.rating>=4).length;
+            const compliancePct = Math.round((compliance/linked.length)*100);
+            // Best instrument
+            const bySymbol = {};
+            linked.forEach(t=>{ if(!bySymbol[t.symbol]) bySymbol[t.symbol]={pnl:0,count:0}; bySymbol[t.symbol].pnl+=t.pnl; bySymbol[t.symbol].count++; });
+            const bestSym = Object.entries(bySymbol).sort((a,b)=>b[1].pnl-a[1].pnl)[0]?.[0];
+            // Best time
+            const byHour = {};
+            linked.forEach(t=>{ const h=t.entry?.slice(0,2); if(h){ if(!byHour[h]) byHour[h]={pnl:0,count:0}; byHour[h].pnl+=t.pnl; byHour[h].count++; }});
+            const bestHour = Object.entries(byHour).sort((a,b)=>b[1].pnl-a[1].pnl)[0]?.[0];
+            return { count:linked.length, winRate, totalPnl, avgPnl, avgWin, avgLoss, compliancePct, bestSym, bestHour, linked };
+          };
+
+          const activeEdge = selectedEdge ? edges.find(e=>e.id===selectedEdge) : null;
+          const activeStats = activeEdge ? getEdgeStats(activeEdge) : null;
+
+          return <div style={{display:"flex",flexDirection:"column",gap:22}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
+              <div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Strategy Vault</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Edge Library</div>
+              </div>
+              <button onClick={()=>{setEditingEdge(null);setShowEdgeModal(true);}}
+                style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"8px 18px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700}}>
+                + New Edge
+              </button>
+            </div>
+
+            {edges.length===0 && (
+              <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:16,padding:"60px 40px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
+                <div style={{fontSize:48}}>⚡</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22}}>Define your trading edge</div>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:C.textDim,maxWidth:460,lineHeight:1.7}}>
+                  Every profitable trader has a specific edge — a repeatable setup with clear rules. Create your first Edge and FundVault will automatically track its win rate, compliance, and performance over time.
+                </div>
+                <button onClick={()=>{setEditingEdge(null);setShowEdgeModal(true);}}
+                  style={{marginTop:8,padding:"14px 32px",borderRadius:10,cursor:"pointer",background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
+                  + Create First Edge
+                </button>
+              </div>
+            )}
+
+            {edges.length > 0 && (
+              <div style={{display:"grid",gridTemplateColumns:"280px 1fr",gap:18,alignItems:"start"}}>
+
+                {/* Sidebar — edge list */}
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {edges.map(e=>{
+                    const s = getEdgeStats(e);
+                    const isActive = selectedEdge===e.id;
+                    return (
+                      <div key={e.id} onClick={()=>setSelectedEdge(isActive?null:e.id)}
+                        style={{background:isActive?`${e.color}12`:C.card,border:`2px solid ${isActive?e.color:C.border}`,borderRadius:12,padding:"14px 16px",cursor:"pointer",transition:"all 0.15s",position:"relative",overflow:"hidden"}}>
+                        {isActive&&<div style={{position:"absolute",top:0,left:0,bottom:0,width:3,background:e.color}}/>}
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:isActive?e.color:C.text,paddingLeft:isActive?8:0}}>{e.name}</div>
+                          <div style={{display:"flex",gap:4}}>
+                            <button onClick={ev=>{ev.stopPropagation();setEditingEdge(e);setShowEdgeModal(true);}} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:12,padding:"2px 4px"}}>✏</button>
+                            <button onClick={ev=>{ev.stopPropagation();saveEdges(edges.filter(x=>x.id!==e.id));if(selectedEdge===e.id)setSelectedEdge(null);}} style={{background:"transparent",border:"none",color:C.red,cursor:"pointer",fontSize:12,padding:"2px 4px",opacity:.6}}>✕</button>
+                          </div>
+                        </div>
+                        {s ? (
+                          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                            <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:s.winRate>=60?C.green:s.winRate>=40?C.accent:C.red,fontWeight:700}}>{s.winRate}% WR</span>
+                            <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>{s.count} trades</span>
+                            <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:s.totalPnl>=0?C.green:C.red}}>{s.totalPnl>=0?"+":""}${s.totalPnl.toLocaleString()}</span>
+                          </div>
+                        ) : (
+                          <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>No trades yet</div>
+                        )}
+                        {e.tags.length>0 && (
+                          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:7}}>
+                            {e.tags.slice(0,3).map(t=><span key={t} style={{background:`${e.color}18`,border:`1px solid ${e.color}33`,color:e.color,borderRadius:20,padding:"1px 8px",fontFamily:"'Space Mono',monospace",fontSize:9}}>{t}</span>)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Detail panel */}
+                <div>
+                  {!activeEdge && (
+                    <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:14,padding:"48px 24px",textAlign:"center",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:12}}>
+                      ← Select an edge to see detailed stats
+                    </div>
+                  )}
+
+                  {activeEdge && (
+                    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+
+                      {/* Edge header */}
+                      <div style={{background:C.card,border:`2px solid ${activeEdge.color}44`,borderRadius:14,padding:"20px 24px",position:"relative",overflow:"hidden"}}>
+                        <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,${activeEdge.color},${activeEdge.color}44)`}}/>
+                        <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:activeEdge.color,marginBottom:4}}>{activeEdge.name}</div>
+                        {activeEdge.description && <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,lineHeight:1.6}}>{activeEdge.description}</div>}
+                      </div>
+
+                      {!activeStats && (
+                        <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:32,textAlign:"center",color:C.muted,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
+                          No trades tagged with <strong style={{color:activeEdge.color}}>{activeEdge.tags.join(", ")||"this edge"}</strong> yet.<br/>
+                          <span style={{fontSize:12,marginTop:6,display:"block"}}>Tag your trades with these tags and stats will appear automatically.</span>
+                        </div>
+                      )}
+
+                      {activeStats && (<>
+                        {/* Stats row */}
+                        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+                          {[
+                            {label:"Win Rate",    value:`${activeStats.winRate}%`, color:activeStats.winRate>=60?C.green:activeStats.winRate>=40?C.accent:C.red},
+                            {label:"Total P&L",   value:`${activeStats.totalPnl>=0?"+":""}$${activeStats.totalPnl.toLocaleString()}`, color:activeStats.totalPnl>=0?C.green:C.red},
+                            {label:"Avg Win",     value:`+$${activeStats.avgWin}`, color:C.green},
+                            {label:"Avg Loss",    value:`-$${activeStats.avgLoss}`, color:C.red},
+                          ].map(({label,value,color})=>(
+                            <div key={label} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:"14px 16px",position:"relative",overflow:"hidden"}}>
+                              <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:color}}/>
+                              <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>{label}</div>
+                              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,color}}>{value}</div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Compliance + insights */}
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                          {/* Compliance */}
+                          <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:18}}>
+                            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Rule Compliance</div>
+                            <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:12}}>
+                              <div style={{width:64,height:64,borderRadius:"50%",background:`conic-gradient(${activeStats.compliancePct>=70?C.green:activeStats.compliancePct>=50?C.amber:C.red} ${activeStats.compliancePct}%,${C.border} 0)`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                                <div style={{width:46,height:46,borderRadius:"50%",background:C.card,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                                  <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:14,color:activeStats.compliancePct>=70?C.green:activeStats.compliancePct>=50?C.amber:C.red}}>{activeStats.compliancePct}%</span>
+                                </div>
+                              </div>
+                              <div>
+                                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.text,marginBottom:3}}>
+                                  {activeStats.compliancePct>=70?"You follow this edge well 👌":activeStats.compliancePct>=50?"Inconsistent execution ⚠️":"Low compliance — review your rules 🔴"}
+                                </div>
+                                <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>{activeStats.linked.filter(t=>t.rating>=4).length} of {activeStats.count} trades rated 4★+</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Insights */}
+                          <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:18}}>
+                            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Edge Insights</div>
+                            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                              {[
+                                activeStats.bestSym && {icon:"🏆",label:"Best instrument",value:activeStats.bestSym},
+                                activeStats.bestHour && {icon:"🕐",label:"Best time",value:`${activeStats.bestHour}:00`},
+                                {icon:"📊",label:"Trades logged",value:String(activeStats.count)},
+                                {icon:"💰",label:"Avg per trade",value:`${activeStats.avgPnl>=0?"+":""}$${activeStats.avgPnl}`},
+                              ].filter(Boolean).map(({icon,label,value})=>(
+                                <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim}}>{icon} {label}</span>
+                                  <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,color:C.text}}>{value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Entry Rules */}
+                        {activeEdge.rules?.filter(r=>r.trim()).length>0 && (
+                          <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:18}}>
+                            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Entry Rules</div>
+                            <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                              {activeEdge.rules.filter(r=>r.trim()).map((r,i)=>(
+                                <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"8px 12px",background:C.surface,borderRadius:8,border:`1px solid ${C.border}`}}>
+                                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:activeEdge.color,flexShrink:0,fontWeight:700}}>{i+1}.</span>
+                                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.text}}>{r}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Recent trades */}
+                        <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
+                          <div style={{padding:"12px 18px",borderBottom:`1px solid ${C.border}`,fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Recent Trades</div>
+                          <table style={{width:"100%",borderCollapse:"collapse"}}>
+                            <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>
+                              {["Date","Symbol","Side","R:R","P&L","Rating"].map(h=><th key={h} style={{padding:"8px 14px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",fontWeight:400}}>{h}</th>)}
+                            </tr></thead>
+                            <tbody>{activeStats.linked.slice(0,8).map((t,i)=>(
+                              <tr key={i} style={{borderBottom:i<Math.min(7,activeStats.linked.length-1)?`1px solid ${C.border}`:"none"}}
+                                onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                                <td style={{padding:"9px 14px",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>{t.trade_date}</td>
+                                <td style={{padding:"9px 14px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13}}>{t.symbol}</td>
+                                <td style={{padding:"9px 14px"}}><span style={{background:t.side==="Long"?`${C.green}18`:`${C.red}18`,color:t.side==="Long"?C.green:C.red,borderRadius:4,padding:"2px 7px",fontFamily:"'Space Mono',monospace",fontSize:9}}>{t.side}</span></td>
+                                <td style={{padding:"9px 14px",fontFamily:"'Space Mono',monospace",fontSize:11,color:t.rr>=0?C.green:C.red,fontWeight:700}}>{t.rr}R</td>
+                                <td style={{padding:"9px 14px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,color:t.pnl>=0?C.green:C.red}}>{t.pnl>=0?"+":""}${t.pnl}</td>
+                                <td style={{padding:"9px 14px"}}>{t.rating?<span style={{fontSize:11}}>{"⭐".repeat(t.rating)}</span>:<span style={{color:C.muted,fontSize:10}}>–</span>}</td>
+                              </tr>
+                            ))}</tbody>
+                          </table>
+                        </div>
+                      </>)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>;
+        })()}
 
         {/* ── PSYCHOLOGY ──────────────────────────────────────────────────────── */}
         {tab==="psychology"&&(()=>{
