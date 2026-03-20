@@ -2461,6 +2461,57 @@ export default function TradingPlatform({ session }) {
   const [liveAcctData,     setLiveAcctData    ] = useState(null); // Tradovate live-data när anslutet
 
   // ── Load trades from API ───────────────────────────────────────────────────
+  // ── Load trades from API ───────────────────────────────────────────────────
+  const loadTrades = useCallback(async () => {
+    setLoadingTrades(true);
+    if (localStorage.getItem("edgestat_mode") === "demo") {
+      const dates = Array.from({length:20},(_,i)=>{
+        const d = new Date(); d.setDate(d.getDate()-Math.floor(i*1.4));
+        while(d.getDay()===0||d.getDay()===6) d.setDate(d.getDate()-1);
+        return d.toISOString().slice(0,10);
+      });
+      const demoTrades = [
+        {id:1, symbol:"NQ",  side:"Long",  entry:"09:32",exit:"09:47",pnl:820,  rr:2.1,status:"win", tags:["Kill Zone","Displacement","mffu"],   rating:5,checks:{},review:"Perfect execution on AM kill zone.",screenshot:null,holdMin:15,trade_date:dates[0]},
+        {id:2, symbol:"ES",  side:"Short", entry:"10:15",exit:"10:28",pnl:-180, rr:-0.9,status:"loss",tags:["FOMO","tradeify"],                   rating:2,checks:{},review:"Chased the move.",screenshot:null,holdMin:13,trade_date:dates[0]},
+        {id:3, symbol:"NQ",  side:"Long",  entry:"11:02",exit:"11:19",pnl:1250, rr:3.2,status:"win", tags:["Kill Zone","FVG","mffu"],             rating:5,checks:{},review:"",screenshot:null,holdMin:17,trade_date:dates[1]},
+        {id:4, symbol:"NQ",  side:"Short", entry:"13:45",exit:"14:01",pnl:610,  rr:1.5,status:"win", tags:["OB","Displacement","lucid"],          rating:4,checks:{},review:"",screenshot:null,holdMin:16,trade_date:dates[1]},
+        {id:5, symbol:"ES",  side:"Long",  entry:"14:30",exit:"14:43",pnl:-90,  rr:-0.4,status:"loss",tags:["Revenge","tradeify"],               rating:1,checks:{},review:"",screenshot:null,holdMin:13,trade_date:dates[2]},
+        {id:6, symbol:"NQ",  side:"Long",  entry:"09:15",exit:"09:38",pnl:1640, rr:4.1,status:"win", tags:["Kill Zone","Displacement","mffu"],   rating:5,checks:{},review:"",screenshot:null,holdMin:23,trade_date:dates[2]},
+        {id:7, symbol:"NQ",  side:"Short", entry:"15:45",exit:"15:58",pnl:-320, rr:-1.6,status:"loss",tags:["FOMO","Late entry","lucid"],        rating:1,checks:{},review:"",screenshot:null,holdMin:13,trade_date:dates[3]},
+        {id:8, symbol:"ES",  side:"Long",  entry:"09:48",exit:"10:05",pnl:1080, rr:2.7,status:"win", tags:["Kill Zone","FVG","tradeify"],        rating:4,checks:{},review:"",screenshot:null,holdMin:17,trade_date:dates[3]},
+        {id:9, symbol:"NQ",  side:"Long",  entry:"10:30",exit:"10:44",pnl:760,  rr:1.9,status:"win", tags:["OB","mffu"],                        rating:4,checks:{},review:"",screenshot:null,holdMin:14,trade_date:dates[4]},
+        {id:10,symbol:"ES",  side:"Short", entry:"13:00",exit:"13:12",pnl:-150, rr:-0.7,status:"loss",tags:["Revenge","Late entry","lucid"],     rating:2,checks:{},review:"",screenshot:null,holdMin:12,trade_date:dates[4]},
+      ];
+      setTrades(demoTrades);
+      setLoadingTrades(false);
+      return;
+    }
+    try {
+      const data = await tradesApi.list();
+      setTrades(data.map(t => ({
+        id:         t.id,
+        symbol:     t.symbol,
+        side:       t.side,
+        entry:      t.entry_time,
+        exit:       t.exit_time,
+        pnl:        t.pnl,
+        rr:         t.rr,
+        holdMin:    t.hold_min,
+        status:     t.pnl >= 0 ? "win" : "loss",
+        tags:       t.tags || [],
+        rating:     t.rating || 0,
+        review:     t.review || "",
+        screenshot: t.screenshot || null,
+        checks:     t.rule_checks || {},
+        trade_date: t.trade_date,
+      })));
+    } catch (err) {
+      console.error("Failed to load trades:", err);
+      setTrades([]);
+    }
+    setLoadingTrades(false);
+  }, []);
+
   // ── Auto-generate alerts ───────────────────────────────────────────────────
   useEffect(() => {
     if (!trades.length && !propAccounts.length) return;
