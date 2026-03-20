@@ -1709,6 +1709,54 @@ export default function TradingPlatform({ session }) {
   const [newHabit,   setNewHabit  ] = useState("");
   const [firms,      setFirms     ] = useState(DEFAULT_PROP_FIRMS);
   const [activeFirm, setActiveFirm] = useState("mffu");
+  // ── User's configured prop accounts ──────────────────────────────────────
+  const [propAccounts, setPropAccounts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("fv_prop_accounts") || "[]"); }
+    catch { return []; }
+  });
+  const [activePropAccId, setActivePropAccId] = useState(() =>
+    localStorage.getItem("fv_active_prop_acc") || null
+  );
+  const [showPropWizard, setShowPropWizard] = useState(false);
+  const [wizardStep,     setWizardStep    ] = useState(1); // 1=firm, 2=type, 3=balance
+  const [wizardFirmId,   setWizardFirmId  ] = useState(null);
+  const [wizardTypeId,   setWizardTypeId  ] = useState(null);
+  const [wizardBalance,  setWizardBalance ] = useState("");
+  const [wizardNickname, setWizardNickname] = useState("");
+  const [editingPropAcc, setEditingPropAcc] = useState(null);
+
+  const savePropAccounts = (data) => {
+    setPropAccounts(data);
+    localStorage.setItem("fv_prop_accounts", JSON.stringify(data));
+  };
+  const setActivePropAccount = (id) => {
+    setActivePropAccId(id);
+    localStorage.setItem("fv_active_prop_acc", id || "");
+    const acc = propAccounts.find(a=>a.id===id);
+    if (acc) { setActiveFirm(acc.firmId); setFirmAccountType(acc.firmId, acc.typeId); }
+  };
+  const addPropAccount = () => {
+    if (!wizardFirmId || !wizardTypeId) return;
+    const bal = parseFloat(wizardBalance) || DEFAULT_PROP_FIRMS.find(f=>f.id===wizardFirmId)?.accountTypes.find(t=>t.id===wizardTypeId)?.accountSize || 50000;
+    const firm = DEFAULT_PROP_FIRMS.find(f=>f.id===wizardFirmId);
+    const type = firm?.accountTypes.find(t=>t.id===wizardTypeId);
+    const newAcc = {
+      id: Date.now().toString(),
+      firmId: wizardFirmId,
+      typeId: wizardTypeId,
+      startBalance: bal,
+      nickname: wizardNickname.trim() || `${firm?.name} ${type?.label}`,
+      addedAt: new Date().toISOString(),
+    };
+    const updated = editingPropAcc
+      ? propAccounts.map(a => a.id===editingPropAcc ? {...newAcc, id:editingPropAcc} : a)
+      : [...propAccounts, newAcc];
+    savePropAccounts(updated);
+    if (!activePropAccId || editingPropAcc === activePropAccId) setActivePropAccount(newAcc.id);
+    setShowPropWizard(false);
+    setWizardStep(1); setWizardFirmId(null); setWizardTypeId(null);
+    setWizardBalance(""); setWizardNickname(""); setEditingPropAcc(null);
+  };
   const [tagFilter,  setTagFilter ] = useState("All");
   const [newRule,    setNewRule   ] = useState({label:"",type:"loss",value:""});
   const [econFilter, setEconFilter] = useState("all");
@@ -2004,6 +2052,8 @@ export default function TradingPlatform({ session }) {
   // Get active firm object and its currently selected account type
   const firm      = firms.find(f=>f.id===activeFirm);
   const acctType  = firm.accountTypes.find(t=>t.id===firm.activeType) || firm.accountTypes[0];
+  // Active prop account from user's configured accounts
+  const activePropAcc = propAccounts.find(a=>a.id===activePropAccId) || propAccounts[0] || null;
   // ── Beräkna prop firm-data från riktiga trades (Alt 1) ──────────────────────
   // Om Tradovate är anslutet och har live-data används den istället (Alt 2)
   const acct = (() => {
@@ -2498,8 +2548,385 @@ export default function TradingPlatform({ session }) {
 
         {/* ── PROP FIRM ───────────────────────────────────────────────────────── */}
         {tab==="propfirm"&&(()=>{
-          const profit  = acct.balance - acct.startBalance;
-          const dd      = acct.peakBalance - acct.balance;
+
+          // ── Wizard modal ─────────────────────────────────────────────────────
+          const WizardModal = () => {
+            const wizFirm = DEFAULT_PROP_FIRMS.find(f=>f.id===wizardFirmId);
+            const wizType = wizFirm?.accountTypes.find(t=>t.id===wizardTypeId);
+            const inputS  = {width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"11px 14px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"};
+            return (
+              <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",backdropFilter:"blur(4px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+                <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:560,overflow:"hidden"}}>
+                  {/* Header */}
+                  <div style={{padding:"18px 24px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div>
+                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>
+                        Step {wizardStep} of 3 — {wizardStep===1?"Choose Firm":wizardStep===2?"Account Type":"Start Balance"}
+                      </div>
+                      <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginTop:2}}>
+                        {editingPropAcc ? "Edit Account" : "Add Prop Account"}
+                      </div>
+                    </div>
+                    <button onClick={()=>{setShowPropWizard(false);setWizardStep(1);setWizardFirmId(null);setWizardTypeId(null);setWizardBalance("");setWizardNickname("");setEditingPropAcc(null);}}
+                      style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22}}>✕</button>
+                  </div>
+
+                  {/* Step indicator */}
+                  <div style={{display:"flex",padding:"12px 24px 0",gap:6}}>
+                    {[1,2,3].map(s=>(
+                      <div key={s} style={{flex:1,height:3,borderRadius:2,background:s<=wizardStep?C.accent:C.border,transition:"background 0.2s"}}/>
+                    ))}
+                  </div>
+
+                  <div style={{padding:24}}>
+                    {/* Step 1 — Choose firm */}
+                    {wizardStep===1 && (
+                      <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:4}}>Which prop firm are you trading with?</div>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                          {DEFAULT_PROP_FIRMS.map(f=>(
+                            <button key={f.id} onClick={()=>setWizardFirmId(f.id)}
+                              style={{padding:"14px 16px",borderRadius:10,cursor:"pointer",textAlign:"left",background:wizardFirmId===f.id?`${f.color}18`:C.surface,border:`2px solid ${wizardFirmId===f.id?f.color:C.border}`,transition:"all 0.15s",position:"relative",overflow:"hidden"}}>
+                              {wizardFirmId===f.id&&<div style={{position:"absolute",top:0,left:0,right:0,height:2,background:f.color}}/>}
+                              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:wizardFirmId===f.id?f.color:C.text}}>{f.name}</div>
+                              <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:3}}>{f.accountTypes.length} account type{f.accountTypes.length>1?"s":""}</div>
+                            </button>
+                          ))}
+                        </div>
+                        <button onClick={()=>wizardFirmId&&setWizardStep(2)} disabled={!wizardFirmId}
+                          style={{width:"100%",padding:"12px",borderRadius:10,cursor:wizardFirmId?"pointer":"not-allowed",background:wizardFirmId?C.accentDim:C.surface,border:`1px solid ${wizardFirmId?C.accent+"55":C.border}`,color:wizardFirmId?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:wizardFirmId?1:0.5}}>
+                          Next →
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Step 2 — Account type */}
+                    {wizardStep===2 && wizFirm && (
+                      <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:4}}>Which account type are you on at <strong style={{color:wizFirm.color}}>{wizFirm.name}</strong>?</div>
+                        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                          {wizFirm.accountTypes.map(t=>{
+                            const cs = t.rules.find(r=>r.type==="consist");
+                            const dd = t.rules.find(r=>r.type==="drawdown");
+                            const isActive = wizardTypeId===t.id;
+                            return (
+                              <button key={t.id} onClick={()=>setWizardTypeId(t.id)}
+                                style={{padding:"14px 16px",borderRadius:10,cursor:"pointer",textAlign:"left",background:isActive?`${wizFirm.color}15`:C.surface,border:`2px solid ${isActive?wizFirm.color:C.border}`,transition:"all 0.15s"}}>
+                                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                                  <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:isActive?wizFirm.color:C.text}}>{t.label}</span>
+                                  <span style={{background:isActive?`${wizFirm.color}22`:C.surface,color:isActive?wizFirm.color:C.muted,border:`1px solid ${isActive?wizFirm.color+"44":C.border}`,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:9}}>{t.badge}</span>
+                                </div>
+                                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:8}}>{t.description}</div>
+                                <div style={{display:"flex",gap:14,flexWrap:"wrap"}}>
+                                  {[
+                                    ["Split", `${t.payoutSplit}%`],
+                                    ["Size",  `$${(t.accountSize/1000).toFixed(0)}K`],
+                                    ["DD",    dd?`$${dd.value.toLocaleString()}`:"—"],
+                                    ["Consistency", cs&&cs.value<900?`${cs.value}% max`:"None ✓"],
+                                  ].map(([l,v])=>(
+                                    <div key={l} style={{fontFamily:"'Space Mono',monospace",fontSize:10}}>
+                                      <span style={{color:C.muted}}>{l}: </span>
+                                      <span style={{color:C.text,fontWeight:700}}>{v}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div style={{display:"flex",gap:8}}>
+                          <button onClick={()=>{setWizardStep(1);setWizardTypeId(null);}} style={{flex:1,padding:"12px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
+                          <button onClick={()=>wizardTypeId&&setWizardStep(3)} disabled={!wizardTypeId}
+                            style={{flex:2,padding:"12px",borderRadius:10,cursor:wizardTypeId?"pointer":"not-allowed",background:wizardTypeId?C.accentDim:C.surface,border:`1px solid ${wizardTypeId?C.accent+"55":C.border}`,color:wizardTypeId?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:wizardTypeId?1:0.5}}>
+                            Next →
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 3 — Start balance + nickname */}
+                    {wizardStep===3 && wizFirm && wizType && (
+                      <div style={{display:"flex",flexDirection:"column",gap:16}}>
+                        <div style={{background:`${wizFirm.color}10`,border:`1px solid ${wizFirm.color}33`,borderRadius:10,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <div>
+                            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:wizFirm.color}}>{wizFirm.name}</div>
+                            <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:2}}>{wizType.label} · {wizType.payoutSplit}% split</div>
+                          </div>
+                          <button onClick={()=>setWizardStep(2)} style={{background:"transparent",border:"none",cursor:"pointer",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:10}}>✏ Change</button>
+                        </div>
+
+                        <div>
+                          <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6,display:"block"}}>
+                            Starting Account Balance
+                          </label>
+                          <input type="number" value={wizardBalance} onChange={e=>setWizardBalance(e.target.value)}
+                            placeholder={`Default: $${wizType.accountSize.toLocaleString()}`} style={inputS}/>
+                          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,marginTop:5}}>
+                            This is your account balance when you started tracking — usually the funded account size.
+                          </div>
+                        </div>
+
+                        <div>
+                          <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6,display:"block"}}>
+                            Nickname (optional)
+                          </label>
+                          <input type="text" value={wizardNickname} onChange={e=>setWizardNickname(e.target.value)}
+                            placeholder={`e.g. "My MFFU 50K" or "Tradeify account 2"`} style={inputS}/>
+                        </div>
+
+                        <div style={{display:"flex",gap:8}}>
+                          <button onClick={()=>setWizardStep(2)} style={{flex:1,padding:"12px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
+                          <button onClick={addPropAccount}
+                            style={{flex:2,padding:"12px",borderRadius:10,cursor:"pointer",background:C.accentDim,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
+                            {editingPropAcc ? "Save Changes" : "✓ Add Account"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          };
+
+          // ── Empty state ───────────────────────────────────────────────────────
+          if (propAccounts.length === 0) return (
+            <div style={{display:"flex",flexDirection:"column",gap:22}}>
+              {showPropWizard && <WizardModal/>}
+              <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.amber,letterSpacing:"0.1em",textTransform:"uppercase"}}>Live Tracking</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Prop Firm Tracker</div></div>
+              <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:16,padding:"60px 40px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
+                <div style={{fontSize:48}}>🏢</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22}}>No prop accounts yet</div>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:C.textDim,maxWidth:420,lineHeight:1.6}}>
+                  Add your prop firm account to start tracking drawdown, payout progress, consistency rules, and more — specific to your firm's exact rules.
+                </div>
+                <button onClick={()=>setShowPropWizard(true)}
+                  style={{marginTop:8,padding:"14px 32px",borderRadius:10,cursor:"pointer",background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
+                  + Add My First Account
+                </button>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",marginTop:4}}>
+                  {DEFAULT_PROP_FIRMS.map(f=>(
+                    <span key={f.id} style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:f.color,background:`${f.color}18`,border:`1px solid ${f.color}33`,borderRadius:20,padding:"3px 12px"}}>{f.name}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+
+          // ── Active account tracker ─────────────────────────────────────────────
+          const curAcc  = propAccounts.find(a=>a.id===activePropAccId) || propAccounts[0];
+          const curFirm = firms.find(f=>f.id===curAcc?.firmId) || firms[0];
+          const curType = curFirm?.accountTypes.find(t=>t.id===curAcc?.typeId) || curFirm?.accountTypes[0];
+
+          // Sync firm/type state with active account
+          if (curFirm?.id !== activeFirm) setActiveFirm(curFirm?.id);
+          if (curType?.id !== curFirm?.activeType) setFirmAccountType(curFirm?.id, curType?.id);
+
+          const profit = acct.balance - acct.startBalance;
+          const dd     = acct.peakBalance - acct.balance;
+          const saveStartBalance = (firmId, val) => {
+            const num = parseFloat(val.replace(/[^0-9.]/g,""));
+            if (!num || isNaN(num)) return;
+            const updated = { ...startBalances, [firmId]: num };
+            setStartBalances(updated);
+            localStorage.setItem("edgestat_startbal", JSON.stringify(updated));
+            setEditingBalance(null);
+            // Also update propAccount startBalance
+            savePropAccounts(propAccounts.map(a => a.id===curAcc.id ? {...a, startBalance:num} : a));
+          };
+          const po     = curType?.payout || {cycleTarget:3000,minDays:5,minProfit:0,buffer:0,consistency:999};
+          const dlRule = curType?.rules?.find(r=>r.type==="loss");
+          const ddRule = curType?.rules?.find(r=>r.type==="drawdown");
+          const ptRule = curType?.rules?.find(r=>r.type==="target");
+
+          return <div style={{display:"flex",flexDirection:"column",gap:22}}>
+            {showPropWizard && <WizardModal/>}
+
+            {/* Header */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
+              <div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.amber,letterSpacing:"0.1em",textTransform:"uppercase"}}>Live Tracking</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Prop Firm Tracker</div>
+              </div>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                {liveAcctData
+                  ? <span style={{background:`${C.green}18`,border:`1px solid ${C.green}44`,borderRadius:6,padding:"3px 10px",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.green}}>⚡ LIVE — Tradovate</span>
+                  : trades.length > 0 ? <span style={{background:`${C.accent}11`,border:`1px solid ${C.accent}33`,borderRadius:6,padding:"3px 10px",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.accent}}>📊 Calculated from logged trades</span> : null
+                }
+                <button onClick={()=>{setShowPropWizard(true);setWizardStep(1);setWizardFirmId(null);setWizardTypeId(null);setWizardBalance("");setWizardNickname("");setEditingPropAcc(null);}}
+                  style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700}}>
+                  + Add Account
+                </button>
+              </div>
+            </div>
+
+            {/* Account switcher (if multiple) */}
+            {propAccounts.length > 1 && (
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {propAccounts.map(a=>{
+                  const af = firms.find(f=>f.id===a.firmId);
+                  const isActive = a.id === (activePropAccId || propAccounts[0]?.id);
+                  return (
+                    <button key={a.id} onClick={()=>setActivePropAccount(a.id)}
+                      style={{padding:"8px 16px",borderRadius:8,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:isActive?700:400,background:isActive?`${af?.color||C.accent}22`:C.surface,border:`2px solid ${isActive?af?.color||C.accent:C.border}`,color:isActive?af?.color||C.accent:C.textDim,transition:"all 0.15s"}}>
+                      {a.nickname}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Active account card */}
+            <div style={{background:C.card,border:`2px solid ${curFirm?.color||C.accent}44`,borderRadius:12,padding:"16px 20px",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+              <div style={{width:44,height:44,borderRadius:10,background:`${curFirm?.color||C.accent}18`,border:`1px solid ${curFirm?.color||C.accent}33`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:16,color:curFirm?.color||C.accent,flexShrink:0}}>
+                {curFirm?.name?.slice(0,2).toUpperCase()}
+              </div>
+              <div style={{flex:1,minWidth:160}}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:17}}>{curAcc?.nickname}</div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:2}}>{curFirm?.name} · {curType?.label} · {curType?.payoutSplit}% split</div>
+              </div>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>{
+                  setEditingPropAcc(curAcc.id);
+                  setWizardFirmId(curAcc.firmId);
+                  setWizardTypeId(curAcc.typeId);
+                  setWizardBalance(String(curAcc.startBalance));
+                  setWizardNickname(curAcc.nickname);
+                  setWizardStep(3);
+                  setShowPropWizard(true);
+                }} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>✏ Edit</button>
+                <button onClick={()=>{
+                  const updated = propAccounts.filter(a=>a.id!==curAcc.id);
+                  savePropAccounts(updated);
+                  setActivePropAccount(updated[0]?.id || null);
+                }} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red}}>✕ Remove</button>
+              </div>
+            </div>
+
+            {/* Stat cards */}
+            <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+              <StatCard label="Account Balance" value={`$${Math.round(acct.balance).toLocaleString()}`} sub={
+                editingBalance === activeFirm
+                  ? <span style={{display:"flex",alignItems:"center",gap:4}}>
+                      <input autoFocus value={editBalVal} onChange={e=>setEditBalVal(e.target.value)}
+                        onKeyDown={e=>{if(e.key==="Enter")saveStartBalance(activeFirm,editBalVal);if(e.key==="Escape")setEditingBalance(null);}}
+                        style={{width:80,background:C.bg,border:`1px solid ${C.accent}44`,borderRadius:4,padding:"2px 6px",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10,outline:"none"}}
+                        placeholder={String(curAcc?.startBalance||50000)}/>
+                      <button onClick={()=>saveStartBalance(activeFirm,editBalVal)} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:4,padding:"2px 8px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.accent}}>✓</button>
+                      <button onClick={()=>setEditingBalance(null)} style={{background:"transparent",border:"none",cursor:"pointer",color:C.muted,fontSize:12}}>✕</button>
+                    </span>
+                  : <span style={{cursor:"pointer",color:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} onClick={()=>{setEditingBalance(activeFirm);setEditBalVal(String(acct.startBalance));}}>
+                      Start: ${acct.startBalance.toLocaleString()} ✏
+                    </span>
+              } color={C.accent}/>
+              <StatCard label="Total Profit"  value={`${profit>=0?"+":""}$${Math.abs(profit).toLocaleString()}`} sub={ptRule?`Target: $${ptRule.value.toLocaleString()}`:"Funded"} color={profit>=0?C.green:C.red}/>
+              <StatCard label="Today P&L"     value={`${acct.todayPnl>=0?"+":""}$${Math.round(acct.todayPnl).toLocaleString()}`} sub={dlRule?`Limit: -$${dlRule.value.toLocaleString()}`:"No daily limit"} color={acct.todayPnl>=0?C.green:C.red}/>
+              <StatCard label="Drawdown"       value={`$${dd.toLocaleString()}`} sub={ddRule?`Max: $${ddRule.value.toLocaleString()}`:"—"} color={ddRule&&dd>ddRule.value*.75?C.red:C.amber}/>
+              <StatCard label="Payout Split"   value={`${curType?.payoutSplit||90}%`} sub={(curType?.payoutFreq||"").split("(")[0].trim()} color={curFirm?.color||C.accent}/>
+            </div>
+
+            {/* Rule cards */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:13}}>
+              {(curType?.rules||[]).map(rule=>{
+                const s=getPropStatus(rule); const sColor=sc(s.status);
+                return <div key={rule.id} style={{background:C.card,border:`1px solid ${s.status==="breach"?C.red+"66":s.status==="warning"?C.amber+"44":C.border}`,borderRadius:12,padding:20,position:"relative",overflow:"hidden"}}>
+                  {(s.status==="breach"||s.status==="warning")&&<div style={{position:"absolute",top:0,left:0,right:0,height:3,background:sColor}}/>}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:11}}>
+                    <div><div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15}}>{rule.label}</div><div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginTop:2}}>{rule.description}</div></div>
+                    <span style={{background:`${sColor}22`,border:`1px solid ${sColor}44`,color:sColor,borderRadius:6,padding:"3px 9px",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700,flexShrink:0,marginLeft:8}}>{sl(s.status)}</span>
+                  </div>
+                  {rule.type!=="hold"&&<>
+                    <div style={{height:6,background:C.border,borderRadius:4,marginBottom:7,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(100,s.pct*100)}%`,background:sColor,borderRadius:4,transition:"width 0.5s"}}/></div>
+                    <div style={{display:"flex",justifyContent:"space-between",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>
+                      <span>{rule.type==="days"?`${s.used} / ${rule.value} days`:rule.type==="consist"?`${s.used}% best day / ${rule.value}% limit`:`$${(s.used||0).toLocaleString()} / $${rule.value.toLocaleString()}`}</span>
+                      <span style={{color:sColor}}>{Math.round(Math.min(s.pct||0,1)*100)}%</span>
+                    </div>
+                  </>}
+                  {rule.type==="hold"&&<div style={{fontFamily:"'Space Mono',monospace",fontSize:12,color:s.status==="breach"?C.red:C.green}}>{s.used===0?"✓ No violations this period":`⚠ ${s.used} trade${s.used>1?"s":""} under minimum hold time`}</div>}
+                </div>;
+              })}
+              {/* Add custom rule */}
+              <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:12,padding:20}}>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:12}}>Add Custom Rule</div>
+                <input value={newRule.label} onChange={e=>setNewRule(r=>({...r,label:e.target.value}))} placeholder="Rule name..." style={{width:"100%",marginBottom:8,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                <div style={{display:"flex",gap:8,marginBottom:8}}>
+                  <select value={newRule.type} onChange={e=>setNewRule(r=>({...r,type:e.target.value}))} style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"}}>
+                    <option value="loss">Daily Loss Limit</option><option value="drawdown">Drawdown</option><option value="target">Profit Target</option><option value="hold">Min Hold Time</option><option value="days">Min Days</option><option value="consist">Consistency %</option>
+                  </select>
+                  <input type="number" value={newRule.value} onChange={e=>setNewRule(r=>({...r,value:e.target.value}))} placeholder="Value" style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"}}/>
+                </div>
+                <button onClick={()=>{
+                  if(!newRule.label||!newRule.value)return;
+                  const nr={id:Date.now().toString(),label:newRule.label,type:newRule.type,value:Number(newRule.value),description:`Custom: ${newRule.label}`};
+                  setFirms(ff=>ff.map(f=>f.id!==activeFirm?f:{...f,accountTypes:f.accountTypes.map(t=>t.id!==f.activeType?t:{...t,rules:[...t.rules,nr]})}));
+                  setNewRule({label:"",type:"loss",value:""});
+                }} style={{width:"100%",background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,borderRadius:8,padding:"10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase"}}>+ Add Rule</button>
+              </div>
+            </div>
+
+            {/* Payout Tracker */}
+            {(()=>{
+              const cycPct      = Math.min(1,(acct.cycleProfit||0)/Math.max(po.cycleTarget,1));
+              const daysPct     = Math.min(1,(acct.cycleWinDays||0)/Math.max(po.minDays,1));
+              const noConsist   = po.consistency>=900;
+              const consistOk   = noConsist || (acct.bestDayPct||0)<=po.consistency;
+              const canPayout   = cycPct>=1 && (po.minDays===0||daysPct>=1) && consistOk;
+              const consistRisk = !noConsist && (acct.bestDayPct||0)>po.consistency*0.8;
+              const drawdownRisk= (acct.peakBalance-acct.balance)>(ddRule?.value||2000)*0.6;
+              let payoutAdvice=""; let adviceColor=C.accent;
+              if(canPayout){payoutAdvice="✓ All conditions met — request payout now";adviceColor=C.green;}
+              else if(cycPct>=0.75&&(po.minDays===0||daysPct>=1)&&consistOk){payoutAdvice="Almost there — hold off 1–2 sessions to hit target";adviceColor=C.accent;}
+              else if(consistRisk&&cycPct>=0.5){payoutAdvice="⚠ Consistency near limit — consider stopping to protect this cycle";adviceColor=C.amber;}
+              else if(drawdownRisk&&cycPct>=0.5){payoutAdvice="⚠ Drawdown rising — consider banking profits now";adviceColor=C.amber;}
+              else{payoutAdvice=`Still building — $${Math.round((1-cycPct)*po.cycleTarget).toLocaleString()} more needed`;adviceColor=C.textDim;}
+              return <div style={{background:C.card,border:`1px solid ${canPayout?C.green+"55":C.border}`,borderRadius:12,padding:22,position:"relative",overflow:"hidden"}}>
+                {canPayout&&<div style={{position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,${C.green},${C.accent})`}}/>}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+                  <div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:canPayout?C.green:C.amber,letterSpacing:"0.1em",textTransform:"uppercase"}}>Payout Tracker</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginTop:2}}>{curFirm?.name} · {curType?.label} · {curType?.payoutSplit}% Split</div>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginTop:3}}>{curType?.payoutFreq} · Min payout ${curType?.minPayout}</div>
+                  </div>
+                  {canPayout&&<div style={{background:C.green+"22",border:`1px solid ${C.green}55`,borderRadius:8,padding:"8px 16px",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.green,fontWeight:700}}>🎉 READY</div>}
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:20}}>
+                  <div style={{background:C.surface,borderRadius:10,padding:16,border:`1px solid ${cycPct>=1?C.green+"44":C.border}`}}>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Cycle Profit</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:cycPct>=1?C.green:C.text}}>${(acct.cycleProfit||0).toLocaleString()}</div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:2}}>target ${po.cycleTarget.toLocaleString()} · your cut ~${Math.round((acct.cycleProfit||0)*(curType?.payoutSplit||90)/100).toLocaleString()}</div>
+                    <div style={{height:4,background:C.border,borderRadius:2,marginTop:10,overflow:"hidden"}}><div style={{height:"100%",width:`${cycPct*100}%`,background:cycPct>=1?C.green:curFirm?.color||C.accent,borderRadius:2,transition:"width 0.5s"}}/></div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:cycPct>=1?C.green:C.textDim,marginTop:5}}>{Math.round(cycPct*100)}% of target</div>
+                  </div>
+                  <div style={{background:C.surface,borderRadius:10,padding:16,border:`1px solid ${daysPct>=1?C.green+"44":C.border}`}}>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Qualifying Days</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:daysPct>=1?C.green:C.text}}>{acct.cycleWinDays||0}<span style={{fontSize:14,color:C.muted,fontWeight:400}}> / {po.minDays}</span></div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:2}}>{po.minProfit>0?`$${po.minProfit}+ profit each`:"profitable days"}</div>
+                    <div style={{display:"flex",gap:4,marginTop:10}}>{Array.from({length:Math.max(po.minDays,1)},(_,i)=><div key={i} style={{flex:1,height:8,borderRadius:3,background:i<(acct.cycleWinDays||0)?C.green:C.border}}/>)}</div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:daysPct>=1?C.green:C.textDim,marginTop:5}}>{po.minDays-(acct.cycleWinDays||0)>0?`${po.minDays-(acct.cycleWinDays||0)} more needed`:"✓ Met"}</div>
+                  </div>
+                  <div style={{background:C.surface,borderRadius:10,padding:16,border:`1px solid ${noConsist?"#34d39933":consistOk?C.green+"44":C.red+"55"}`}}>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Consistency Rule</div>
+                    {noConsist
+                      ? <><div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,color:"#34d399"}}>No Rule ✓</div><div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginTop:4}}>No consistency restriction on this plan</div></>
+                      : <><div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:consistOk?C.text:C.red}}>{acct.bestDayPct||0}<span style={{fontSize:14,color:C.muted,fontWeight:400}}>%</span></div>
+                          <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:2}}>best day · limit {po.consistency}%</div>
+                          <div style={{height:4,background:C.border,borderRadius:2,marginTop:10,overflow:"hidden"}}><div style={{height:"100%",width:`${((acct.bestDayPct||0)/po.consistency)*100}%`,background:consistOk?(acct.bestDayPct||0)>po.consistency*.8?C.amber:C.green:C.red,borderRadius:2}}/></div>
+                          <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:consistOk?C.green:C.red,marginTop:5}}>{consistOk?`${po.consistency-(acct.bestDayPct||0)}% headroom`:"⚠ Exceeded"}</div>
+                        </>
+                    }
+                  </div>
+                </div>
+                <div style={{background:`${adviceColor}0d`,border:`1px solid ${adviceColor}44`,borderRadius:8,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
+                  <span style={{fontSize:18}}>{canPayout?"💰":consistRisk||drawdownRisk?"⚠️":"🎯"}</span>
+                  <div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:adviceColor}}>{payoutAdvice}</div>
+                    {canPayout&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginTop:3}}>Estimated payout: <span style={{color:C.green,fontWeight:700}}>${Math.round((acct.cycleProfit||0)*(curType?.payoutSplit||90)/100).toLocaleString()}</span> after {curType?.payoutSplit}% split</div>}
+                  </div>
+                </div>
+              </div>;
+            })()}
+          </div>;
+        })()}
 
           // Start balance editor
           const saveStartBalance = (firmId, val) => {
@@ -2694,40 +3121,6 @@ export default function TradingPlatform({ session }) {
                     }
                   </div>
                 </div>
-                <div style={{background:`${adviceColor}0d`,border:`1px solid ${adviceColor}44`,borderRadius:8,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
-                  <span style={{fontSize:18}}>{canPayout?"💰":consistRisk||drawdownRisk?"⚠️":"🎯"}</span>
-                  <div>
-                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:adviceColor}}>{payoutAdvice}</div>
-                    {canPayout&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginTop:3}}>Estimated payout: <span style={{color:C.green,fontWeight:700}}>${Math.round(acct.cycleProfit*acctType.payoutSplit/100).toLocaleString()}</span> after {acctType.payoutSplit}% split</div>}
-                  </div>
-                </div>
-              </div>;
-            })()}
-
-            {/* Firm overview */}
-            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
-              <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Your Prop Firms</div>
-              <div style={{display:"flex",gap:11,flexWrap:"wrap"}}>
-                {firms.map(f=>{
-                  const at=f.accountTypes.find(t=>t.id===f.activeType)||f.accountTypes[0];
-                  const brs=at.rules.filter(r=>getPropStatus(r).status==="breach").length;
-                  const wrn=at.rules.filter(r=>getPropStatus(r).status==="warning").length;
-                  return <div key={f.id} onClick={()=>setActiveFirm(f.id)} style={{background:activeFirm===f.id?`${f.color}0f`:C.surface,border:`1px solid ${activeFirm===f.id?f.color+"44":C.border}`,borderRadius:10,padding:"14px 18px",cursor:"pointer",minWidth:170,position:"relative",overflow:"hidden"}}>
-                    {activeFirm===f.id&&<div style={{position:"absolute",top:0,left:0,right:0,height:2,background:f.color}}/>}
-                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>{f.name}</div>
-                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:f.color,marginTop:3}}>{at.label} · {at.payoutSplit}% split</div>
-                    <div style={{marginTop:9,display:"flex",gap:5}}>
-                      {brs>0&&<span style={{background:C.red+"22",color:C.red,border:`1px solid ${C.red}44`,borderRadius:4,padding:"2px 7px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{brs} breach</span>}
-                      {wrn>0&&<span style={{background:C.amber+"22",color:C.amber,border:`1px solid ${C.amber}44`,borderRadius:4,padding:"2px 7px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{wrn} warning</span>}
-                      {brs===0&&wrn===0&&<span style={{background:C.green+"22",color:C.green,border:`1px solid ${C.green}44`,borderRadius:4,padding:"2px 7px",fontFamily:"'Space Mono',monospace",fontSize:10}}>✓ OK</span>}
-                    </div>
-                  </div>;
-                })}
-                <div style={{background:C.surface,border:`1px dashed ${C.border}`,borderRadius:10,padding:"14px 18px",cursor:"pointer",minWidth:150,display:"flex",alignItems:"center",justifyContent:"center",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:12}}>+ Add Firm</div>
-              </div>
-            </div>
-          </div>;
-        })()}
         {/* ── NEWS / ECONOMIC CALENDAR ────────────────────────────────────────── */}
         {tab==="news"&&<NewsTab econFilter={econFilter} setEconFilter={setEconFilter} C={C} newsBlocker={newsBlocker} saveNewsBlocker={saveNewsBlocker} onEventsLoaded={setCalendarEvents}/>}
 
