@@ -1244,6 +1244,257 @@ Respond ONLY with this JSON (no markdown, no preamble):
   );
 };
 
+// ── Add Trade Modal ───────────────────────────────────────────────────────────
+const INSTRUMENTS = [
+  {value:"NQ",  label:"NQ (Nasdaq-100)",   pts:{standard:20, micro:2}},
+  {value:"ES",  label:"ES (S&P 500)",      pts:{standard:50, micro:5}},
+  {value:"MNQ", label:"MNQ (Micro Nasdaq)",pts:{standard:2,  micro:2}},
+  {value:"MES", label:"MES (Micro S&P)",   pts:{standard:5,  micro:5}},
+  {value:"YM",  label:"YM (Dow Jones)",    pts:{standard:5,  micro:0.5}},
+  {value:"RTY", label:"RTY (Russell)",     pts:{standard:50, micro:5}},
+  {value:"CL",  label:"CL (Crude Oil)",    pts:{standard:1000,micro:100}},
+  {value:"GC",  label:"GC (Gold)",         pts:{standard:100, micro:10}},
+];
+const ADD_TAGS = ["Kill Zone","Displacement","FVG","OB","BOS","CHoCH","Liquidity Sweep","FOMO","Revenge","Late entry","Oversize","News trade"];
+
+const AddTradeModal = ({onClose, onSave, globalRules, C}) => {
+  const [form, setForm] = useState({
+    symbol:"NQ", contractType:"standard", side:"Long",
+    trade_date: new Date().toISOString().slice(0,10),
+    contracts:"1", entry:"", exit:"",
+    entryPrice:"", exitPrice:"",
+    pnl:"", rr:"", tags:[], review:"", rating:0, screenshot:null,
+  });
+  const [hover, setHover] = useState(0);
+  const [tagInput, setTagInput] = useState("");
+  const [drag, setDrag] = useState(false);
+  const fileRef = useRef();
+
+  const inst = INSTRUMENTS.find(i=>i.value===form.symbol) || INSTRUMENTS[0];
+  const ptVal = inst.pts[form.contractType] || inst.pts.standard;
+
+  // Auto-calc P&L from prices if entered
+  const autoPnl = (() => {
+    const ep = parseFloat(form.entryPrice), xp = parseFloat(form.exitPrice);
+    const ct = parseInt(form.contracts)||1;
+    if (!ep || !xp) return null;
+    const diff = form.side==="Long" ? xp-ep : ep-xp;
+    return Math.round(diff * ptVal * ct);
+  })();
+
+  // Hold time
+  const holdMin = (() => {
+    if (!form.entry || !form.exit) return null;
+    const [eh,em] = form.entry.split(":").map(Number);
+    const [xh,xm] = form.exit.split(":").map(Number);
+    return (xh*60+xm) - (eh*60+em);
+  })();
+
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const toggleTag = t => set("tags", form.tags.includes(t) ? form.tags.filter(x=>x!==t) : [...form.tags,t]);
+  const addCustomTag = () => { if(tagInput.trim()&&!form.tags.includes(tagInput.trim())) set("tags",[...form.tags,tagInput.trim()]); setTagInput(""); };
+  const handleFile = f => { if(!f||!f.type.startsWith("image/")) return; const r=new FileReader(); r.onload=e=>set("screenshot",e.target.result); r.readAsDataURL(f); };
+
+  const canSave = form.symbol && form.side && form.trade_date && (form.pnl || autoPnl!==null);
+
+  const handleSave = () => {
+    const finalPnl = parseFloat(form.pnl) || autoPnl || 0;
+    const finalRr  = parseFloat(form.rr) || 0;
+    onSave({
+      symbol:     form.symbol,
+      side:       form.side,
+      entry:      form.entry,
+      exit:       form.exit,
+      pnl:        finalPnl,
+      rr:         finalRr,
+      holdMin:    holdMin || 0,
+      tags:       form.tags,
+      rating:     form.rating,
+      review:     form.review,
+      screenshot: form.screenshot,
+      checks:     globalRules.reduce((a,r)=>({...a,[r]:false}),{}),
+      trade_date: form.trade_date,
+      status:     finalPnl >= 0 ? "win" : "loss",
+    });
+  };
+
+  const inputStyle = {width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"};
+  const labelStyle = {fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:5,display:"block"};
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.75)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:860,maxHeight:"92vh",overflowY:"auto",display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{padding:"18px 26px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+          <div>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Manual Entry</div>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,marginTop:2}}>+ New Trade</div>
+          </div>
+          <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22,lineHeight:1}}>✕</button>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",flex:1}}>
+
+          {/* Left column */}
+          <div style={{padding:"24px 26px",borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:16}}>
+
+            {/* Instrument + Contract Type */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,alignItems:"end"}}>
+              <div>
+                <label style={labelStyle}>Instrument</label>
+                <select value={form.symbol} onChange={e=>set("symbol",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
+                  {INSTRUMENTS.map(i=><option key={i.value} value={i.value}>{i.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Contract Type <span style={{color:C.accent}}>${ptVal}/pt</span></label>
+                <div style={{display:"flex",gap:6}}>
+                  {["standard","micro"].map(ct=>(
+                    <button key={ct} onClick={()=>set("contractType",ct)}
+                      style={{padding:"10px 16px",borderRadius:8,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,background:form.contractType===ct?C.accentDim:C.surface,border:`1px solid ${form.contractType===ct?C.accent+"66":C.border}`,color:form.contractType===ct?C.accent:C.textDim,textTransform:"capitalize"}}>
+                      {ct.charAt(0).toUpperCase()+ct.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Direction */}
+            <div>
+              <label style={labelStyle}>Direction</label>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {["Long","Short"].map(s=>(
+                  <button key={s} onClick={()=>set("side",s)}
+                    style={{padding:"11px",borderRadius:8,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,background:form.side===s?(s==="Long"?`${C.green}22`:`${C.red}22`):C.surface,border:`1px solid ${form.side===s?(s==="Long"?C.green+"66":C.red+"66"):C.border}`,color:form.side===s?(s==="Long"?C.green:C.red):C.textDim}}>
+                    {s==="Long"?"▲ Long":"▼ Short"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Date + Contracts */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div><label style={labelStyle}>Trade Date</label><input type="date" value={form.trade_date} onChange={e=>set("trade_date",e.target.value)} style={inputStyle}/></div>
+              <div><label style={labelStyle}>Contracts</label><input type="number" min="1" value={form.contracts} onChange={e=>set("contracts",e.target.value)} placeholder="1" style={inputStyle}/></div>
+            </div>
+
+            {/* Entry / Exit time */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div><label style={labelStyle}>Entry Time</label><input type="time" value={form.entry} onChange={e=>set("entry",e.target.value)} style={inputStyle}/></div>
+              <div><label style={labelStyle}>Exit Time</label><input type="time" value={form.exit} onChange={e=>set("exit",e.target.value)} style={inputStyle}/></div>
+            </div>
+
+            {/* Entry / Exit price */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div><label style={labelStyle}>Entry Price (auto P&L)</label><input type="number" step="0.25" value={form.entryPrice} onChange={e=>set("entryPrice",e.target.value)} placeholder="e.g. 21450.00" style={inputStyle}/></div>
+              <div><label style={labelStyle}>Exit Price</label><input type="number" step="0.25" value={form.exitPrice} onChange={e=>set("exitPrice",e.target.value)} placeholder="e.g. 21475.00" style={inputStyle}/></div>
+            </div>
+
+            {/* Net P&L + R:R */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div>
+                <label style={labelStyle}>Net P&L ($) {autoPnl!==null&&<span style={{color:C.accent}}>auto-calc</span>}</label>
+                <input type="number" value={form.pnl} onChange={e=>set("pnl",e.target.value)} placeholder={autoPnl!==null?String(autoPnl):"e.g. 500.00"} style={{...inputStyle,borderColor:autoPnl!==null?C.accent+"66":C.border}}/>
+              </div>
+              <div><label style={labelStyle}>R:R (optional)</label><input type="number" step="0.1" value={form.rr} onChange={e=>set("rr",e.target.value)} placeholder="e.g. 2.5" style={inputStyle}/></div>
+            </div>
+
+            {/* Summary row */}
+            <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",display:"flex",gap:18,flexWrap:"wrap"}}>
+              {[
+                ["Hold", holdMin!=null ? `${holdMin}m` : "–"],
+                ["P&L",  form.pnl ? `$${form.pnl}` : autoPnl!=null ? `$${autoPnl}` : "–"],
+                ["Contracts", `${form.contracts||1}× ${form.symbol}`],
+                ["Value/pt", `$${ptVal}/pt`],
+              ].map(([l,v])=>(
+                <div key={l}><div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,textTransform:"uppercase"}}>{l}</div><div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,marginTop:2}}>{v}</div></div>
+              ))}
+            </div>
+
+            {/* Tags */}
+            <div>
+              <label style={labelStyle}>Tags</label>
+              <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}}>
+                {ADD_TAGS.map(t=>(
+                  <button key={t} onClick={()=>toggleTag(t)}
+                    style={{borderRadius:20,padding:"3px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,background:form.tags.includes(t)?`${tagColor(t)}22`:C.surface,border:`1px solid ${form.tags.includes(t)?tagColor(t)+"66":C.border}`,color:form.tags.includes(t)?tagColor(t):C.muted}}>
+                    {form.tags.includes(t)?"✓ ":""}{t}
+                  </button>
+                ))}
+              </div>
+              <div style={{display:"flex",gap:6}}>
+                <input value={tagInput} onChange={e=>setTagInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCustomTag()} placeholder="Custom tag..." style={{...inputStyle,flex:1}}/>
+                <button onClick={addCustomTag} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>Add</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right column */}
+          <div style={{padding:"24px 26px",display:"flex",flexDirection:"column",gap:16}}>
+
+            {/* Screenshot */}
+            <div>
+              <label style={labelStyle}>Chart Screenshot</label>
+              <div style={{border:`2px dashed ${drag?C.accent:C.border}`,borderRadius:10,minHeight:180,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",background:drag?C.accentDim:C.surface,position:"relative",transition:"all 0.15s"}}
+                onClick={()=>fileRef.current.click()}
+                onDragOver={e=>{e.preventDefault();setDrag(true);}}
+                onDragLeave={()=>setDrag(false)}
+                onDrop={e=>{e.preventDefault();setDrag(false);handleFile(e.dataTransfer.files[0]);}}>
+                {form.screenshot
+                  ? <><img src={form.screenshot} alt="trade" style={{width:"100%",objectFit:"cover",borderRadius:8}}/><button onClick={e=>{e.stopPropagation();set("screenshot",null);}} style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,.6)",border:"none",color:"#fff",borderRadius:4,padding:"2px 8px",cursor:"pointer",fontSize:11}}>Remove</button></>
+                  : <><div style={{fontSize:32,marginBottom:8}}>📷</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,textAlign:"center"}}>Drag & drop or click to upload</div></>
+                }
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
+            </div>
+
+            {/* Rating */}
+            <div>
+              <label style={labelStyle}>Trade Rating</label>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                {[1,2,3,4,5].map(s=>(
+                  <div key={s} onClick={()=>set("rating",s)} onMouseEnter={()=>setHover(s)} onMouseLeave={()=>setHover(0)}
+                    style={{fontSize:26,cursor:"pointer",transition:"transform 0.1s",transform:(hover||form.rating)>=s?"scale(1.2)":"scale(1)",filter:(hover||form.rating)>=s?"none":"grayscale(1) opacity(.25)"}}>⭐</div>
+                ))}
+                {(hover||form.rating)>0&&<span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim}}>{["","Terrible","Poor","Okay","Good","Perfect"][(hover||form.rating)]}</span>}
+              </div>
+            </div>
+
+            {/* Rule checklist */}
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <label style={{...labelStyle,marginBottom:0}}>Rule Checklist</label>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {globalRules.map((rule,i)=>(
+                  <label key={i} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"6px 10px",borderRadius:7,background:C.surface,border:`1px solid ${C.border}`}}>
+                    <div style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${C.border}`,background:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    </div>
+                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim}}>{rule}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div style={{flex:1,display:"flex",flexDirection:"column"}}>
+              <label style={labelStyle}>Notes / Review</label>
+              <textarea value={form.review} onChange={e=>set("review",e.target.value)} placeholder="Why did you take this trade? What went well? What could improve?" style={{...inputStyle,flex:1,minHeight:90,resize:"vertical",lineHeight:1.6,padding:12}}/>
+            </div>
+
+            {/* Save */}
+            <button onClick={handleSave} disabled={!canSave}
+              style={{width:"100%",padding:"14px",borderRadius:10,cursor:canSave?"pointer":"not-allowed",background:canSave?`linear-gradient(135deg,${C.accent}33,${C.accent}11)`:C.surface,border:`1px solid ${canSave?C.accent+"55":C.border}`,color:canSave?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:canSave?1:0.5,transition:"all 0.15s"}}>
+              + SAVE TRADE
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function TradingPlatform({ session }) {
   const user = session?.user;
@@ -1262,6 +1513,13 @@ export default function TradingPlatform({ session }) {
   const [tab,        setTab       ] = useState("dashboard");
   const [selTrade,   setSelTrade  ] = useState(null);
   const [showRules,  setShowRules ] = useState(false);
+  const [showAddTrade, setShowAddTrade] = useState(false);
+  const [newTradeForm, setNewTradeForm] = useState({
+    symbol:"NQ", contractType:"standard", side:"Long",
+    trade_date: new Date().toISOString().slice(0,10),
+    contracts:"1", entry:"", exit:"", entryPrice:"", exitPrice:"",
+    pnl:"", rr:"", tags:[], review:"", rating:0, screenshot:null,
+  });
   const [trades,     setTrades    ] = useState([]);
   const [rules,      setRules     ] = useState(DEFAULT_RULES);
   const [habits,     setHabits    ] = useState(DEFAULT_HABITS);
@@ -1690,6 +1948,7 @@ export default function TradingPlatform({ session }) {
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'DM Sans',sans-serif",display:"flex",flexDirection:"column"}}>
       <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
       {selTrade  && <TradeModal trade={selTrade} onClose={()=>setSelTrade(null)} onSave={saveTrade} globalRules={rules}/>}
+      {showAddTrade && <AddTradeModal onClose={()=>setShowAddTrade(false)} onSave={async (t)=>{ await saveTrade({...t,id:"new-"+Date.now()}); setShowAddTrade(false); }} globalRules={rules} C={C}/>}
       <FlattenWidget tvStatus={tvStatus}/>
       {showRules && <RuleManager rules={rules} onChange={setRules} onClose={()=>setShowRules(false)}/>}
 
@@ -1914,7 +2173,8 @@ export default function TradingPlatform({ session }) {
           <div style={{display:"flex",flexDirection:"column",gap:22}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
               <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Trade Log</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>All Trades</div></div>
-              <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+              <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
+                <button onClick={()=>setShowAddTrade(true)} style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"7px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>+ Add Trade</button>
                 <button onClick={()=>setShowRules(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⚙ My Rules</button>
                 {["All",...allTags].map(f=><button key={f} onClick={()=>setTagFilter(f)} style={{background:tagFilter===f?`${tagColor(f)}22`:C.surface,border:`1px solid ${tagFilter===f?tagColor(f)+"66":C.border}`,color:tagFilter===f?tagColor(f):C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>{f}</button>)}
               </div>
