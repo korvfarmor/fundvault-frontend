@@ -809,7 +809,7 @@ function FlattenWidget({ tvStatus }) {
 }
 
 // ── NewsTab — Live Economic Calendar (ForexFactory feed) ─────────────────────
-function NewsTab({ econFilter, setEconFilter, C, newsBlocker, saveNewsBlocker }) {
+function NewsTab({ econFilter, setEconFilter, C, newsBlocker, saveNewsBlocker, onEventsLoaded }) {
   const [events,    setEvents  ] = useState([]);
   const [loading,   setLoading ] = useState(true);
   const [error,     setError   ] = useState(null);
@@ -825,37 +825,67 @@ function NewsTab({ econFilter, setEconFilter, C, newsBlocker, saveNewsBlocker })
   const fetchCalendar = async () => {
     setLoading(true); setError(null);
     try {
-      const v = Date.now();
-      const [r1, r2] = await Promise.all([
-        fetch(`https://nfs.faireconomy.media/ff_calendar_thisweek.json?version=${v}`, { cache:"no-store" }),
-        fetch(`https://nfs.faireconomy.media/ff_calendar_nextweek.json?version=${v}`, { cache:"no-store" }),
+      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      // Normalize any format (backend or FF JSON) to our internal format
+      const normalize = (raw, source="ff") => raw.map(e => {
+        // Backend format: date="2026-03-20", time="08:30", currency, impact (already lowercase), event
+        // FF JSON format: date=ISO string, country, impact="High"/"Medium", title
+        const isFF = source === "ff";
+        const rawDate = isFF ? (e.date||"") : (e.date||"");
+        const date = rawDate.length > 10 ? rawDate.slice(0,10) : rawDate;
+        const time = isFF
+          ? (e.date ? new Date(e.date).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",timeZone:"America/New_York"}) : "")
+          : (e.time || "");
+        return {
+          date,
+          time,
+          currency: isFF ? e.country : e.currency,
+          impact:   isFF ? (e.impact==="High"?"high":e.impact==="Medium"?"medium":"low") : (e.impact||"low"),
+          event:    isFF ? e.title : (e.event||e.title||e.name||""),
+          forecast: e.forecast || null,
+          previous: e.previous || null,
+          actual:   (e.actual && e.actual !== "") ? e.actual : null,
+        };
+      }).filter(e => e.date && e.event);
+
+      // Try backend for this week + next week
+      const [r1, r2] = await Promise.allSettled([
+        fetch(`${API}/calendar/thisweek`, { cache:"no-store" }),
+        fetch(`${API}/calendar/nextweek`,  { cache:"no-store" }),
       ]);
-      const normalize = raw => raw.map(e => ({
-        date:     e.date ? e.date.slice(0,10) : "",
-        time:     e.date ? new Date(e.date).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",timeZone:"America/New_York"}) : "",
-        currency: e.country,
-        impact:   e.impact === "High" ? "high" : e.impact === "Medium" ? "medium" : "low",
-        event:    e.title,
-        forecast: e.forecast || null,
-        previous: e.previous || null,
-        actual:   e.actual && e.actual !== "" ? e.actual : null,
-      }));
-      const week1 = r1.ok ? normalize(await r1.json()) : [];
-      const week2 = r2.ok ? normalize(await r2.json()) : [];
-      setEvents([...week1, ...week2]);
-      setLastFetch(new Date());
-    } catch (ffErr) {
-      // Fallback: backend proxy
-      try {
-        const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
-        const res2 = await fetch(`${API}/calendar/thisweek`, { cache: "no-store" });
-        if (!res2.ok) throw new Error(`Backend returned ${res2.status}`);
-        setEvents(await res2.json());
+      const week1 = r1.status==="fulfilled" && r1.value.ok ? normalize(await r1.value.json(), "backend") : [];
+      const week2 = r2.status==="fulfilled" && r2.value.ok ? normalize(await r2.value.json(), "backend") : [];
+
+      if (week1.length > 0 || week2.length > 0) {
+        const all = [...week1, ...week2];
+        setEvents(all);
+        if (onEventsLoaded) onEventsLoaded(all);
         setLastFetch(new Date());
-      } catch {
-        setError("Could not load calendar. Check your connection.");
-        setEvents([]);
+        setLoading(false);
+        return;
       }
+
+      // Fallback: FF JSON via CORS proxy (allorigins)
+      const proxy = url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+      const [p1, p2] = await Promise.allSettled([
+        fetch(proxy("https://nfs.faireconomy.media/ff_calendar_thisweek.json"), { cache:"no-store" }),
+        fetch(proxy("https://nfs.faireconomy.media/ff_calendar_nextweek.json"),  { cache:"no-store" }),
+      ]);
+      const parse = async r => {
+        if (r.status !== "fulfilled" || !r.value.ok) return [];
+        const json = await r.value.json();
+        const raw = typeof json.contents === "string" ? JSON.parse(json.contents) : json;
+        return normalize(Array.isArray(raw) ? raw : [], "ff");
+      };
+      const pw1 = await parse(p1);
+      const pw2 = await parse(p2);
+      const allProxy = [...pw1, ...pw2];
+      setEvents(allProxy);
+      if (onEventsLoaded) onEventsLoaded(allProxy);
+      setLastFetch(new Date());
+    } catch {
+      setError("Could not load calendar. Check your connection.");
+      setEvents([]);
     }
     setLoading(false);
   };
@@ -1356,7 +1386,7 @@ const INSTRUMENTS = [
 ];
 const ADD_TAGS = ["Kill Zone","Displacement","FVG","OB","BOS","CHoCH","Liquidity Sweep","FOMO","Revenge","Late entry","Oversize","News trade"];
 
-const AddTradeModal = ({onClose, onSave, globalRules, C}) => {
+const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEvents}) => {
   const [form, setForm] = useState({
     symbol:"NQ", contractType:"standard", side:"Long",
     trade_date: new Date().toISOString().slice(0,10),
@@ -1394,7 +1424,33 @@ const AddTradeModal = ({onClose, onSave, globalRules, C}) => {
   const addCustomTag = () => { if(tagInput.trim()&&!form.tags.includes(tagInput.trim())) set("tags",[...form.tags,tagInput.trim()]); setTagInput(""); };
   const handleFile = f => { if(!f||!f.type.startsWith("image/")) return; const r=new FileReader(); r.onload=e=>set("screenshot",e.target.result); r.readAsDataURL(f); };
 
-  const canSave = form.symbol && form.side && form.trade_date && (form.pnl || autoPnl!==null);
+  const [newsOverride, setNewsOverride] = useState(false);
+
+  // Check if current time is in a news blocking window
+  const newsWarning = (() => {
+    if (!newsBlocker?.enabled || !calendarEvents?.length) return null;
+    const now = new Date();
+    const today = now.toISOString().slice(0,10);
+    const nowMin = now.getHours()*60 + now.getMinutes();
+    for (const ev of calendarEvents) {
+      if (ev.date !== today) continue;
+      if (newsBlocker.impact === "high" && ev.impact !== "high") continue;
+      if (newsBlocker.impact === "medium_high" && ev.impact === "low") continue;
+      if (!ev.time) continue;
+      try {
+        const t = ev.time.trim();
+        const [hm, ampm] = [t.replace(/ ?[AaPp][Mm]/,""), t.match(/[AaPp][Mm]/)?.[0]?.toUpperCase()];
+        let [h, m] = hm.split(":").map(Number);
+        if (ampm === "PM" && h < 12) h += 12;
+        if (ampm === "AM" && h === 12) h = 0;
+        const evMin = h*60 + (m||0);
+        if (nowMin >= evMin - newsBlocker.before && nowMin <= evMin + newsBlocker.after) {
+          return { event: ev.event||ev.name, time: ev.time };
+        }
+      } catch { continue; }
+    }
+    return null;
+  })();
 
   const handleSave = () => {
     const finalPnl = parseFloat(form.pnl) || autoPnl || 0;
@@ -1416,6 +1472,9 @@ const AddTradeModal = ({onClose, onSave, globalRules, C}) => {
       status:     finalPnl >= 0 ? "win" : "loss",
     });
   };
+
+  const canSave = form.symbol && form.side && form.trade_date && (form.pnl || autoPnl!==null);
+  const blockedByNews = newsWarning && !newsOverride;
 
   const inputStyle = {width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"};
   const labelStyle = {fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:5,display:"block"};
@@ -1582,9 +1641,29 @@ const AddTradeModal = ({onClose, onSave, globalRules, C}) => {
               <textarea value={form.review} onChange={e=>set("review",e.target.value)} placeholder="Why did you take this trade? What went well? What could improve?" style={{...inputStyle,flex:1,minHeight:90,resize:"vertical",lineHeight:1.6,padding:12}}/>
             </div>
 
+            {/* News Blocker Warning */}
+            {newsWarning && (
+              <div style={{background:`${C.red}11`,border:`2px solid ${C.red}44`,borderRadius:10,padding:"12px 14px",display:"flex",flexDirection:"column",gap:8}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:18}}>🚨</span>
+                  <div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:700}}>News Blocking Active</div>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginTop:2}}>
+                      <strong style={{color:C.text}}>{newsWarning.event}</strong> at {newsWarning.time} — most prop firms prohibit trading during this window.
+                    </div>
+                  </div>
+                </div>
+                <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}>
+                  <input type="checkbox" checked={newsOverride} onChange={e=>setNewsOverride(e.target.checked)}
+                    style={{width:14,height:14,accentColor:C.amber}}/>
+                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.amber}}>I understand the risk — log this trade anyway</span>
+                </label>
+              </div>
+            )}
+
             {/* Save */}
-            <button onClick={handleSave} disabled={!canSave}
-              style={{width:"100%",padding:"14px",borderRadius:10,cursor:canSave?"pointer":"not-allowed",background:canSave?`linear-gradient(135deg,${C.accent}33,${C.accent}11)`:C.surface,border:`1px solid ${canSave?C.accent+"55":C.border}`,color:canSave?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:canSave?1:0.5,transition:"all 0.15s"}}>
+            <button onClick={handleSave} disabled={!canSave || blockedByNews}
+              style={{width:"100%",padding:"14px",borderRadius:10,cursor:canSave&&!blockedByNews?"pointer":"not-allowed",background:canSave&&!blockedByNews?`linear-gradient(135deg,${C.accent}33,${C.accent}11)`:C.surface,border:`1px solid ${canSave&&!blockedByNews?C.accent+"55":C.border}`,color:canSave&&!blockedByNews?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:canSave&&!blockedByNews?1:0.5,transition:"all 0.15s"}}>
               + SAVE TRADE
             </button>
           </div>
@@ -1631,6 +1710,7 @@ export default function TradingPlatform({ session }) {
   const [tagFilter,  setTagFilter ] = useState("All");
   const [newRule,    setNewRule   ] = useState({label:"",type:"loss",value:""});
   const [econFilter, setEconFilter] = useState("all");
+  const [calendarEvents, setCalendarEvents] = useState([]); // shared with AddTradeModal for blocker
   const [newsBlocker, setNewsBlocker] = useState(() => {
     try { return JSON.parse(localStorage.getItem("fv_newsblocker") || '{"enabled":true,"impact":"high","before":5,"after":5}'); }
     catch { return {enabled:true, impact:"high", before:5, after:5}; }
@@ -2055,7 +2135,7 @@ export default function TradingPlatform({ session }) {
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'DM Sans',sans-serif",display:"flex",flexDirection:"column"}}>
       <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
       {selTrade  && <TradeModal trade={selTrade} onClose={()=>setSelTrade(null)} onSave={saveTrade} globalRules={rules}/>}
-      {showAddTrade && <AddTradeModal onClose={()=>setShowAddTrade(false)} onSave={async (t)=>{ await saveTrade({...t,id:"new-"+Date.now()}); setShowAddTrade(false); }} globalRules={rules} C={C}/>}
+      {showAddTrade && <AddTradeModal onClose={()=>setShowAddTrade(false)} onSave={async (t)=>{ await saveTrade({...t,id:"new-"+Date.now()}); setShowAddTrade(false); }} globalRules={rules} C={C} newsBlocker={newsBlocker} calendarEvents={events}/>}
       <FlattenWidget tvStatus={tvStatus}/>
       {showRules && <RuleManager rules={rules} onChange={setRules} onClose={()=>setShowRules(false)}/>}
 
@@ -2647,7 +2727,7 @@ export default function TradingPlatform({ session }) {
           </div>;
         })()}
         {/* ── NEWS / ECONOMIC CALENDAR ────────────────────────────────────────── */}
-        {tab==="news"&&<NewsTab econFilter={econFilter} setEconFilter={setEconFilter} C={C} newsBlocker={newsBlocker} saveNewsBlocker={saveNewsBlocker}/>}
+        {tab==="news"&&<NewsTab econFilter={econFilter} setEconFilter={setEconFilter} C={C} newsBlocker={newsBlocker} saveNewsBlocker={saveNewsBlocker} onEventsLoaded={setCalendarEvents}/>}
 
         {/* ── ACCOUNTS ────────────────────────────────────────────────────────── */}
         {tab==="accounts"&&(()=>{
