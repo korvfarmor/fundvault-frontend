@@ -2228,6 +2228,19 @@ export default function TradingPlatform({ session }) {
   const handleSignOut = () => supabase.auth.signOut();
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("fv_theme") !== "light");
   const [mobileMenu, setMobileMenu] = useState(false);
+  // Onboarding
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem("fv_onboarded"));
+  const [onboardStep, setOnboardStep] = useState(0);
+  // Alerts
+  const [alerts, setAlerts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("fv_alerts") || "[]"); }
+    catch { return []; }
+  });
+  const [showAlerts, setShowAlerts] = useState(false);
+  const saveAlerts = (data) => { setAlerts(data); localStorage.setItem("fv_alerts", JSON.stringify(data)); };
+  const dismissAlert = (id) => saveAlerts(alerts.filter(a=>a.id!==id));
+  const markAllRead = () => saveAlerts(alerts.map(a=>({...a,read:true})));
+  const unreadCount = alerts.filter(a=>!a.read).length;
   const toggleTheme = () => {
     setDarkMode(d => {
       const next = !d;
@@ -2448,7 +2461,107 @@ export default function TradingPlatform({ session }) {
   const [liveAcctData,     setLiveAcctData    ] = useState(null); // Tradovate live-data när anslutet
 
   // ── Load trades from API ───────────────────────────────────────────────────
-  const loadTrades = useCallback(async () => {
+  // ── Auto-generate alerts ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!trades.length && !propAccounts.length) return;
+    const newAlerts = [];
+    const now = new Date();
+    const today = now.toISOString().slice(0,10);
+    const todayTrades = trades.filter(t=>t.trade_date===today);
+    const todayPnl = todayTrades.reduce((a,t)=>a+t.pnl,0);
+
+    propAccounts.forEach(pa => {
+      const firm = firms.find(f=>f.id===pa.firmId);
+      const type = firm?.accountTypes.find(t=>t.id===pa.typeId);
+      if (!firm || !type) return;
+
+      const dlRule = type.rules.find(r=>r.type==="loss");
+      const ddRule = type.rules.find(r=>r.type==="drawdown");
+      const csRule = type.rules.find(r=>r.type==="consist");
+      const ptRule = type.rules.find(r=>r.type==="target");
+
+      const firmTrades = trades.filter(t=>(t.tags||[]).includes(pa.firmId)||trades.every(x=>!(x.tags||[]).some(tag=>["mffu","lucid","alpha","tpt","tradeify","apex","topstep"].includes(tag))));
+      const startBal = pa.startBalance || 50000;
+      const cumPnl = firmTrades.reduce((a,t)=>a+t.pnl,0);
+      const balance = startBal + cumPnl;
+      const pnlByDay = {};
+      firmTrades.forEach(t=>{pnlByDay[t.trade_date]=(pnlByDay[t.trade_date]||0)+t.pnl;});
+      const cycleProfit = cumPnl;
+      const winDays = Object.values(pnlByDay).filter(p=>p>0).length;
+      const bestDay = Math.max(0,...Object.values(pnlByDay).filter(p=>p>0));
+      const bestDayPct = cycleProfit>0 ? Math.round((bestDay/cycleProfit)*100) : 0;
+
+      const makeId = (type) => `${pa.id}-${type}-${today}`;
+
+      // Daily loss limit warning
+      if (dlRule && todayPnl < 0) {
+        const used = Math.abs(todayPnl);
+        const pct = used/dlRule.value;
+        if (pct >= 1 && !alerts.find(a=>a.id===makeId("dll-breach"))) {
+          newAlerts.push({id:makeId("dll-breach"),type:"danger",icon:"🔴",title:`Daily loss limit breached — ${pa.nickname}`,body:`You've lost $${Math.abs(Math.round(todayPnl)).toLocaleString()} today, exceeding the $${dlRule.value.toLocaleString()} limit. Trading may be suspended.`,read:false,ts:Date.now()});
+        } else if (pct >= 0.75 && pct < 1 && !alerts.find(a=>a.id===makeId("dll-warn"))) {
+          newAlerts.push({id:makeId("dll-warn"),type:"warning",icon:"⚠️",title:`Approaching daily loss limit — ${pa.nickname}`,body:`$${Math.abs(Math.round(todayPnl)).toLocaleString()} of $${dlRule.value.toLocaleString()} daily limit used (${Math.round(pct*100)}%). Consider stopping for today.`,read:false,ts:Date.now()});
+        }
+      }
+
+      // Payout ready
+      if (ptRule && cycleProfit >= ptRule.value && winDays >= (type.payout?.minDays||5)) {
+        const po = type.payout;
+        const noConsist = po?.consistency>=900;
+        const consistOk = noConsist || bestDayPct <= (po?.consistency||40);
+        if (consistOk && !alerts.find(a=>a.id===makeId("payout-ready"))) {
+          newAlerts.push({id:makeId("payout-ready"),type:"success",icon:"🎉",title:`Payout ready — ${pa.nickname}`,body:`All conditions met on your ${firm.name} account. Estimated payout: $${Math.round(cycleProfit*(type.payoutSplit/100)).toLocaleString()} after ${type.payoutSplit}% split.`,read:false,ts:Date.now()});
+        }
+      }
+
+      // Consistency warning
+      if (csRule && csRule.value<900 && bestDayPct >= csRule.value*0.85 && cycleProfit>0) {
+        if (!alerts.find(a=>a.id===makeId("consist-warn"))) {
+          newAlerts.push({id:makeId("consist-warn"),type:"warning",icon:"📊",title:`Consistency rule at risk — ${pa.nickname}`,body:`Your best day is ${bestDayPct}% of cycle profit. The limit is ${csRule.value}%. Avoid large single-day gains this cycle.`,read:false,ts:Date.now()});
+        }
+      }
+
+      // Drawdown warning
+      if (ddRule) {
+        const sorted = [...firmTrades].sort((a,b)=>a.trade_date?.localeCompare(b.trade_date));
+        let peak=startBal,cum=0;
+        sorted.forEach(t=>{cum+=t.pnl;if(startBal+cum>peak)peak=startBal+cum;});
+        const dd = peak - balance;
+        const ddPct = dd/ddRule.value;
+        if (ddPct>=1 && !alerts.find(a=>a.id===makeId("dd-breach"))) {
+          newAlerts.push({id:makeId("dd-breach"),type:"danger",icon:"🔴",title:`Max drawdown reached — ${pa.nickname}`,body:`Your drawdown of $${Math.round(dd).toLocaleString()} has hit the $${ddRule.value.toLocaleString()} limit. Account may be at risk.`,read:false,ts:Date.now()});
+        } else if (ddPct>=0.75 && ddPct<1 && !alerts.find(a=>a.id===makeId("dd-warn"))) {
+          newAlerts.push({id:makeId("dd-warn"),type:"warning",icon:"⚠️",title:`Drawdown warning — ${pa.nickname}`,body:`$${Math.round(dd).toLocaleString()} of $${ddRule.value.toLocaleString()} max drawdown used (${Math.round(ddPct*100)}%).`,read:false,ts:Date.now()});
+        }
+      }
+    });
+
+    // Revenge trading detection
+    const recentLosses = todayTrades.filter(t=>t.pnl<0).length;
+    const recentTotal  = todayTrades.length;
+    if (recentTotal >= 3 && recentLosses >= 3) {
+      const rid = `revenge-${today}`;
+      if (!alerts.find(a=>a.id===rid)) {
+        newAlerts.push({id:rid,type:"warning",icon:"🧠",title:"Possible revenge trading detected",body:`You've taken ${recentTotal} trades today with ${recentLosses} losses. Consider stepping away and reviewing your psychology check-in.`,read:false,ts:Date.now()});
+      }
+    }
+
+    // Psychology check-in reminder (after 9am if not checked in)
+    if (now.getHours() >= 9 && !Object.values(hChecks).some(Boolean) && mood === 0) {
+      const pid = `checkin-${today}`;
+      if (!alerts.find(a=>a.id===pid)) {
+        newAlerts.push({id:pid,type:"info",icon:"📋",title:"Daily check-in not completed",body:"You haven't completed your psychology check-in today. Head to the Psychology tab to log your mood and habits before trading.",read:false,ts:Date.now()});
+      }
+    }
+
+    if (newAlerts.length > 0) {
+      saveAlerts(prev => {
+        const merged = [...(Array.isArray(prev) ? prev : []), ...newAlerts].slice(-50);
+        localStorage.setItem("fv_alerts", JSON.stringify(merged));
+        return merged;
+      });
+    }
+  }, [trades, propAccounts, mood, hChecks]);
     setLoadingTrades(true);
     // Demo-läge: använd INITIAL_TRADES direkt
     if (localStorage.getItem("edgestat_mode") === "demo") {
@@ -2744,6 +2857,7 @@ export default function TradingPlatform({ session }) {
       <style>{`
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
         @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
         @media(max-width:768px){
           .fv-nav-tabs{display:none!important}
           .fv-nav-tabs.open{display:flex!important;flex-direction:column;position:fixed;top:58px;left:0;right:0;background:var(--fv-surface,#0d1420);border-bottom:1px solid #1e2d40;z-index:99;padding:12px;gap:4px}
@@ -2758,6 +2872,115 @@ export default function TradingPlatform({ session }) {
         }
         @media(min-width:769px){.fv-menu-btn{display:none!important}}
       `}</style>
+
+      {/* ── Onboarding Wizard ────────────────────────────────────────────────── */}
+      {showOnboarding && (() => {
+        const STEPS = [
+          {
+            icon:"🏢", title:"Add your prop account",
+            body:"Start by telling FundVault which prop firm you're trading with and what account type. We'll track your drawdown, consistency rules and payout progress automatically.",
+            action:"Go to Prop Firm", tab:"propfirm",
+          },
+          {
+            icon:"📥", title:"Import your trades",
+            body:"Export a CSV from Tradovate (Account → Trade History → Export) and import it here. Or add trades manually with the + Add Trade button.",
+            action:"Go to Trades", tab:"trades",
+          },
+          {
+            icon:"⚡", title:"Define your edge",
+            body:"Create your first Edge in the Edge Library — a named setup with entry rules. FundVault will automatically track its win rate and how often you follow the rules.",
+            action:"Go to Edge Library", tab:"edge",
+          },
+          {
+            icon:"🧠", title:"Set up your psychology",
+            body:"Log your mood and habits before each session. The Psychology Guard will tell you if you're clear to trade based on your mental state.",
+            action:"Go to Psychology", tab:"psychology",
+          },
+          {
+            icon:"🎉", title:"You're all set!",
+            body:"FundVault will now automatically generate alerts when you're near drawdown limits, ready for a payout, or showing signs of revenge trading. Check the 🔔 bell in the top right.",
+            action:"Start trading", tab:null,
+          },
+        ];
+        const step = STEPS[onboardStep];
+        const isLast = onboardStep === STEPS.length - 1;
+        const progress = ((onboardStep) / (STEPS.length - 1)) * 100;
+        return (
+          <div style={{position:"fixed",inset:0,zIndex:3000,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:20,width:"100%",maxWidth:480,overflow:"hidden",animation:"slideIn 0.25s ease"}}>
+              {/* Progress bar */}
+              <div style={{height:3,background:C.border}}>
+                <div style={{height:"100%",width:`${progress}%`,background:`linear-gradient(90deg,${C.accent},${C.purple})`,transition:"width 0.4s ease"}}/>
+              </div>
+              <div style={{padding:"32px 36px"}}>
+                {/* Step counter */}
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:20}}>
+                  Step {onboardStep+1} of {STEPS.length}
+                </div>
+                {/* Icon + title */}
+                <div style={{fontSize:48,marginBottom:16}}>{step.icon}</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:24,marginBottom:12}}>{step.title}</div>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:C.textDim,lineHeight:1.7,marginBottom:32}}>{step.body}</div>
+                {/* Step dots */}
+                <div style={{display:"flex",gap:6,marginBottom:28,justifyContent:"center"}}>
+                  {STEPS.map((_,i)=><div key={i} style={{width:i===onboardStep?20:7,height:7,borderRadius:4,background:i===onboardStep?C.accent:i<onboardStep?C.accent+"44":C.border,transition:"all 0.3s"}}/>)}
+                </div>
+                {/* Buttons */}
+                <div style={{display:"flex",gap:10}}>
+                  <button onClick={()=>{localStorage.setItem("fv_onboarded","1");setShowOnboarding(false);}}
+                    style={{flex:1,padding:"11px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>
+                    Skip guide
+                  </button>
+                  <button onClick={()=>{
+                    if(step.tab){setTab(step.tab);}
+                    if(isLast){localStorage.setItem("fv_onboarded","1");setShowOnboarding(false);}
+                    else{setOnboardStep(s=>s+1);}
+                  }}
+                    style={{flex:2,padding:"11px",borderRadius:10,cursor:"pointer",background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>
+                    {isLast ? "🚀 Get started" : `${step.action} →`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Alert Panel ──────────────────────────────────────────────────────── */}
+      {showAlerts && (
+        <div style={{position:"fixed",top:64,right:16,zIndex:2000,width:360,maxHeight:"80vh",display:"flex",flexDirection:"column",background:C.card,border:`1px solid ${C.border}`,borderRadius:14,boxShadow:"0 8px 32px rgba(0,0,0,0.4)",overflow:"hidden",animation:"slideIn 0.2s ease"}}>
+          <div style={{padding:"14px 18px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>🔔 Alerts {unreadCount>0&&<span style={{background:C.red,color:"#fff",borderRadius:20,padding:"1px 7px",fontFamily:"'Space Mono',monospace",fontSize:10,marginLeft:6}}>{unreadCount}</span>}</div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              {unreadCount>0&&<button onClick={markAllRead} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10}}>Mark all read</button>}
+              <button onClick={()=>setShowAlerts(false)} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:18}}>✕</button>
+            </div>
+          </div>
+          <div style={{overflowY:"auto",flex:1}}>
+            {alerts.length===0 ? (
+              <div style={{padding:"40px 20px",textAlign:"center",color:C.muted,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
+                <div style={{fontSize:32,marginBottom:8}}>✅</div>
+                No alerts — everything looks good!
+              </div>
+            ) : (
+              [...alerts].sort((a,b)=>b.ts-a.ts).map(alert=>(
+                <div key={alert.id} style={{padding:"14px 18px",borderBottom:`1px solid ${C.border}`,background:alert.read?"transparent":alert.type==="danger"?`${C.red}08`:alert.type==="success"?`${C.green}08`:`${C.amber}06`,display:"flex",gap:12,alignItems:"flex-start"}}>
+                  <span style={{fontSize:20,flexShrink:0,marginTop:1}}>{alert.icon}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,color:alert.type==="danger"?C.red:alert.type==="success"?C.green:alert.type==="warning"?C.amber:C.accent,marginBottom:3}}>{alert.title}</div>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,lineHeight:1.5}}>{alert.body}</div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,marginTop:6}}>{new Date(alert.ts).toLocaleString("en-US",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}</div>
+                  </div>
+                  <button onClick={()=>dismissAlert(alert.id)} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:14,flexShrink:0,opacity:.6,padding:"2px 4px"}}>✕</button>
+                </div>
+              ))
+            )}
+          </div>
+          {alerts.length>0&&<div style={{padding:"10px 18px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
+            <button onClick={()=>saveAlerts([])} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10}}>Clear all alerts</button>
+          </div>}
+        </div>
+      )}
       <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
       {selTrade  && <TradeModal trade={selTrade} onClose={()=>setSelTrade(null)} onSave={saveTrade} globalRules={rules}/>}
       {showImportCSV && <CSVImportModal onClose={()=>setShowImportCSV(false)} onImport={async (trades)=>{ for(const t of trades){ await saveTrade({...t,id:"csv-"+Date.now()+Math.random()}); } setShowImportCSV(false); }} C={C}/>}
@@ -2803,6 +3026,10 @@ export default function TradingPlatform({ session }) {
             </button>
             <button onClick={toggleTheme} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:13,color:C.muted,letterSpacing:"0.05em"}} title={darkMode?"Switch to light mode":"Switch to dark mode"}>
               {darkMode?"☀️":"🌙"}
+            </button>
+            <button onClick={()=>setShowAlerts(s=>!s)} style={{position:"relative",background:unreadCount>0?`${C.red}18`:"transparent",border:`1px solid ${unreadCount>0?C.red+"44":C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:14,color:unreadCount>0?C.red:C.muted,transition:"all 0.15s"}}>
+              🔔
+              {unreadCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:C.red,color:"#fff",borderRadius:"50%",width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Space Mono',monospace",fontSize:9,fontWeight:700}}>{unreadCount>9?"9+":unreadCount}</span>}
             </button>
             <button onClick={handleSignOut} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.05em",textTransform:"uppercase"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.red;e.currentTarget.style.color=C.red;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.color=C.muted;}}>Sign out</button>
           </div>
@@ -2938,7 +3165,8 @@ export default function TradingPlatform({ session }) {
             </div>
 
             {/* AI Feedback */}
-            <AIFeedback trades={trades}/>
+            {/* AI Coach — coming soon */}
+            {false && <AIFeedback trades={trades}/>}
           </div>
         )}
 
