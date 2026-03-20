@@ -1739,22 +1739,34 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
   const labelStyle = {fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:5,display:"block"};
 
   return (
-    <div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.75)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
-      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:860,maxHeight:"92vh",overflowY:"auto",display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
+    <div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.75)",backdropFilter:"blur(4px)",display:"flex",alignItems:"flex-end",justifyContent:"center"}} className="fv-modal-backdrop" onClick={onClose}>
+      <style>{`
+        @media(min-width:769px){
+          .fv-modal-backdrop{align-items:center!important;padding:20px}
+          .fv-modal-inner{max-width:860px!important;border-radius:16px!important;max-height:92vh!important}
+          .fv-modal-cols{grid-template-columns:1fr 1fr!important}
+          .fv-modal-col-right{border-left:1px solid var(--fv-border)!important;border-top:none!important}
+        }
+        @media(max-width:768px){
+          .fv-modal-inner{border-radius:20px 20px 0 0!important;max-height:92vh!important;padding-bottom:env(safe-area-inset-bottom)}
+          .fv-modal-cols{grid-template-columns:1fr!important}
+        }
+      `}</style>
+      <div className="fv-modal-inner" style={{background:C.card,border:`1px solid ${C.border}`,width:"100%",maxHeight:"92vh",overflowY:"auto",display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
 
         {/* Header */}
-        <div style={{padding:"18px 26px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+        <div style={{padding:"16px 20px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0,position:"sticky",top:0,background:C.card,zIndex:10}}>
           <div>
             <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Manual Entry</div>
-            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,marginTop:2}}>+ New Trade</div>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginTop:2}}>+ New Trade</div>
           </div>
           <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22,lineHeight:1}}>✕</button>
         </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",flex:1}}>
+        <div className="fv-modal-cols" style={{display:"grid",gridTemplateColumns:"1fr",flex:1}}>
 
           {/* Left column */}
-          <div style={{padding:"24px 26px",borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:16}}>
+          <div style={{padding:"20px",borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:14}}>
 
             {/* Instrument + Contract Type */}
             <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,alignItems:"end"}}>
@@ -1848,7 +1860,7 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
           </div>
 
           {/* Right column */}
-          <div style={{padding:"24px 26px",display:"flex",flexDirection:"column",gap:16}}>
+          <div className="fv-modal-col-right" style={{padding:"20px",borderTop:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:14}}>
 
             {/* Screenshot */}
             <div>
