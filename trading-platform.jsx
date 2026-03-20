@@ -1188,78 +1188,179 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
   const [tags,      setTags      ] = useState(trade.tags||[]);
   const [tagInput,  setTagInput  ] = useState("");
   const [drag,      setDrag      ] = useState(false);
+  const [chartTab,  setChartTab  ] = useState("replay"); // "replay" | "screenshot"
   const fileRef = useRef();
+  const tvRef   = useRef();
+
   const ratingLabels=["","Terrible — broke all rules","Poor — mostly off-plan","Okay — some mistakes","Good — mostly on-plan","Perfect — textbook execution"];
   const handleFile=f=>{if(!f||!f.type.startsWith("image/"))return;const r=new FileReader();r.onload=e=>setScreenshot(e.target.result);r.readAsDataURL(f);};
   const addTag=t=>{if(t&&!tags.includes(t))setTags([...tags,t]);setTagInput("");};
   const score=Object.values(checks).filter(Boolean).length;
   const total=globalRules.length;
+
+  // Map FundVault symbols → TradingView symbols
+  const tvSymbol = (() => {
+    const s = (trade.symbol||"NQ").toUpperCase();
+    const map = {
+      "NQ":"CME_MINI:NQ1!","MNQ":"CME_MINI:MNQ1!",
+      "ES":"CME_MINI:ES1!","MES":"CME_MINI:MES1!",
+      "YM":"CBOT_MINI:YM1!","MYM":"CBOT_MINI:MYM1!",
+      "RTY":"CME_MINI:RTY1!","M2K":"CME_MINI:M2K1!",
+      "CL":"NYMEX:CL1!","GC":"COMEX:GC1!",
+      "SI":"COMEX:SI1!","6E":"CME:6E1!",
+    };
+    return map[s] || `CME_MINI:${s}1!`;
+  })();
+
+  // Build TradingView widget URL with trade date pre-set
+  const tvDate   = trade.trade_date || new Date().toISOString().slice(0,10);
+  const isDark   = document.documentElement.style.background !== "rgb(240, 244, 248)";
+  const tvTheme  = isDark ? "dark" : "light";
+
+  // Construct iframe src for TradingView chart
+  // We use the Advanced Chart widget with a 5min timeframe centered on trade date
+  const entryH = trade.entry ? parseInt(trade.entry.split(":")[0]) : 9;
+  const entryM = trade.entry ? parseInt(trade.entry.split(":")[1]||0) : 30;
+  const exitH  = trade.exit  ? parseInt(trade.exit.split(":")[0])  : entryH;
+  const exitM  = trade.exit  ? parseInt(trade.exit.split(":")[1]||0) : entryM + 15;
+
+  // TradingView chart embed
+  const tvSrc = `https://www.tradingview.com/widgetbar-chart/?symbol=${encodeURIComponent(tvSymbol)}&interval=5&hide_side_toolbar=1&allow_symbol_change=0&save_image=0&theme=${tvTheme}&style=1&withdateranges=1&details=0&studies=[]`;
+
   return (
-    <div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.8)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={onClose}>
-      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:900,maxHeight:"92vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
-        <div style={{padding:"18px 24px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+    <div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:1200,maxHeight:"94vh",overflowY:"auto",display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{padding:"16px 24px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
             <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22}}>{trade.symbol}</span>
-            <span style={{background:trade.side==="Long"?"#00d08418":"#ff3d5a18",color:trade.side==="Long"?C.green:C.red,borderRadius:4,padding:"3px 10px",fontFamily:"'Space Mono',monospace",fontSize:11}}>{trade.side}</span>
+            <span style={{background:trade.side==="Long"?`${C.green}18`:`${C.red}18`,color:trade.side==="Long"?C.green:C.red,borderRadius:4,padding:"3px 10px",fontFamily:"'Space Mono',monospace",fontSize:11}}>{trade.side}</span>
             <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:18,color:trade.pnl>=0?C.green:C.red}}>{trade.pnl>=0?"+":""}${trade.pnl}</span>
-            <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>{trade.entry} → {trade.exit} · {trade.holdMin}m hold</span>
+            <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>{trade.entry} → {trade.exit} · {trade.holdMin}m · {tvDate}</span>
             {trade.holdMin<1&&<span style={{background:`${C.red}22`,color:C.red,border:`1px solid ${C.red}44`,borderRadius:4,padding:"2px 10px",fontFamily:"'Space Mono',monospace",fontSize:10}}>⚠ PROP VIOLATION</span>}
           </div>
           <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22}}>✕</button>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
-          <div style={{padding:24,borderRight:`1px solid ${C.border}`}}>
-            <div style={{fontSize:10,fontFamily:"'Space Mono',monospace",color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:10}}>Chart Screenshot</div>
-            <div style={{border:`2px dashed ${drag?C.accent:C.border}`,borderRadius:10,minHeight:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",background:drag?C.accentDim:C.surface,position:"relative"}}
-              onClick={()=>fileRef.current.click()} onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);handleFile(e.dataTransfer.files[0]);}}>
-              {screenshot?<><img src={screenshot} alt="trade" style={{width:"100%",objectFit:"cover",borderRadius:8}}/><button onClick={e=>{e.stopPropagation();setScreenshot(null);}} style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,.6)",border:"none",color:"#fff",borderRadius:4,padding:"2px 8px",cursor:"pointer",fontSize:11}}>Remove</button></>:<><div style={{fontSize:32,marginBottom:8}}>📷</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,textAlign:"center"}}>Drag & drop or click to upload</div></>}
+
+        {/* 3-column body */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 300px 300px",flex:1,minHeight:0}}>
+
+          {/* ── Col 1: TradingView Chart ─────────────────────────────────────── */}
+          <div style={{padding:"16px 20px",borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:10}}>
+
+            {/* Tab toggle */}
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <div style={{display:"flex",background:C.surface,borderRadius:8,border:`1px solid ${C.border}`,padding:2,gap:2}}>
+                {[{id:"replay",label:"📈 Replay Chart"},{id:"screenshot",label:"📷 Screenshot"}].map(({id,label})=>(
+                  <button key={id} onClick={()=>setChartTab(id)}
+                    style={{padding:"5px 12px",borderRadius:6,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:chartTab===id?700:400,background:chartTab===id?C.accentDim:"transparent",border:`1px solid ${chartTab===id?C.accent+"44":"transparent"}`,color:chartTab===id?C.accent:C.muted,transition:"all 0.15s"}}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {chartTab==="replay" && (
+                <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>
+                  5-min chart · {tvSymbol}
+                </span>
+              )}
             </div>
-            <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
-            <div style={{marginTop:16}}>
-              <div style={{fontSize:10,fontFamily:"'Space Mono',monospace",color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Setup Tags</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>{tags.map(t=><TagBadge key={t} label={t} onRemove={()=>setTags(tags.filter(x=>x!==t))}/>)}</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>{ALL_TAGS.filter(s=>!tags.includes(s)).slice(0,6).map(s=><span key={s} onClick={()=>addTag(s)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.muted,borderRadius:20,padding:"2px 10px",fontSize:11,fontFamily:"'Space Mono',monospace",cursor:"pointer"}} onMouseEnter={e=>{e.target.style.color=C.text;}} onMouseLeave={e=>{e.target.style.color=C.muted;}}>+ {s}</span>)}</div>
-              <div style={{display:"flex",gap:6}}><input value={tagInput} onChange={e=>setTagInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addTag(tagInput)} placeholder="Custom tag..." style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:12,outline:"none"}}/><button onClick={()=>addTag(tagInput)} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>Add</button></div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:14}}>
-              {[["Entry",trade.entry],["Exit",trade.exit],["R:R",`${trade.rr}R`],["Hold",`${trade.holdMin}m`]].map(([l,v])=>(
-                <div key={l} style={{background:C.bg,borderRadius:8,padding:"9px 12px",border:`1px solid ${C.border}`}}>
+
+            {/* TradingView chart */}
+            {chartTab==="replay" && (
+              <div style={{flex:1,minHeight:380,borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`,position:"relative"}}>
+                <iframe
+                  ref={tvRef}
+                  src={tvSrc}
+                  style={{width:"100%",height:"100%",border:"none",minHeight:380}}
+                  allowTransparency={true}
+                  title="Trade Replay"
+                />
+                {/* Entry/Exit overlay info */}
+                <div style={{position:"absolute",top:8,left:8,display:"flex",gap:6,pointerEvents:"none"}}>
+                  {trade.entry && <span style={{background:`${C.green}cc`,color:"#000",borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>▲ Entry {trade.entry}</span>}
+                  {trade.exit  && <span style={{background:`${C.red}cc`,color:"#fff",borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>▼ Exit {trade.exit}</span>}
+                </div>
+              </div>
+            )}
+
+            {/* Screenshot */}
+            {chartTab==="screenshot" && (
+              <div style={{flex:1,minHeight:380}}>
+                <div style={{border:`2px dashed ${drag?C.accent:C.border}`,borderRadius:10,minHeight:320,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",background:drag?C.accentDim:C.surface,position:"relative",transition:"all 0.15s"}}
+                  onClick={()=>fileRef.current.click()} onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);handleFile(e.dataTransfer.files[0]);}}>
+                  {screenshot
+                    ? <><img src={screenshot} alt="trade" style={{width:"100%",objectFit:"cover",borderRadius:8}}/><button onClick={e=>{e.stopPropagation();setScreenshot(null);}} style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,.6)",border:"none",color:"#fff",borderRadius:4,padding:"2px 8px",cursor:"pointer",fontSize:11}}>Remove</button></>
+                    : <><div style={{fontSize:32,marginBottom:8}}>📷</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,textAlign:"center"}}>Drag & drop or click to upload</div></>
+                  }
+                </div>
+                <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
+              </div>
+            )}
+
+            {/* Trade stats row */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+              {[["Entry",trade.entry||"—"],["Exit",trade.exit||"—"],["R:R",`${trade.rr}R`],["Hold",`${trade.holdMin}m`]].map(([l,v])=>(
+                <div key={l} style={{background:C.surface,borderRadius:8,padding:"8px 10px",border:`1px solid ${C.border}`}}>
                   <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>{l}</div>
-                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginTop:3}}>{v}</div>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,marginTop:2}}>{v}</div>
                 </div>
               ))}
             </div>
           </div>
-          <div style={{padding:24,display:"flex",flexDirection:"column",gap:18}}>
+
+          {/* ── Col 2: Tags + Checklist ──────────────────────────────────────── */}
+          <div style={{padding:"16px 18px",borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:14,overflowY:"auto"}}>
+
+            {/* Tags */}
             <div>
-              <div style={{fontSize:10,fontFamily:"'Space Mono',monospace",color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:10}}>Trade Rating</div>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                {[1,2,3,4,5].map(s=><div key={s} onClick={()=>setRating(s)} onMouseEnter={()=>setHover(s)} onMouseLeave={()=>setHover(0)} style={{fontSize:26,cursor:"pointer",transition:"transform 0.1s",transform:(hover||rating)>=s?"scale(1.2)":"scale(1)",filter:(hover||rating)>=s?"none":"grayscale(1) opacity(.25)"}}>⭐</div>)}
-                {(hover||rating)>0&&<span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim}}>{ratingLabels[hover||rating]}</span>}
-              </div>
+              <div style={{fontSize:10,fontFamily:"'Space Mono',monospace",color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Setup Tags</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:7}}>{tags.map(t=><TagBadge key={t} label={t} onRemove={()=>setTags(tags.filter(x=>x!==t))}/>)}</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:7}}>{ALL_TAGS.filter(s=>!tags.includes(s)).slice(0,8).map(s=><span key={s} onClick={()=>addTag(s)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.muted,borderRadius:20,padding:"2px 9px",fontSize:10,fontFamily:"'Space Mono',monospace",cursor:"pointer"}} onMouseEnter={e=>{e.target.style.color=C.text;}} onMouseLeave={e=>{e.target.style.color=C.muted;}}>+ {s}</span>)}</div>
+              <div style={{display:"flex",gap:5}}><input value={tagInput} onChange={e=>setTagInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addTag(tagInput)} placeholder="Custom tag..." style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:7,padding:"6px 10px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:12,outline:"none"}}/><button onClick={()=>addTag(tagInput)} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,borderRadius:7,padding:"6px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10}}>Add</button></div>
             </div>
+
+            {/* Rating */}
             <div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <div style={{fontSize:10,fontFamily:"'Space Mono',monospace",color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Trade Rating</div>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                {[1,2,3,4,5].map(s=><div key={s} onClick={()=>setRating(s)} onMouseEnter={()=>setHover(s)} onMouseLeave={()=>setHover(0)} style={{fontSize:22,cursor:"pointer",transition:"transform 0.1s",transform:(hover||rating)>=s?"scale(1.2)":"scale(1)",filter:(hover||rating)>=s?"none":"grayscale(1) opacity(.25)"}}>⭐</div>)}
+              </div>
+              {(hover||rating)>0&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.textDim,marginTop:5}}>{ratingLabels[hover||rating]}</div>}
+            </div>
+
+            {/* Rule checklist */}
+            <div style={{flex:1}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                 <div style={{fontSize:10,fontFamily:"'Space Mono',monospace",color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Rule Checklist</div>
                 <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,color:score===total?C.green:score>=total*.6?C.accent:C.red}}>{score}/{total}</span>
               </div>
-              <div style={{height:3,background:C.border,borderRadius:4,marginBottom:12,overflow:"hidden"}}><div style={{height:"100%",borderRadius:4,width:`${(score/total)*100}%`,background:score===total?C.green:score>=total*.6?C.accent:C.red,transition:"width 0.3s"}}/></div>
-              <div style={{display:"flex",flexDirection:"column",gap:7}}>
+              <div style={{height:3,background:C.border,borderRadius:4,marginBottom:10,overflow:"hidden"}}><div style={{height:"100%",borderRadius:4,width:`${total?((score/total)*100):0}%`,background:score===total?C.green:score>=total*.6?C.accent:C.red,transition:"width 0.3s"}}/></div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
                 {globalRules.map((rule,i)=>(
-                  <label key={i} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}>
-                    <div onClick={()=>setChecks(c=>({...c,[rule]:!c[rule]}))} style={{width:17,height:17,borderRadius:4,flexShrink:0,border:`1.5px solid ${checks[rule]?C.green:C.border}`,background:checks[rule]?C.green+"22":"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s",cursor:"pointer"}}>
+                  <label key={i} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",padding:"6px 8px",borderRadius:7,background:checks[rule]?`${C.green}0a`:C.surface,border:`1px solid ${checks[rule]?C.green+"33":C.border}`,transition:"all 0.12s"}}>
+                    <div onClick={()=>setChecks(c=>({...c,[rule]:!c[rule]}))} style={{width:16,height:16,borderRadius:4,flexShrink:0,border:`1.5px solid ${checks[rule]?C.green:C.border}`,background:checks[rule]?`${C.green}22`:"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s",cursor:"pointer"}}>
                       {checks[rule]&&<span style={{color:C.green,fontSize:10}}>✓</span>}
                     </div>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:checks[rule]?C.text:C.textDim}}>{rule}</span>
+                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:checks[rule]?C.text:C.textDim}}>{rule}</span>
                   </label>
                 ))}
               </div>
             </div>
+          </div>
+
+          {/* ── Col 3: Review + Save ─────────────────────────────────────────── */}
+          <div style={{padding:"16px 18px",display:"flex",flexDirection:"column",gap:14}}>
             <div style={{flex:1,display:"flex",flexDirection:"column"}}>
               <div style={{fontSize:10,fontFamily:"'Space Mono',monospace",color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Trade Review</div>
-              <textarea value={review} onChange={e=>setReview(e.target.value)} placeholder="What did you do well? What could you improve?" style={{flex:1,minHeight:100,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:12,resize:"vertical",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,lineHeight:1.6,outline:"none"}}/>
+              <textarea value={review} onChange={e=>setReview(e.target.value)}
+                placeholder={"What went well?\nWhat could you improve?\nWere rules followed?"}
+                style={{flex:1,minHeight:260,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:12,resize:"none",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,lineHeight:1.7,outline:"none"}}/>
             </div>
-            <button onClick={()=>onSave({...trade,screenshot,review,checks,rating,tags})} style={{background:`linear-gradient(135deg,${C.accent}22,${C.accent}11)`,border:`1px solid ${C.accent}66`,color:C.accent,borderRadius:8,padding:"12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:12,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:700}}>Save Review</button>
+            <button onClick={()=>onSave({...trade,screenshot,review,checks,rating,tags})}
+              style={{width:"100%",padding:"13px",background:`linear-gradient(135deg,${C.accent}22,${C.accent}11)`,border:`1px solid ${C.accent}66`,color:C.accent,borderRadius:8,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:12,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:700}}>
+              Save Review
+            </button>
           </div>
         </div>
       </div>
