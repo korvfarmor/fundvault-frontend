@@ -345,6 +345,65 @@ const DEFAULT_PROP_FIRMS = [
       },
     ]
   },
+  {
+    id:"apex", name:"Apex Trader Funding", color:"#f97316",
+    activeType:"full",
+    accountTypes:[
+      {
+        id:"full", label:"Full", badge:"$50K",
+        accountSize:50000, payoutSplit:90, payoutFreq:"Every 14 days", minPayout:500,
+        description:"No daily loss limit. No consistency rule. No minimum days. Simple and flexible.",
+        payout:{ cycleTarget:3000, minDays:0, minProfit:0, buffer:0, consistency:999 },
+        rules:[
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:2500,description:"5% trailing drawdown on $50K = $2,500. Trails at EOD, stops at starting balance."},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"Must hit $3,000 (6%) to pass evaluation and go funded"},
+          {id:"mh",label:"Min Hold Time",          type:"hold",    value:1,   description:"Trades must be held at least 30 seconds (no tick-scalping)"},
+          // No daily loss, no consistency rule, no min days
+        ]
+      },
+      {
+        id:"static", label:"Static", badge:"Static",
+        accountSize:50000, payoutSplit:90, payoutFreq:"Every 14 days", minPayout:500,
+        description:"Static (non-trailing) max loss instead of trailing drawdown. Easier to manage.",
+        payout:{ cycleTarget:3000, minDays:0, minProfit:0, buffer:0, consistency:999 },
+        rules:[
+          {id:"dd",label:"Static Max Loss",        type:"drawdown",value:2500,description:"$2,500 static max loss — does NOT trail. Balance can never drop below $47,500."},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"$3,000 profit target to pass evaluation"},
+          {id:"mh",label:"Min Hold Time",          type:"hold",    value:1,   description:"Min 30-second hold time"},
+        ]
+      },
+    ]
+  },
+  {
+    id:"topstep", name:"Topstep", color:"#3b82f6",
+    activeType:"50k",
+    accountTypes:[
+      {
+        id:"50k", label:"$50K", badge:"$50K",
+        accountSize:50000, payoutSplit:90, payoutFreq:"Every 7 days", minPayout:100,
+        description:"First $10K earned at 100% split. Then 90%. Daily loss limit applies. No consistency rule.",
+        payout:{ cycleTarget:2000, minDays:1, minProfit:100, buffer:0, consistency:999 },
+        rules:[
+          {id:"dd",label:"Max Loss (Trailing)",    type:"drawdown",value:2000,description:"$2,000 trailing drawdown. Trails intraday on $50K account."},
+          {id:"dl",label:"Daily Loss Limit",       type:"loss",    value:1000,description:"Max $1,000 loss per day. Account locked for the day if breached."},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"$3,000 to pass the Trading Combine and go funded"},
+          {id:"mh",label:"Min Hold Time",          type:"hold",    value:1,   description:"No scalping under 10 seconds"},
+        ]
+      },
+      {
+        id:"100k", label:"$100K", badge:"$100K",
+        accountSize:100000, payoutSplit:90, payoutFreq:"Every 7 days", minPayout:100,
+        description:"Larger account. Same rules scaled to $100K.",
+        payout:{ cycleTarget:5000, minDays:1, minProfit:100, buffer:0, consistency:999 },
+        rules:[
+          {id:"dd",label:"Max Loss (Trailing)",    type:"drawdown",value:3000,description:"$3,000 trailing drawdown on $100K account."},
+          {id:"dl",label:"Daily Loss Limit",       type:"loss",    value:2000,description:"Max $2,000 loss per day on $100K account."},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:5000,description:"$5,000 profit target to pass the Combine"},
+          {id:"mh",label:"Min Hold Time",          type:"hold",    value:1,   description:"No scalping under 10 seconds"},
+        ]
+      },
+    ]
+  },
 ];
 
 const PROP_ACCT = {
@@ -750,7 +809,7 @@ function FlattenWidget({ tvStatus }) {
 }
 
 // ── NewsTab — Live Economic Calendar (ForexFactory feed) ─────────────────────
-function NewsTab({ econFilter, setEconFilter }) {
+function NewsTab({ econFilter, setEconFilter, C }) {
   const [events,    setEvents  ] = useState([]);
   const [loading,   setLoading ] = useState(true);
   const [error,     setError   ] = useState(null);
@@ -766,12 +825,12 @@ function NewsTab({ econFilter, setEconFilter }) {
   const fetchCalendar = async () => {
     setLoading(true); setError(null);
     try {
-      // Try ForexFactory public JSON directly (no backend needed)
-      const res = await fetch("https://nfs.faireconomy.media/ff_calendar_thisweek.json?version=" + Date.now(), { cache: "no-store" });
-      if (!res.ok) throw new Error(`FF returned ${res.status}`);
-      const raw = await res.json();
-      // Normalize FF format → our format
-      const data = raw.map(e => ({
+      const v = Date.now();
+      const [r1, r2] = await Promise.all([
+        fetch(`https://nfs.faireconomy.media/ff_calendar_thisweek.json?version=${v}`, { cache:"no-store" }),
+        fetch(`https://nfs.faireconomy.media/ff_calendar_nextweek.json?version=${v}`, { cache:"no-store" }),
+      ]);
+      const normalize = raw => raw.map(e => ({
         date:     e.date ? e.date.slice(0,10) : "",
         time:     e.date ? new Date(e.date).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",timeZone:"America/New_York"}) : "",
         currency: e.country,
@@ -781,18 +840,19 @@ function NewsTab({ econFilter, setEconFilter }) {
         previous: e.previous || null,
         actual:   e.actual && e.actual !== "" ? e.actual : null,
       }));
-      setEvents(data);
+      const week1 = r1.ok ? normalize(await r1.json()) : [];
+      const week2 = r2.ok ? normalize(await r2.json()) : [];
+      setEvents([...week1, ...week2]);
       setLastFetch(new Date());
     } catch (ffErr) {
-      // Fallback: try backend proxy
+      // Fallback: backend proxy
       try {
         const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
         const res2 = await fetch(`${API}/calendar/thisweek`, { cache: "no-store" });
         if (!res2.ok) throw new Error(`Backend returned ${res2.status}`);
-        const data2 = await res2.json();
-        setEvents(data2);
+        setEvents(await res2.json());
         setLastFetch(new Date());
-      } catch (backendErr) {
+      } catch {
         setError("Could not load calendar. Check your connection.");
         setEvents([]);
       }
@@ -802,7 +862,7 @@ function NewsTab({ econFilter, setEconFilter }) {
 
   useEffect(() => { fetchCalendar(); }, []);
 
-  const impactColor = i => i === "high" ? "#ff3d5a" : i === "medium" ? "#f59e0b" : "#4a6080";
+  const impactColor = i => i === "high" ? C.red : i === "medium" ? C.amber : C.muted;
   const impactDots  = i => i === "high" ? 3 : i === "medium" ? 2 : 1;
   const dayNames    = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   const today       = new Date().toISOString().slice(0, 10);
@@ -839,17 +899,17 @@ function NewsTab({ econFilter, setEconFilter }) {
       {/* Header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
         <div>
-          <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:"#6b859e",letterSpacing:"0.1em",textTransform:"uppercase"}}>Economic Calendar</div>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim,letterSpacing:"0.1em",textTransform:"uppercase"}}>Economic Calendar</div>
           <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>News & Events</div>
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-          {lastFetch && <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:"#4a6080"}}>Updated {lastFetch.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</span>}
-          <button onClick={fetchCalendar} disabled={loading} style={{background:"transparent",border:"1px solid #1e2d40",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:"#4a6080"}}>
+          {lastFetch && <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>Updated {lastFetch.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</span>}
+          <button onClick={fetchCalendar} disabled={loading} style={{background:"transparent",border:"1px solid #1e2d40",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>
             {loading ? "..." : "↻ Refresh"}
           </button>
-          <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:"#4a6080"}}>Filter:</span>
+          <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Filter:</span>
           {["all","high","medium","low"].map(f => (
-            <button key={f} onClick={() => setEconFilter(f)} style={{background:econFilter===f?`${impactColor(f)}22`:"#0d1420",border:`1px solid ${econFilter===f?impactColor(f)+"66":"#1e2d40"}`,color:econFilter===f?impactColor(f):"#6b859e",borderRadius:6,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,textTransform:"uppercase"}}>
+            <button key={f} onClick={() => setEconFilter(f)} style={{background:econFilter===f?`${impactColor(f)}22`:C.surface,border:`1px solid ${econFilter===f?impactColor(f)+"66":C.border}`,color:econFilter===f?impactColor(f):C.textDim,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,textTransform:"uppercase"}}>
               {f === "all" ? "All" : f}
             </button>
           ))}
@@ -857,42 +917,42 @@ function NewsTab({ econFilter, setEconFilter }) {
       </div>
 
       {/* ── News Guard ─────────────────────────────────────────────────────── */}
-      <div style={{background:guardBlocked?"#ff3d5a0f":"#00d0840f",border:`2px solid ${guardBlocked?"#ff3d5a55":"#00d08444"}`,borderRadius:14,padding:"18px 22px",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+      <div style={{background:guardBlocked?`${C.red}0f`:`${C.green}0f`,border:`2px solid ${guardBlocked?`${C.red}55`:`${C.green}44`}`,borderRadius:14,padding:"18px 22px",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
         <div style={{fontSize:38}}>{guardBlocked ? "🚨" : "✅"}</div>
         <div style={{flex:1,minWidth:180}}>
-          <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:guardBlocked?"#ff3d5a":"#00d084",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:3}}>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:guardBlocked?C.red:C.green,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:3}}>
             News Guard — {guardBlocked ? "HIGH IMPACT EVENT INCOMING" : "CLEAR TO TRADE"}
           </div>
-          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,color:guardBlocked?"#ff3d5a":"#00d084"}}>
+          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,color:guardBlocked?C.red:C.green}}>
             {guardBlocked
               ? `${nextEv?.event || nextEv?.name || "High impact event"} — ${nextEv?.time || "today"}`
               : "No high-impact news in the next 2 hours"}
           </div>
-          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#6b859e",marginTop:4}}>
+          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginTop:4}}>
             {guardBlocked
               ? "Most prop firms prohibit trading 2 min before and after high-impact releases. Stay flat."
               : "You're in a safe window. Check back before every session."}
           </div>
         </div>
         {guardBlocked && upcomingHigh.length > 1 && (
-          <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:"#f59e0b",background:"#f59e0b11",border:"1px solid #f59e0b33",borderRadius:8,padding:"8px 14px",textAlign:"center",flexShrink:0}}>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.amber,background:`${C.amber}11`,border:"1px solid #f59e0b33",borderRadius:8,padding:"8px 14px",textAlign:"center",flexShrink:0}}>
             +{upcomingHigh.length-1} more<br/>high-impact today
           </div>
         )}
       </div>
 
       {loading && (
-        <div style={{display:"flex",alignItems:"center",gap:12,padding:20,color:"#6b859e",fontFamily:"'Space Mono',monospace",fontSize:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,padding:20,color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:12}}>
           <div style={{width:16,height:16,borderRadius:"50%",border:"2px solid #1e2d40",borderTop:"2px solid #00e5ff",animation:"spin 0.8s linear infinite"}}/>
           Fetching live calendar...
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       )}
 
-      {error && <div style={{background:"#f59e0b11",border:"1px solid #f59e0b44",borderRadius:8,padding:"12px 16px",fontFamily:"'Space Mono',monospace",fontSize:11,color:"#f59e0b"}}>⚠ {error}</div>}
+      {error && <div style={{background:`${C.amber}11`,border:"1px solid #f59e0b44",borderRadius:8,padding:"12px 16px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.amber}}>⚠ {error}</div>}
 
       {!loading && !error && days.length === 0 && (
-        <div style={{background:"#111827",border:"1px solid #1e2d40",borderRadius:12,padding:40,textAlign:"center",fontFamily:"'Space Mono',monospace",fontSize:12,color:"#4a6080"}}>
+        <div style={{background:C.card,border:"1px solid #1e2d40",borderRadius:12,padding:40,textAlign:"center",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.muted}}>
           <div style={{fontSize:32,marginBottom:10}}>📅</div>
           No upcoming events this week
         </div>
@@ -907,45 +967,45 @@ function NewsTab({ econFilter, setEconFilter }) {
           const hasHigh = dayEvents.some(e => e.impact === "high");
           const isToday = date === today;
           return (
-            <div key={date} style={{background:"#111827",border:`1px solid ${isToday?"#00e5ff44":hasHigh?"#ff3d5a33":"#1e2d40"}`,borderRadius:12,overflow:"hidden"}}>
-              <div style={{padding:"12px 20px",borderBottom:"1px solid #1e2d40",display:"flex",alignItems:"center",gap:12,background:isToday?"#00e5ff06":hasHigh?"#ff3d5a08":"#0d1420"}}>
-                <div style={{width:44,height:44,borderRadius:8,background:isToday?"#00e5ff22":hasHigh?"#ff3d5a22":"#00e5ff11",border:`1px solid ${isToday?"#00e5ff44":hasHigh?"#ff3d5a44":"#00e5ff33"}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:isToday?"#00e5ff":hasHigh?"#ff3d5a":"#00e5ff",letterSpacing:"0.05em"}}>{dayNames[d.getDay()]}</div>
-                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,color:isToday?"#00e5ff":hasHigh?"#ff3d5a":"#00e5ff",lineHeight:1}}>{d.getDate()}</div>
+            <div key={date} style={{background:C.card,border:`1px solid ${isToday?`${C.accent}44`:hasHigh?`${C.red}33`:C.border}`,borderRadius:12,overflow:"hidden"}}>
+              <div style={{padding:"12px 20px",borderBottom:"1px solid #1e2d40",display:"flex",alignItems:"center",gap:12,background:isToday?`${C.accent}06`:hasHigh?`${C.red}08`:C.surface}}>
+                <div style={{width:44,height:44,borderRadius:8,background:isToday?C.accentDim:hasHigh?`${C.red}22`:`${C.accent}11`,border:`1px solid ${isToday?`${C.accent}44`:hasHigh?`${C.red}44`:`${C.accent}33`}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:isToday?C.accent:hasHigh?C.red:C.accent,letterSpacing:"0.05em"}}>{dayNames[d.getDay()]}</div>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,color:isToday?C.accent:hasHigh?C.red:C.accent,lineHeight:1}}>{d.getDate()}</div>
                 </div>
                 <div>
                   <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,display:"flex",alignItems:"center",gap:8}}>
                     {d.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}
-                    {isToday && <span style={{background:"#00e5ff22",color:"#00e5ff",border:"1px solid #00e5ff44",borderRadius:4,padding:"1px 8px",fontFamily:"'Space Mono',monospace",fontSize:9}}>TODAY</span>}
+                    {isToday && <span style={{background:C.accentDim,color:C.accent,border:"1px solid #00e5ff44",borderRadius:4,padding:"1px 8px",fontFamily:"'Space Mono',monospace",fontSize:9}}>TODAY</span>}
                   </div>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:"#6b859e",marginTop:2}}>{dayEvents.length} event{dayEvents.length>1?"s":""} · {dayEvents.filter(e=>e.impact==="high").length} high impact</div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.textDim,marginTop:2}}>{dayEvents.length} event{dayEvents.length>1?"s":""} · {dayEvents.filter(e=>e.impact==="high").length} high impact</div>
                 </div>
-                {hasHigh && <span style={{marginLeft:"auto",background:"#ff3d5a22",color:"#ff3d5a",border:"1px solid #ff3d5a44",borderRadius:4,padding:"3px 10px",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>HIGH IMPACT</span>}
+                {hasHigh && <span style={{marginLeft:"auto",background:`${C.red}22`,color:C.red,border:"1px solid #ff3d5a44",borderRadius:4,padding:"3px 10px",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>HIGH IMPACT</span>}
               </div>
               <table style={{width:"100%",borderCollapse:"collapse"}}>
                 <thead><tr style={{borderBottom:"1px solid #1e2d40"}}>
                   {["Time","Currency","Impact","Event","Forecast","Previous","Actual"].map(h => (
-                    <th key={h} style={{padding:"8px 18px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:9,color:"#6b859e",letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:400}}>{h}</th>
+                    <th key={h} style={{padding:"8px 18px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.textDim,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:400}}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
                   {dayEvents.map((e, i) => (
-                    <tr key={i} style={{borderBottom:i<dayEvents.length-1?"1px solid #1e2d40":"none",background:e.impact==="high"?"#ff3d5a06":"transparent"}}
-                      onMouseEnter={ev=>ev.currentTarget.style.background="#0d1420"} onMouseLeave={ev=>ev.currentTarget.style.background=e.impact==="high"?"#ff3d5a06":"transparent"}>
-                      <td style={{padding:"11px 18px",fontFamily:"'Space Mono',monospace",fontSize:12,color:"#00e5ff"}}>{e.time||"—"}</td>
-                      <td style={{padding:"11px 18px"}}><span style={{background:"#00e5ff11",color:"#00e5ff",borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{e.currency||"—"}</span></td>
+                    <tr key={i} style={{borderBottom:i<dayEvents.length-1?"1px solid #1e2d40":"none",background:e.impact==="high"?`${C.red}06`:"transparent"}}
+                      onMouseEnter={ev=>ev.currentTarget.style.background=C.surface} onMouseLeave={ev=>ev.currentTarget.style.background=e.impact==="high"?`${C.red}06`:"transparent"}>
+                      <td style={{padding:"11px 18px",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.accent}}>{e.time||"—"}</td>
+                      <td style={{padding:"11px 18px"}}><span style={{background:`${C.accent}11`,color:C.accent,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{e.currency||"—"}</span></td>
                       <td style={{padding:"11px 18px"}}>
                         <div style={{display:"flex",gap:2}}>
-                          {Array.from({length:3},(_,k) => <div key={k} style={{width:7,height:7,borderRadius:"50%",background:k<impactDots(e.impact)?impactColor(e.impact):"#1e2d40"}}/>)}
+                          {Array.from({length:3},(_,k) => <div key={k} style={{width:7,height:7,borderRadius:"50%",background:k<impactDots(e.impact)?impactColor(e.impact):C.border}}/>)}
                         </div>
                       </td>
-                      <td style={{padding:"11px 18px",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#c8d8e8",fontWeight:500}}>{e.event||e.name||"—"}</td>
-                      <td style={{padding:"11px 18px",fontFamily:"'Space Mono',monospace",fontSize:12,color:"#6b859e"}}>{e.forecast||"—"}</td>
-                      <td style={{padding:"11px 18px",fontFamily:"'Space Mono',monospace",fontSize:12,color:"#6b859e"}}>{e.previous||"—"}</td>
+                      <td style={{padding:"11px 18px",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.text,fontWeight:500}}>{e.event||e.name||"—"}</td>
+                      <td style={{padding:"11px 18px",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.textDim}}>{e.forecast||"—"}</td>
+                      <td style={{padding:"11px 18px",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.textDim}}>{e.previous||"—"}</td>
                       <td style={{padding:"11px 18px"}}>
                         {e.actual != null
-                          ? <span style={{fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,color:parseFloat(e.actual)>parseFloat(e.forecast)?"#00d084":parseFloat(e.actual)<parseFloat(e.forecast)?"#ff3d5a":"#c8d8e8"}}>{e.actual}</span>
-                          : <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:"#4a6080"}}>Pending</span>
+                          ? <span style={{fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,color:parseFloat(e.actual)>parseFloat(e.forecast)?C.green:parseFloat(e.actual)<parseFloat(e.forecast)?C.red:C.text}}>{e.actual}</span>
+                          : <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Pending</span>
                         }
                       </td>
                     </tr>
@@ -2022,7 +2082,7 @@ export default function TradingPlatform({ session }) {
               </div>
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                 {firms.map(f=>{
-                  const shortNames={"mffu":"MFFU","lucid":"Lucid","alpha":"Alpha","tpt":"TPT","tradeify":"Tradeify"};
+                  const shortNames={"mffu":"MFFU","lucid":"Lucid","alpha":"Alpha","tpt":"TPT","tradeify":"Tradeify","apex":"Apex","topstep":"Topstep"};
                   return <button key={f.id} onClick={()=>setActiveFirm(f.id)} style={{background:activeFirm===f.id?`${f.color}22`:C.surface,border:`1px solid ${activeFirm===f.id?f.color+"55":C.border}`,color:activeFirm===f.id?f.color:C.textDim,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:activeFirm===f.id?700:400,whiteSpace:"nowrap"}}>{shortNames[f.id]||f.name}</button>;
                 })}
               </div>
@@ -2220,7 +2280,7 @@ export default function TradingPlatform({ session }) {
           </div>;
         })()}
         {/* ── NEWS / ECONOMIC CALENDAR ────────────────────────────────────────── */}
-        {tab==="news"&&<NewsTab econFilter={econFilter} setEconFilter={setEconFilter}/>}
+        {tab==="news"&&<NewsTab econFilter={econFilter} setEconFilter={setEconFilter} C={C}/>}
 
         {/* ── ACCOUNTS ────────────────────────────────────────────────────────── */}
         {tab==="accounts"&&(()=>{
