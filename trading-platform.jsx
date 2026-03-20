@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { supabase } from "./supabaseClient";
-import { tradesApi, propApi, psychApi, rulesApi, tradovateApi } from "./lib/api";
+import { tradesApi, propApi, psychApi, rulesApi, tradovateApi } from "./src/lib/api";
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer,
