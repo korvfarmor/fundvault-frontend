@@ -4264,6 +4264,10 @@ export default function TradingPlatform({ session }) {
           const FIRM_COLORS = {"mffu":C.accent,"lucid":"#a78bfa","alpha":"#34d399","tpt":C.amber,"tradeify":"#f472b6"};
           const activeGroup = copierGroups.find(g=>g.id===activeGroupId);
 
+          // Check if OAuth is approved (backend returns oauthReady: true)
+          const oauthReady = copierStatus?.oauthReady === true;
+          const copierMode = copierStatus?.mode || "pending";
+
           // Smart warnings: konton nära breach baserat på prop firm-regler
           const getAccountWarnings = (acctId) => {
             const acc = copierAccounts.find(a=>a.id===acctId);
@@ -4293,7 +4297,49 @@ export default function TradingPlatform({ session }) {
 
           return <div style={{display:"flex",flexDirection:"column",gap:22}}>
 
-            {/* Header */}
+            {/* ── OAuth Status Banner ─────────────────────────────────────────── */}
+            {!oauthReady && (
+              <div style={{background:"#f59e0b0a",border:"2px solid #f59e0b44",borderRadius:14,padding:"20px 24px",display:"flex",gap:18,alignItems:"flex-start"}}>
+                <div style={{fontSize:32,flexShrink:0}}>⏳</div>
+                <div style={{flex:1}}>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.amber,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}}>Pending OAuth Approval</div>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,marginBottom:6}}>Trade Copier is ready — waiting for activation</div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,lineHeight:1.7,marginBottom:12}}>
+                    Everything is built and ready. The copier will activate automatically once NinjaTrader approves the Vendor Program application and OAuth credentials are added to the server.
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                    {[
+                      {done:true,  label:"Backend copier service built (REST polling + WebSocket upgrade path)"},
+                      {done:true,  label:"Frontend UI fully wired — accounts, groups, live log"},
+                      {done:true,  label:"Vendor application submitted to NinjaTrader"},
+                      {done:false, label:"NinjaTrader OAuth approval (expected after April 15)"},
+                      {done:false, label:"Set COPIER_OAUTH_READY=true in Railway — activates instantly"},
+                    ].map((s,i)=>(
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:10}}>
+                        <div style={{width:18,height:18,borderRadius:"50%",background:s.done?`${C.green}22`:`${C.amber}22`,border:`1.5px solid ${s.done?C.green:C.amber}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                          <span style={{fontSize:10,color:s.done?C.green:C.amber}}>{s.done?"✓":"○"}</span>
+                        </div>
+                        <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:s.done?C.text:C.muted}}>{s.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{flexShrink:0,textAlign:"center",background:`${C.amber}11`,border:`1px solid ${C.amber}33`,borderRadius:10,padding:"12px 18px"}}>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:28,color:C.amber}}>2/5</div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,marginTop:2}}>STEPS DONE</div>
+                </div>
+              </div>
+            )}
+
+            {oauthReady && (
+              <div style={{background:`${C.green}0a`,border:`1px solid ${C.green}44`,borderRadius:10,padding:"12px 18px",display:"flex",alignItems:"center",gap:12}}>
+                <span style={{fontSize:20}}>✅</span>
+                <div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.green,letterSpacing:"0.08em",textTransform:"uppercase"}}>OAuth Active · {copierMode === "websocket" ? "WebSocket <100ms" : "REST Polling ~500ms"}</div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginTop:2}}>Trade Copier is fully operational</div>
+                </div>
+              </div>
+            )}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
               <div>
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.amber,letterSpacing:"0.1em",textTransform:"uppercase"}}>Multi-Account</div>
@@ -4302,7 +4348,7 @@ export default function TradingPlatform({ session }) {
               {/* Master toggle */}
               <div style={{display:"flex",alignItems:"center",gap:12}}>
                 <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>COPIER</span>
-                <div onClick={()=>setCopierEnabled(e=>!e)} style={{width:48,height:26,borderRadius:13,background:copierEnabled?"#00d08444":C.surface,border:`1px solid ${copierEnabled?C.green:C.border}`,cursor:"pointer",position:"relative",transition:"all 0.2s"}}>
+                <div onClick={()=>{ if(!oauthReady){ alert("Trade Copier activates automatically when OAuth is approved. Check back after April 15!"); return; } setCopierEnabled(e=>!e); }} style={{width:48,height:26,borderRadius:13,background:copierEnabled?"#00d08444":C.surface,border:`1px solid ${copierEnabled?C.green:C.border}`,cursor:oauthReady?"pointer":"not-allowed",position:"relative",transition:"all 0.2s",opacity:oauthReady?1:0.5}}>
                   <div style={{position:"absolute",top:3,left:copierEnabled?24:3,width:18,height:18,borderRadius:"50%",background:copierEnabled?C.green:C.muted,transition:"left 0.2s",boxShadow:copierEnabled?`0 0 8px ${C.green}`:"none"}}/>
                 </div>
                 <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:copierEnabled?C.green:C.muted,fontWeight:700}}>{copierEnabled?"ACTIVE":"OFF"}</span>
