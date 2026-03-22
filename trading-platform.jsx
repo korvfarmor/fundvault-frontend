@@ -445,9 +445,17 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false }) {
   const [confirmAll, setConfirmAll] = useState(false);
   const [error,      setError     ] = useState(null);
   const [demoMode, setDemoMode] = useState(false);
+  const demoModeRef = useRef(false);
 
   // Sync with app-level demo toggle
-  useEffect(() => { setDemoMode(appIsDemo); if (appIsDemo) { setPositions([]); setSelected({}); } }, [appIsDemo]);
+  useEffect(() => {
+    demoModeRef.current = appIsDemo;
+    setDemoMode(appIsDemo);
+    setPositions([]);
+    setSelected({});
+    // Trigger immediate fetch with new mode
+    setTimeout(() => fetchPositionsWithMode(appIsDemo), 50);
+  }, [appIsDemo]);
   const [cancellingOrders, setCancellingOrders] = useState(false);
 
   const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
@@ -463,11 +471,9 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false }) {
     { id: 3, symbol: "MNQ",side: "Long",  size:  5, avgPrice: "19840.00", currentPrice: "19901.25", unrealized: 612  },
   ];
 
-  // Hämta öppna positioner (demo-läge om Tradovate ej anslutet)
-  const fetchPositions = async () => {
+  const fetchPositionsWithMode = async (isDemo) => {
     setLoading(true); setError(null);
-    if (demoMode) {
-      // Simulera liten prisrörelse i demo
+    if (isDemo) {
       setPositions(DEMO_POSITIONS.map(p => ({
         ...p,
         unrealized: p.unrealized + Math.round((Math.random() - 0.5) * 100),
@@ -492,6 +498,9 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false }) {
     }
     setLoading(false);
   };
+
+  // Hämta öppna positioner (demo-läge om Tradovate ej anslutet)
+  const fetchPositions = async () => fetchPositionsWithMode(demoModeRef.current);
 
   // Uppdatera var 5:e sekund (eller i demo: var 3:e sekund med prisrörelse)
   useEffect(() => {
