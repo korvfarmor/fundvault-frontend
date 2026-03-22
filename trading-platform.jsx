@@ -434,8 +434,8 @@ const ECON_EVENTS = [
 
 // ── Shared UI ─────────────────────────────────────────────────────────────────
 
-// ── FlattenWidget — Flytande widget för öppna positioner ─────────────────────
-function FlattenWidget({ tvStatus, mobileMode = false }) {
+// ── FlattenWidget — Floating position manager ──────────────────────────────
+function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false }) {
   const [positions,  setPositions ] = useState([]);
   const [selected,   setSelected  ] = useState({});
   const [loading,    setLoading   ] = useState(false);
@@ -444,7 +444,10 @@ function FlattenWidget({ tvStatus, mobileMode = false }) {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [confirmAll, setConfirmAll] = useState(false);
   const [error,      setError     ] = useState(null);
-  const [demoMode,        setDemoMode       ] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
+
+  // Sync with app-level demo toggle
+  useEffect(() => { setDemoMode(appIsDemo); if (appIsDemo) { setPositions([]); setSelected({}); } }, [appIsDemo]);
   const [cancellingOrders, setCancellingOrders] = useState(false);
 
   const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
@@ -484,7 +487,7 @@ function FlattenWidget({ tvStatus, mobileMode = false }) {
       setPositions(data);
       setLastUpdate(new Date());
     } catch (err) {
-      setError("Kunde inte hämta positioner");
+      setError("Could not fetch positions");
       console.error(err);
     }
     setLoading(false);
@@ -719,7 +722,7 @@ function FlattenWidget({ tvStatus, mobileMode = false }) {
                       fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
                     }}
                   >
-                    {flattening ? "Stänger..." : `✕ Stäng ${selectedIds.length} vald${selectedIds.length > 1 ? "a" : ""}`}
+                    {flattening ? "Closing..." : `✕ Close ${selectedIds.length} selected`}
                   </button>
                 )}
                 {/* Flatten ALL positioner */}
@@ -733,7 +736,7 @@ function FlattenWidget({ tvStatus, mobileMode = false }) {
                     fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
                   }}
                 >
-                  {flattening ? "Stänger positioner..." : "🔴 Flatten ALL — Stäng alla positioner"}
+                  {flattening ? "Closing positions..." : "🔴 Flatten ALL — Close all positions"}
                 </button>
                 {/* Cancel alla väntande orders */}
                 <button
@@ -746,13 +749,13 @@ function FlattenWidget({ tvStatus, mobileMode = false }) {
                     fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
                   }}
                 >
-                  {cancellingOrders ? "Cancelerar orders..." : "⛔ Cancel ALL — Ta bort alla väntande orders"}
+                  {cancellingOrders ? "Cancelling orders..." : "⛔ Cancel ALL — Cancel all pending orders"}
                 </button>
               </div>
             </>
           ) : (
             <div style={{ textAlign: "center", padding: "12px 0", fontFamily: "'Space Mono',monospace", fontSize: 11, color: "#4a6080" }}>
-              Inga öppna positioner
+              No open positions
             </div>
           )}
         </div>
@@ -783,7 +786,7 @@ function FlattenWidget({ tvStatus, mobileMode = false }) {
             </div>
             {confirmAll === "positions" && (
               <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 13, color: totalUnrealized >= 0 ? "#00d084" : "#ff3d5a", marginBottom: 24, fontWeight: 700 }}>
-                Orealiserat: {totalUnrealized >= 0 ? "+" : ""}${Math.round(totalUnrealized)}
+                Unrealized: {totalUnrealized >= 0 ? "+" : ""}${Math.round(totalUnrealized)}
               </div>
             )}
             <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
@@ -3038,7 +3041,7 @@ export default function TradingPlatform({ session }) {
       {showImportCSV && <CSVImportModal onClose={()=>setShowImportCSV(false)} onImport={async (trades)=>{ for(const t of trades){ await saveTrade({...t,id:"csv-"+Date.now()+Math.random()}); } setShowImportCSV(false); }} C={C}/>}
       {showEdgeModal && <EdgeModal onClose={()=>{setShowEdgeModal(false);setEditingEdge(null);}} onSave={(e)=>{ if(editingEdge){ saveEdges(edges.map(x=>x.id===editingEdge.id?e:x)); }else{ saveEdges([...edges,{...e,id:Date.now().toString()}]); } setShowEdgeModal(false);setEditingEdge(null); }} existing={editingEdge} C={C}/>}
       {showAddTrade && <AddTradeModal onClose={()=>setShowAddTrade(false)} onSave={async (t)=>{ await saveTrade({...t,id:"new-"+Date.now()}); setShowAddTrade(false); }} globalRules={rules} C={C} newsBlocker={newsBlocker} calendarEvents={calendarEvents}/>}
-      <FlattenWidget tvStatus={tvStatus}/>
+      <FlattenWidget tvStatus={tvStatus} appIsDemo={isDemo}/>
       {showRules && <RuleManager rules={rules} onChange={setRules} onClose={()=>setShowRules(false)}/>}
 
       {/* Nav */}
@@ -4297,40 +4300,7 @@ export default function TradingPlatform({ session }) {
 
           return <div style={{display:"flex",flexDirection:"column",gap:22}}>
 
-            {/* ── OAuth Status Banner ─────────────────────────────────────────── */}
-            {!oauthReady && (
-              <div style={{background:"#f59e0b0a",border:"2px solid #f59e0b44",borderRadius:14,padding:"20px 24px",display:"flex",gap:18,alignItems:"flex-start"}}>
-                <div style={{fontSize:32,flexShrink:0}}>⏳</div>
-                <div style={{flex:1}}>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.amber,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}}>Pending OAuth Approval</div>
-                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,marginBottom:6}}>Trade Copier is ready — waiting for activation</div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,lineHeight:1.7,marginBottom:12}}>
-                    Everything is built and ready. The copier will activate automatically once NinjaTrader approves the Vendor Program application and OAuth credentials are added to the server.
-                  </div>
-                  <div style={{display:"flex",flexDirection:"column",gap:7}}>
-                    {[
-                      {done:true,  label:"Backend copier service built (REST polling + WebSocket upgrade path)"},
-                      {done:true,  label:"Frontend UI fully wired — accounts, groups, live log"},
-                      {done:true,  label:"Vendor application submitted to NinjaTrader"},
-                      {done:false, label:"NinjaTrader OAuth approval (expected after April 15)"},
-                      {done:false, label:"Set COPIER_OAUTH_READY=true in Railway — activates instantly"},
-                    ].map((s,i)=>(
-                      <div key={i} style={{display:"flex",alignItems:"center",gap:10}}>
-                        <div style={{width:18,height:18,borderRadius:"50%",background:s.done?`${C.green}22`:`${C.amber}22`,border:`1.5px solid ${s.done?C.green:C.amber}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                          <span style={{fontSize:10,color:s.done?C.green:C.amber}}>{s.done?"✓":"○"}</span>
-                        </div>
-                        <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:s.done?C.text:C.muted}}>{s.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div style={{flexShrink:0,textAlign:"center",background:`${C.amber}11`,border:`1px solid ${C.amber}33`,borderRadius:10,padding:"12px 18px"}}>
-                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:28,color:C.amber}}>2/5</div>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,marginTop:2}}>STEPS DONE</div>
-                </div>
-              </div>
-            )}
-
+            {/* OAuth status — internal only, not shown to users */}
             {oauthReady && (
               <div style={{background:`${C.green}0a`,border:`1px solid ${C.green}44`,borderRadius:10,padding:"12px 18px",display:"flex",alignItems:"center",gap:12}}>
                 <span style={{fontSize:20}}>✅</span>
@@ -4692,7 +4662,7 @@ export default function TradingPlatform({ session }) {
             <button onClick={()=>setShowMobilePositions(false)} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:18}}>✕</button>
           </div>
           {/* Embed FlattenWidget content inline */}
-          <FlattenWidget tvStatus={tvStatus} mobileMode={true}/>
+          <FlattenWidget tvStatus={tvStatus} mobileMode={true} appIsDemo={isDemo}/>
         </div>
       )}
       {showMobilePositions && <div onClick={()=>setShowMobilePositions(false)} style={{position:"fixed",inset:0,zIndex:198}} className="fv-more-sheet"/>}
