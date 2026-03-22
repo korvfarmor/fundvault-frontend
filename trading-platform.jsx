@@ -2196,25 +2196,52 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
       const pnlStr = (n) => `${n>=0?"+":"-"}$${fmt(n)}`;
       const safeStr = (s) => String(s||"").replace(/[\u2013\u2014\u2022\u00B7\u2019\u2018]/g,"-").replace(/[^\x00-\x7F]/g,"?");
 
-      // ── Draw FV logo (circle + F + V) ───────────────────────────────────────
-      const drawLogo = (x, cy, r) => {
-        doc.setDrawColor(...cyan); doc.setLineWidth(0.8);
-        doc.circle(x, cy, r, "S");
-        doc.setFontSize(r*2.2); doc.setFont("helvetica","bold");
-        doc.setTextColor(...cyan);
-        doc.text("F", x - r*0.55, cy + r*0.4);
-        doc.setTextColor(...purple);
-        doc.text("V", x + r*0.05, cy + r*0.4);
-      };
+      // ── Render real FundVault SVG logo to canvas → base64 PNG ────────────────
+      const renderLogo = () => new Promise((resolve) => {
+        const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120" viewBox="0 0 400 120">
+  <rect width="400" height="120" fill="#080c14" rx="12"/>
+  <g transform="translate(24, 20)">
+    <circle cx="40" cy="40" r="37" fill="#0d1420" stroke="#00e5ff" stroke-width="4"/>
+    <circle cx="40" cy="40" r="29" fill="#111827"/>
+    <rect x="36.4" y="2" width="7.2" height="10" rx="3.6" fill="#00e5ff"/>
+    <rect x="36.4" y="68" width="7.2" height="10" rx="3.6" fill="#00e5ff"/>
+    <rect x="2" y="36.4" width="10" height="7.2" rx="3.6" fill="#00e5ff"/>
+    <rect x="68" y="36.4" width="10" height="7.2" rx="3.6" fill="#00e5ff"/>
+    <text x="19" y="50" font-family="Arial Black,sans-serif" font-weight="900" font-size="30" fill="#00e5ff" letter-spacing="3">F</text>
+    <text x="42" y="50" font-family="Arial Black,sans-serif" font-weight="900" font-size="30" fill="#a78bfa" letter-spacing="3">V</text>
+  </g>
+  <text x="130" y="58" font-family="Arial Black,sans-serif" font-weight="900" font-size="32" fill="#c8d8e8" letter-spacing="3">FUNDVAULT</text>
+  <text x="132" y="80" font-family="Arial,monospace" font-size="10" fill="#00e5ff" letter-spacing="4">PROP TRADING JOURNAL</text>
+</svg>`;
+        const blob = new Blob([svgStr], {type:"image/svg+xml"});
+        const url  = URL.createObjectURL(blob);
+        const img  = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 400; canvas.height = 120;
+          canvas.getContext("2d").drawImage(img, 0, 0);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+        img.src = url;
+      });
+
+      const logoBase64 = await renderLogo();
 
       // ── Header band ─────────────────────────────────────────────────────────
       doc.setFillColor(...dark); doc.rect(0, 0, PW, 30, "F");
-      drawLogo(M + 6, 15, 6);
 
-      doc.setFontSize(18); doc.setFont("helvetica","bold"); doc.setTextColor(...cyan);
-      doc.text("FUNDVAULT", M + 16, 13);
-      doc.setFontSize(8); doc.setFont("helvetica","normal"); doc.setTextColor(...light);
-      doc.text("PROP TRADING JOURNAL", M + 16, 20);
+      // Real FundVault logo (SVG → PNG)
+      if (logoBase64) {
+        doc.addImage(logoBase64, "PNG", M, 3, 52, 15.6);  // 400:120 ratio → 52×15.6mm
+      } else {
+        // Fallback: plain text if canvas render failed
+        doc.setFontSize(16); doc.setFont("helvetica","bold"); doc.setTextColor(...cyan);
+        doc.text("FUNDVAULT", M, 13);
+        doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.setTextColor(...light);
+        doc.text("PROP TRADING JOURNAL", M, 19);
+      }
 
       doc.setFontSize(7.5); doc.setTextColor(...muted);
       const dateStr = new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
