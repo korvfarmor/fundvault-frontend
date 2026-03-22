@@ -2375,7 +2375,6 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
     }
     setGenerating(false);
   }
-  };
 
   const SECTION_LABELS = {summary:"Summary stats",perTrade:"Trade reviews",screenshots:"Screenshots",tagBreakdown:"Tag breakdown",psychology:"Psychology",propCompliance:"Prop compliance"};
 
