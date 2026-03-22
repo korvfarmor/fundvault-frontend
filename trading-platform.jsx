@@ -2126,6 +2126,380 @@ const CSVImportModal = ({onClose, onImport, C}) => {
   );
 };
 
+
+// ── Export Modal ─────────────────────────────────────────────────────────────
+const ExportModal = ({ onClose, trades, C, userName }) => {
+  const [step, setStep]             = useState(1);
+  const [selected, setSelected]     = useState(() => new Set(trades.map(t => t.id)));
+  const [format, setFormat]         = useState("full");
+  const [generating, setGenerating] = useState(false);
+  const [sections, setSections]     = useState({
+    summary: true, perTrade: true, screenshots: true,
+    tagBreakdown: true, psychology: false, propCompliance: false,
+  });
+
+  const selectedTrades = trades.filter(t => selected.has(t.id));
+  const toggleTrade = (id) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const totalPnl  = selectedTrades.reduce((a,t) => a+t.pnl, 0);
+  const wins      = selectedTrades.filter(t => t.pnl > 0).length;
+  const winRate   = selectedTrades.length ? Math.round(wins/selectedTrades.length*100) : 0;
+  const avgRR     = selectedTrades.length ? (selectedTrades.reduce((a,t) => a+(t.rr||0),0)/selectedTrades.length).toFixed(1) : "–";
+  const avgRating = selectedTrades.length ? (selectedTrades.reduce((a,t) => a+(t.rating||0),0)/selectedTrades.length).toFixed(1) : "–";
+
+  const tagColor = tag => ({"Kill Zone":C.accent,"Displacement":C.accent,"FVG":C.purple,"OB":C.amber,"BOS":"#34d399","FOMO":C.red,"Revenge":C.red,"Late entry":C.amber}[tag] || C.muted);
+
+  const loadJsPDF = () => new Promise((resolve, reject) => {
+    if (window.jspdf) { resolve(window.jspdf.jsPDF); return; }
+    const s1 = document.createElement("script");
+    s1.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+    s1.onload = () => {
+      const s2 = document.createElement("script");
+      s2.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js";
+      s2.onload = () => resolve(window.jspdf.jsPDF);
+      s2.onerror = reject;
+      document.head.appendChild(s2);
+    };
+    s1.onerror = reject;
+    document.head.appendChild(s1);
+  });
+
+  const generatePDF = async () => {
+    setGenerating(true);
+    try {
+      const jsPDF = await loadJsPDF();
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const PW = 210, M = 18;
+      let y = 18;
+      const cyan = [0,229,255], purple=[167,139,250], muted=[74,96,128];
+      const green=[0,208,132], red=[255,61,90], amber=[245,158,11];
+
+      // Header
+      doc.setFillColor(13,20,32); doc.rect(0,0,PW,28,"F");
+      doc.setFontSize(16); doc.setFont("helvetica","bold"); doc.setTextColor(...cyan);
+      doc.text("FUNDVAULT", M, 12);
+      doc.setFontSize(9); doc.setFont("helvetica","normal"); doc.setTextColor(200,216,232);
+      doc.text("PROP TRADING JOURNAL", M, 18);
+      doc.setFontSize(8); doc.setTextColor(...muted);
+      doc.text(`Exported by ${userName} · ${new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}`, M, 24);
+      doc.text(`${selectedTrades.length} trade${selectedTrades.length!==1?"s":""} · ${format==="full"?"Full report":"Summary"}`, PW-M, 24, {align:"right"});
+      y = 36;
+
+      // Summary stats
+      if (sections.summary) {
+        doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(...muted);
+        doc.text("PERFORMANCE SUMMARY", M, y); y += 5;
+        const stats = [
+          ["Net P&L", `${totalPnl>=0?"+":""}$${Math.abs(totalPnl).toLocaleString()}`, totalPnl>=0?green:red],
+          ["Win Rate", `${winRate}%`, winRate>=50?green:red],
+          ["Avg R:R", `${avgRR}R`, cyan],
+          ["Avg Rating", `${avgRating}★`, amber],
+          ["Trades", String(selectedTrades.length), muted],
+          ["Winners", `${wins}/${selectedTrades.length}`, green],
+        ];
+        const colW = (PW-M*2)/3;
+        stats.forEach((s,i) => {
+          const cx = M+(i%3)*colW, cy = y+Math.floor(i/3)*18;
+          doc.setFillColor(17,24,39); doc.roundedRect(cx,cy,colW-4,14,2,2,"F");
+          doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.setTextColor(...muted);
+          doc.text(s[0].toUpperCase(), cx+4, cy+5);
+          doc.setFontSize(12); doc.setFont("helvetica","bold"); doc.setTextColor(...s[2]);
+          doc.text(s[1], cx+4, cy+11);
+        });
+        y += 42;
+      }
+
+      // Tag breakdown
+      if (sections.tagBreakdown) {
+        const allTags = [...new Set(selectedTrades.flatMap(t=>t.tags||[]))];
+        if (allTags.length) {
+          if (y > 240) { doc.addPage(); y = 18; }
+          doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(...muted);
+          doc.text("SETUP TAG PERFORMANCE", M, y); y += 5;
+          const tagData = allTags.map(tag => {
+            const tt = selectedTrades.filter(t=>(t.tags||[]).includes(tag));
+            const tw = tt.filter(t=>t.pnl>0);
+            const pnl = tt.reduce((a,t)=>a+t.pnl,0);
+            return [tag, String(tt.length), `${Math.round(tw.length/tt.length*100)}%`, `${pnl>=0?"+":""}$${Math.round(pnl).toLocaleString()}`];
+          });
+          doc.autoTable({
+            startY: y, head:[["Setup","Trades","Win Rate","P&L"]], body: tagData,
+            margin:{left:M,right:M},
+            headStyles:{fillColor:[13,20,32],textColor:[74,96,128],fontSize:7,fontStyle:"bold"},
+            bodyStyles:{fillColor:[17,24,39],textColor:[200,216,232],fontSize:8,cellPadding:3},
+            alternateRowStyles:{fillColor:[22,31,48]},
+            columnStyles:{0:{cellWidth:70},1:{cellWidth:25},2:{cellWidth:25},3:{halign:"right"}},
+          });
+          y = doc.lastAutoTable.finalY + 8;
+        }
+      }
+
+      // Trade table
+      if (y > 230) { doc.addPage(); y = 18; }
+      doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(...muted);
+      doc.text("TRADES", M, y); y += 5;
+      const tableRows = selectedTrades.map(t=>[
+        t.symbol, t.side, t.trade_date||"–",
+        `${t.entry||"–"} → ${t.exit||"–"}`,
+        (t.tags||[]).slice(0,2).join(", ")||"–",
+        t.rating ? "★".repeat(t.rating) : "–",
+        t.rr ? `${t.rr}R` : "–",
+        `${t.pnl>=0?"+":""}$${t.pnl}`,
+      ]);
+      doc.autoTable({
+        startY: y, head:[["Symbol","Side","Date","Time","Tags","Rating","R:R","P&L"]], body: tableRows,
+        margin:{left:M,right:M},
+        headStyles:{fillColor:[13,20,32],textColor:[74,96,128],fontSize:7,fontStyle:"bold"},
+        bodyStyles:{fillColor:[17,24,39],textColor:[200,216,232],fontSize:8,cellPadding:2.5},
+        alternateRowStyles:{fillColor:[22,31,48]},
+        didParseCell:(d) => {
+          if (d.section==="body" && d.column.index===7) {
+            const v = parseFloat(String(d.cell.raw).replace(/[^0-9.-]/g,""));
+            d.cell.styles.textColor = v>=0 ? [0,208,132] : [255,61,90];
+          }
+          if (d.section==="body" && d.column.index===1) {
+            d.cell.styles.textColor = d.cell.raw==="Long" ? [0,208,132] : [255,61,90];
+          }
+        },
+      });
+      y = doc.lastAutoTable.finalY + 8;
+
+      // Per-trade reviews
+      if (sections.perTrade && format==="full") {
+        const withReviews = selectedTrades.filter(t=>t.review);
+        if (withReviews.length) {
+          if (y > 220) { doc.addPage(); y = 18; }
+          doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(...muted);
+          doc.text("TRADE REVIEWS", M, y); y += 5;
+          withReviews.forEach(t => {
+            if (y > 260) { doc.addPage(); y = 18; }
+            doc.setFillColor(17,24,39); doc.roundedRect(M, y, PW-M*2, 22, 2, 2, "F");
+            doc.setFontSize(9); doc.setFont("helvetica","bold");
+            doc.setTextColor(...(t.pnl>=0?green:red));
+            doc.text(`${t.symbol} ${t.side}  ${t.pnl>=0?"+":""}$${t.pnl}  ${"★".repeat(t.rating||0)}`, M+3, y+7);
+            doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.setTextColor(200,216,232);
+            const lines = doc.splitTextToSize(t.review, PW-M*2-8);
+            doc.text((lines[0]||"")+" "+(lines[1]||""), M+3, y+13);
+            y += 26;
+          });
+        }
+      }
+
+      // Screenshots
+      if (sections.screenshots && format==="full") {
+        const withShots = selectedTrades.filter(t=>t.screenshot);
+        if (withShots.length) {
+          doc.addPage(); y = 18;
+          doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(...muted);
+          doc.text("CHART SCREENSHOTS", M, y); y += 8;
+          for (const t of withShots) {
+            if (y > 200) { doc.addPage(); y = 18; }
+            try {
+              doc.addImage(t.screenshot, "JPEG", M, y, PW-M*2, 78);
+              doc.setFontSize(8); doc.setFont("helvetica","normal"); doc.setTextColor(...muted);
+              doc.text(`${t.symbol} ${t.side}  ${t.pnl>=0?"+":""}$${t.pnl}  ${t.trade_date||""}`, M, y+82);
+              y += 90;
+            } catch(e) {}
+          }
+        }
+      }
+
+      // AI prompt
+      if (y > 245) { doc.addPage(); y = 18; }
+      doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(...purple);
+      doc.text("AI ANALYSIS PROMPT", M, y); y += 5;
+      doc.setFillColor(22,16,40);
+      const prompt = `Analyse the ${selectedTrades.length} trades in this report. Please identify: 1) My strongest setup patterns and what they have in common, 2) My weakest areas and recurring mistakes, 3) Time-of-day patterns — when am I most and least profitable? 4) Any prop firm rule risks based on my trading behaviour, 5) One specific, measurable thing I should focus on to improve my edge. Be direct and data-driven.`;
+      const pLines = doc.splitTextToSize(prompt, PW-M*2-8);
+      const pH = pLines.length*4.5+10;
+      doc.roundedRect(M, y, PW-M*2, pH, 2, 2, "F");
+      doc.setFontSize(7.5); doc.setFont("helvetica","normal"); doc.setTextColor(200,185,255);
+      doc.text(pLines, M+4, y+6);
+
+      // Footer
+      const pages = doc.internal.getNumberOfPages();
+      for (let i=1;i<=pages;i++) {
+        doc.setPage(i);
+        doc.setFontSize(7); doc.setTextColor(...muted);
+        doc.text(`FundVault · fundvault.app · Page ${i} of ${pages}`, PW/2, 293, {align:"center"});
+      }
+
+      doc.save(`FundVault-trades-${new Date().toISOString().slice(0,10)}.pdf`);
+    } catch(err) {
+      console.error("PDF failed:", err);
+      alert("PDF generation failed. See console for details.");
+    }
+    setGenerating(false);
+  };
+
+  const SECTION_LABELS = {summary:"Summary stats",perTrade:"Trade reviews",screenshots:"Screenshots",tagBreakdown:"Tag breakdown",psychology:"Psychology",propCompliance:"Prop compliance"};
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:1200,background:"rgba(0,0,0,0.8)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:700,maxHeight:"92vh",overflowY:"auto",display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{padding:"16px 24px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0,position:"sticky",top:0,background:C.card,zIndex:10}}>
+          <div>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>
+              {step===1?"Select trades":step===2?"Export options":"Preview & download"}
+            </div>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginTop:2}}>Export to PDF</div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            <div style={{display:"flex",gap:6}}>
+              {[1,2,3].map(s=><div key={s} style={{width:s===step?20:7,height:7,borderRadius:4,background:s===step?C.accent:s<step?`${C.accent}55`:C.border,transition:"all 0.3s"}}/>)}
+            </div>
+            <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:20}}>✕</button>
+          </div>
+        </div>
+
+        <div style={{padding:"20px 24px",flex:1}}>
+
+          {/* Step 1 */}
+          {step===1&&(<>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim}}>{selected.size} of {trades.length} trades selected</div>
+              <div style={{display:"flex",gap:7}}>
+                <button onClick={()=>setSelected(new Set(trades.map(t=>t.id)))} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Select all</button>
+                <button onClick={()=>setSelected(new Set())} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Clear</button>
+              </div>
+            </div>
+            <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",marginBottom:16}}>
+              {trades.length===0
+                ? <div style={{padding:40,textAlign:"center",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:12}}>No trades to export</div>
+                : trades.map((t,i)=>(
+                  <div key={t.id} onClick={()=>toggleTrade(t.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderBottom:i<trades.length-1?`1px solid ${C.border}`:"none",cursor:"pointer",background:selected.has(t.id)?`${C.accent}08`:"transparent",transition:"background 0.1s"}}>
+                    <div style={{width:16,height:16,borderRadius:4,flexShrink:0,border:`1.5px solid ${selected.has(t.id)?C.accent:C.border}`,background:selected.has(t.id)?C.accentDim:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      {selected.has(t.id)&&<span style={{color:C.accent,fontSize:10}}>✓</span>}
+                    </div>
+                    <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,minWidth:36,color:C.text}}>{t.symbol}</span>
+                    <span style={{background:t.side==="Long"?`${C.green}18`:`${C.red}18`,color:t.side==="Long"?C.green:C.red,borderRadius:4,padding:"2px 7px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{t.side}</span>
+                    <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>{t.trade_date||""}</span>
+                    <div style={{display:"flex",gap:4,flex:1}}>{(t.tags||[]).slice(0,2).map(tag=><span key={tag} style={{background:`${tagColor(tag)}18`,color:tagColor(tag),border:`1px solid ${tagColor(tag)}44`,borderRadius:20,padding:"1px 8px",fontSize:10,fontFamily:"'Space Mono',monospace"}}>{tag}</span>)}</div>
+                    {t.rating>0&&<span style={{color:C.amber,fontSize:11}}>{"★".repeat(t.rating)}</span>}
+                    <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:t.pnl>=0?C.green:C.red,marginLeft:"auto",minWidth:64,textAlign:"right"}}>{t.pnl>=0?"+":""}${t.pnl}</span>
+                  </div>
+                ))
+              }
+            </div>
+            <div style={{display:"flex",justifyContent:"flex-end"}}>
+              <button onClick={()=>{if(selected.size>0)setStep(2);}} disabled={selected.size===0}
+                style={{background:selected.size>0?C.accentDim:"transparent",border:`1px solid ${selected.size>0?C.accent+"55":C.border}`,color:selected.size>0?C.accent:C.muted,borderRadius:8,padding:"10px 22px",cursor:selected.size>0?"pointer":"not-allowed",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700}}>
+                Choose format →
+              </button>
+            </div>
+          </>)}
+
+          {/* Step 2 */}
+          {step===2&&(<>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:18}}>
+              {[
+                {id:"full",    title:"Full report",  desc:"Stats, each trade with tags, rating, reviews and screenshots"},
+                {id:"summary", title:"Summary only", desc:"Aggregated stats + trade table — ideal for AI analysis"},
+              ].map(opt=>(
+                <div key={opt.id} onClick={()=>setFormat(opt.id)} style={{border:`${format===opt.id?"2px":"1px"} solid ${format===opt.id?C.accent+"55":C.border}`,borderRadius:10,padding:"14px",cursor:"pointer",background:format===opt.id?C.accentDim:"transparent",transition:"all 0.15s"}}>
+                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:4,color:C.text}}>{opt.title}</div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim}}>{opt.desc}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 18px",marginBottom:18}}>
+              <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Include sections</div>
+              {[
+                {key:"summary",        label:"Performance summary",       desc:"Win rate, P&L, avg R:R, max drawdown"},
+                {key:"tagBreakdown",   label:"Setup tag breakdown",        desc:"Win rate and P&L per setup tag"},
+                {key:"perTrade",       label:"Per-trade reviews & notes",  desc:"Rating and review text per trade (full only)"},
+                {key:"screenshots",    label:"Chart screenshots",          desc:"Attached chart images (full only)"},
+                {key:"psychology",     label:"Psychology check-in data",   desc:"Mood and habit scores on trading days"},
+                {key:"propCompliance", label:"Prop firm compliance",       desc:"Rule adherence summary"},
+              ].map((s,i,arr)=>(
+                <div key={s.key} onClick={()=>setSections(x=>({...x,[s.key]:!x[s.key]}))} style={{display:"flex",alignItems:"center",gap:12,padding:"9px 0",borderBottom:i<arr.length-1?`1px solid ${C.border}`:"none",cursor:"pointer"}}>
+                  <div style={{width:18,height:18,borderRadius:4,flexShrink:0,border:`1.5px solid ${sections[s.key]?C.green:C.border}`,background:sections[s.key]?`${C.green}22`:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    {sections[s.key]&&<span style={{color:C.green,fontSize:11}}>✓</span>}
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.text}}>{s.label}</div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:1}}>{s.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between"}}>
+              <button onClick={()=>setStep(1)} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 20px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>← Back</button>
+              <button onClick={()=>setStep(3)} style={{background:C.accentDim,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"10px 22px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700}}>Preview →</button>
+            </div>
+          </>)}
+
+          {/* Step 3 */}
+          {step===3&&(<>
+            <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:"16px 18px",marginBottom:18}}>
+              <div style={{background:"#0d1420",borderRadius:8,padding:"12px 16px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,color:"#00e5ff",letterSpacing:"0.1em"}}>FUNDVAULT</div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:8,color:"#6b859e",marginTop:1}}>PROP TRADING JOURNAL</div>
+                </div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:"#6b859e",textAlign:"right"}}>
+                  <div>{selectedTrades.length} trades · {format==="full"?"Full report":"Summary"}</div>
+                  <div>{new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</div>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:12}}>
+                {[
+                  {l:"Net P&L", v:`${totalPnl>=0?"+":""}$${Math.abs(totalPnl).toLocaleString()}`, c:totalPnl>=0?C.green:C.red},
+                  {l:"Win Rate", v:`${winRate}%`, c:winRate>=50?C.green:C.red},
+                  {l:"Avg R:R",  v:`${avgRR}R`, c:C.accent},
+                  {l:"Avg Rating", v:`${avgRating}★`, c:C.amber},
+                ].map(s=>(
+                  <div key={s.l} style={{background:"#111827",borderRadius:6,padding:"10px"}}>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>{s.l}</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,color:s.c,marginTop:3}}>{s.v}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{borderRadius:6,overflow:"hidden",border:`1px solid ${C.border}`,marginBottom:12}}>
+                <div style={{display:"grid",gridTemplateColumns:"44px 44px 1fr 50px 50px",padding:"6px 10px",background:"#0d1420",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>
+                  <span>Sym</span><span>Side</span><span>Tags</span><span>R:R</span><span style={{textAlign:"right"}}>P&L</span>
+                </div>
+                {selectedTrades.slice(0,4).map(t=>(
+                  <div key={t.id} style={{display:"grid",gridTemplateColumns:"44px 44px 1fr 50px 50px",padding:"6px 10px",borderTop:`1px solid ${C.border}`,fontFamily:"'Space Mono',monospace",fontSize:10,alignItems:"center"}}>
+                    <span style={{fontWeight:700,color:C.text}}>{t.symbol}</span>
+                    <span style={{color:t.side==="Long"?C.green:C.red}}>{t.side}</span>
+                    <span style={{color:C.muted,fontSize:9}}>{(t.tags||[]).slice(0,1).join(",")||"–"}</span>
+                    <span style={{color:C.accent}}>{t.rr}R</span>
+                    <span style={{textAlign:"right",color:t.pnl>=0?C.green:C.red,fontWeight:700}}>{t.pnl>=0?"+":""}${t.pnl}</span>
+                  </div>
+                ))}
+                {selectedTrades.length>4&&<div style={{padding:"6px 10px",borderTop:`1px solid ${C.border}`,fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,textAlign:"center"}}>+ {selectedTrades.length-4} more trades</div>}
+              </div>
+              <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderLeft:`3px solid ${C.purple}`,borderRadius:"0 6px 6px 0",padding:"10px 12px"}}>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.purple,marginBottom:4,letterSpacing:"0.05em"}}>AI ANALYSIS PROMPT (included in PDF)</div>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,lineHeight:1.5}}>
+                  "Analyse the {selectedTrades.length} trades in this report. Identify my strongest setup patterns, weakest areas, time-of-day tendencies, and one specific measurable thing to improve..."
+                </div>
+              </div>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:18}}>
+              {Object.entries(sections).filter(([,v])=>v).map(([k])=>(
+                <span key={k} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,borderRadius:20,padding:"3px 10px",fontFamily:"'Space Mono',monospace",fontSize:10}}>
+                  {SECTION_LABELS[k]}
+                </span>
+              ))}
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <button onClick={()=>setStep(2)} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 20px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>← Back</button>
+              <button onClick={generatePDF} disabled={generating}
+                style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}66`,color:C.accent,borderRadius:8,padding:"12px 28px",cursor:generating?"wait":"pointer",fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.05em",opacity:generating?0.7:1}}>
+                {generating?"Generating PDF...":"⬇ Download PDF"}
+              </button>
+            </div>
+          </>)}
+
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Edge Modal (create/edit an Edge) ─────────────────────────────────────────
 const EdgeModal = ({onClose, onSave, existing, C}) => {
   const [form, setForm] = useState(existing || {
@@ -2251,6 +2625,7 @@ export default function TradingPlatform({ session }) {
   const [showRules,  setShowRules ] = useState(false);
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [showImportCSV, setShowImportCSV] = useState(false);
+  const [showExport,    setShowExport   ] = useState(false);
   // Edge Library state
   const [edges, setEdges] = useState(() => {
     try { return JSON.parse(localStorage.getItem("fv_edges") || "[]"); }
@@ -3011,6 +3386,7 @@ export default function TradingPlatform({ session }) {
       <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
       {selTrade  && <TradeModal trade={selTrade} onClose={()=>setSelTrade(null)} onSave={saveTrade} globalRules={rules}/>}
       {showImportCSV && <CSVImportModal onClose={()=>setShowImportCSV(false)} onImport={async (trades)=>{ for(const t of trades){ await saveTrade({...t,id:"csv-"+Date.now()+Math.random()}); } setShowImportCSV(false); }} C={C}/>}
+      {showExport    && <ExportModal onClose={()=>setShowExport(false)} trades={trades} C={C} userName={userName}/>}
       {showEdgeModal && <EdgeModal onClose={()=>{setShowEdgeModal(false);setEditingEdge(null);}} onSave={(e)=>{ if(editingEdge){ saveEdges(edges.map(x=>x.id===editingEdge.id?e:x)); }else{ saveEdges([...edges,{...e,id:Date.now().toString()}]); } setShowEdgeModal(false);setEditingEdge(null); }} existing={editingEdge} C={C}/>}
       {showAddTrade && <AddTradeModal onClose={()=>setShowAddTrade(false)} onSave={async (t)=>{ await saveTrade({...t,id:"new-"+Date.now()}); setShowAddTrade(false); }} globalRules={rules} C={C} newsBlocker={newsBlocker} calendarEvents={calendarEvents}/>}
       <FlattenWidget tvStatus={tvStatus} appIsDemo={isDemo} C={C}/>
@@ -3313,6 +3689,7 @@ export default function TradingPlatform({ session }) {
                 <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
                   <button onClick={()=>setShowAddTrade(true)} style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"7px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>+ Add Trade</button>
                   <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬆ Import CSV</button>
+                  <button onClick={()=>setShowExport(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬇ Export PDF</button>
                   <button onClick={()=>setShowRules(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⚙ My Rules</button>
                   {["All",...allTags].map(f=><button key={f} onClick={()=>setTagFilter(f)} style={{background:tagFilter===f?`${tagColor(f)}22`:C.surface,border:`1px solid ${tagFilter===f?tagColor(f)+"66":C.border}`,color:tagFilter===f?tagColor(f):C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>{f}</button>)}
                 </div>
