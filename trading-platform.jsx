@@ -435,7 +435,14 @@ const ECON_EVENTS = [
 // ── Shared UI ─────────────────────────────────────────────────────────────────
 
 // ── FlattenWidget — Floating position manager ──────────────────────────────
-function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false }) {
+function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false, C: theme }) {
+  // Use passed theme or fall back to dark defaults
+  const W = theme || {
+    bg:"#080c14", surface:"#0d1420", card:"#111827", border:"#1e2d40",
+    accent:"#00e5ff", accentDim:"#00e5ff22",
+    green:"#00d084", red:"#ff3d5a", amber:"#f59e0b",
+    purple:"#a78bfa", muted:"#4a6080", text:"#c8d8e8", textDim:"#6b859e",
+  };
   const [positions,  setPositions ] = useState([]);
   const [selected,   setSelected  ] = useState({});
   const [loading,    setLoading   ] = useState(false);
@@ -593,16 +600,16 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false }) {
   const hasPositions = positions.length > 0;
 
   return (
-    <div className="fv-flatten-widget" style={{
+    <div className={mobileMode ? "fv-flatten-widget-inline" : "fv-flatten-widget"} style={{
       position: mobileMode ? "relative" : "fixed",
       bottom: mobileMode ? undefined : 24,
       right: mobileMode ? undefined : 24,
       zIndex: mobileMode ? undefined : 9999,
       width: mobileMode ? "100%" : (expanded ? 340 : 200),
-      background: "#0d1420",
-      border: `2px solid ${demoMode ? "#a78bfa66" : hasPositions ? "#ff3d5a66" : "#1e2d40"}`,
+      background: W.surface,
+      border: `2px solid ${demoMode ? W.purple+"66" : hasPositions ? W.red+"66" : W.border}`,
       borderRadius: 14,
-      boxShadow: hasPositions ? "0 0 30px #ff3d5a22" : "0 8px 32px #00000099",
+      boxShadow: hasPositions ? `0 0 30px ${W.red}22` : "0 8px 32px #00000099",
       transition: "width 0.2s",
       overflow: "hidden",
       fontFamily: "'DM Sans', sans-serif",
@@ -610,205 +617,161 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false }) {
 
       {/* Header */}
       <div
-        onClick={() => setExpanded(e => !e)}
+        onClick={() => { if (!mobileMode) setExpanded(e => !e); }}
         style={{
           padding: "10px 14px",
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          borderBottom: expanded ? "1px solid #1e2d40" : "none",
-          cursor: "pointer",
-          background: hasPositions ? "#ff3d5a08" : "transparent",
+          borderBottom: (expanded || mobileMode) ? `1px solid ${W.border}` : "none",
+          cursor: mobileMode ? "default" : "pointer",
+          background: hasPositions ? `${W.red}08` : "transparent",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{
             width: 8, height: 8, borderRadius: "50%",
-            background: hasPositions ? "#ff3d5a" : "#00d084",
-            boxShadow: `0 0 6px ${hasPositions ? "#ff3d5a" : "#00d084"}`,
+            background: hasPositions ? W.red : W.green,
+            boxShadow: `0 0 6px ${hasPositions ? W.red : W.green}`,
             animation: hasPositions ? "pulse 1.5s ease-in-out infinite" : "none",
           }}/>
-          <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: "#c8d8e8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 10, color: W.text, letterSpacing: "0.08em", textTransform: "uppercase" }}>
             {hasPositions ? `${positions.length} Open` : "No Positions"}
           </span>
           {hasPositions && (
-            <span style={{ fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 700, color: totalUnrealized >= 0 ? "#00d084" : "#ff3d5a" }}>
+            <span style={{ fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 700, color: totalUnrealized >= 0 ? W.green : W.red }}>
               {totalUnrealized >= 0 ? "+" : ""}${Math.round(totalUnrealized)}
             </span>
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          {loading && <div style={{ width: 10, height: 10, borderRadius: "50%", border: "2px solid #1e2d40", borderTop: "2px solid #00e5ff", animation: "spin 0.8s linear infinite" }}/>}
-          <button
-            onClick={e => { e.stopPropagation(); setDemoMode(d => !d); setPositions([]); setSelected({}); }}
-            style={{ background: demoMode ? "#a78bfa22" : "transparent", border: `1px solid ${demoMode ? "#a78bfa66" : "#1e2d40"}`, borderRadius: 4, padding: "2px 7px", cursor: "pointer", fontFamily: "'Space Mono',monospace", fontSize: 8, color: demoMode ? "#a78bfa" : "#4a6080", letterSpacing: "0.05em" }}
-            title="Test without Tradovate"
-          >DEMO</button>
-          <span style={{ color: "#4a6080", fontSize: 12 }}>{expanded ? "▼" : "▲"}</span>
+          {loading && <div style={{ width: 10, height: 10, borderRadius: "50%", border: `2px solid ${W.border}`, borderTop: `2px solid ${W.accent}`, animation: "spin 0.8s linear infinite" }}/>}
+          {!mobileMode && <>
+            <button
+              onClick={e => { e.stopPropagation(); setDemoMode(d => !d); setPositions([]); setSelected({}); }}
+              style={{ background: demoMode ? `${W.purple}22` : "transparent", border: `1px solid ${demoMode ? W.purple+"66" : W.border}`, borderRadius: 4, padding: "2px 7px", cursor: "pointer", fontFamily: "'Space Mono',monospace", fontSize: 8, color: demoMode ? W.purple : W.muted, letterSpacing: "0.05em" }}
+              title="Test without Tradovate"
+            >DEMO</button>
+            <span style={{ color: W.muted, fontSize: 12 }}>{expanded ? "▼" : "▲"}</span>
+          </>}
         </div>
       </div>
 
       {/* Body */}
-      {expanded && (
+      {(expanded || mobileMode) && (
         <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
 
-          {/* Demo banner */}
           {demoMode && (
-            <div style={{ background: "#a78bfa15", border: "1px solid #a78bfa44", borderRadius: 6, padding: "6px 10px", fontSize: 10, color: "#a78bfa", fontFamily: "'Space Mono',monospace", textAlign: "center" }}>
+            <div style={{ background: `${W.purple}15`, border: `1px solid ${W.purple}44`, borderRadius: 6, padding: "6px 10px", fontSize: 10, color: W.purple, fontFamily: "'Space Mono',monospace", textAlign: "center" }}>
               🎭 DEMO MODE — no real orders sent
             </div>
           )}
 
-          {/* Error */}
           {error && (
-            <div style={{ background: "#ff3d5a15", border: "1px solid #ff3d5a44", borderRadius: 6, padding: "6px 10px", fontSize: 11, color: "#ff3d5a" }}>
+            <div style={{ background: `${W.red}15`, border: `1px solid ${W.red}44`, borderRadius: 6, padding: "6px 10px", fontSize: 11, color: W.red }}>
               ⚠ {error}
             </div>
           )}
 
-          {/* Positions list */}
           {hasPositions ? (
             <>
-              <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 200, overflowY: "auto" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: mobileMode ? "none" : 200, overflowY: mobileMode ? "visible" : "auto" }}>
                 {positions.map(p => (
-                  <div
-                    key={p.id}
-                    onClick={() => toggleSelect(p.id)}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 8,
-                      padding: "7px 10px", borderRadius: 8, cursor: "pointer",
-                      background: selected[p.id] ? "#ff3d5a18" : "#111827",
-                      border: `1px solid ${selected[p.id] ? "#ff3d5a55" : "#1e2d40"}`,
-                      transition: "all 0.12s",
-                    }}
-                  >
-                    {/* Checkbox */}
+                  <div key={p.id} onClick={() => toggleSelect(p.id)} style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "7px 10px", borderRadius: 8, cursor: "pointer",
+                    background: selected[p.id] ? `${W.red}18` : W.card,
+                    border: `1px solid ${selected[p.id] ? W.red+"55" : W.border}`,
+                    transition: "all 0.12s",
+                  }}>
                     <div style={{
                       width: 14, height: 14, borderRadius: 3, flexShrink: 0,
-                      border: `1.5px solid ${selected[p.id] ? "#ff3d5a" : "#4a6080"}`,
-                      background: selected[p.id] ? "#ff3d5a33" : "transparent",
+                      border: `1.5px solid ${selected[p.id] ? W.red : W.muted}`,
+                      background: selected[p.id] ? `${W.red}33` : "transparent",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
-                      {selected[p.id] && <span style={{ color: "#ff3d5a", fontSize: 9 }}>✓</span>}
+                      {selected[p.id] && <span style={{ color: W.red, fontSize: 9 }}>✓</span>}
                     </div>
-
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13 }}>{p.symbol}</span>
-                        <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: (p.unrealized || 0) >= 0 ? "#00d084" : "#ff3d5a" }}>
-                          {(p.unrealized || 0) >= 0 ? "+" : ""}${Math.round(p.unrealized || 0)}
+                        <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: W.text }}>{p.symbol}</span>
+                        <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 13, color: (p.unrealized||0) >= 0 ? W.green : W.red }}>
+                          {(p.unrealized||0) >= 0 ? "+" : ""}${Math.round(p.unrealized||0)}
                         </span>
                       </div>
                       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 2 }}>
-                        <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: p.side === "Long" ? "#00d084" : "#ff3d5a" }}>
+                        <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: p.side === "Long" ? W.green : W.red }}>
                           {p.side} · {Math.abs(p.size)} contracts
                         </span>
-                        <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: "#4a6080" }}>
-                          @ {p.avgPrice}
-                        </span>
+                        <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: W.muted }}>@ {p.avgPrice}</span>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Last update */}
               {lastUpdate && (
-                <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: "#4a6080", textAlign: "center" }}>
-                  Uppdaterad {lastUpdate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: W.muted, textAlign: "center" }}>
+                  Updated {lastUpdate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                 </div>
               )}
 
-              {/* Buttons */}
               <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 2 }}>
-                {/* Stäng valda */}
                 {selectedIds.length > 0 && (
-                  <button
-                    onClick={flattenSelected}
-                    disabled={flattening || cancellingOrders}
-                    style={{
-                      width: "100%", padding: "8px", borderRadius: 8, cursor: "pointer",
-                      background: "#f59e0b22", border: "1px solid #f59e0b66",
-                      color: "#f59e0b", fontFamily: "'Space Mono',monospace",
-                      fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
-                    }}
-                  >
+                  <button onClick={flattenSelected} disabled={flattening || cancellingOrders} style={{
+                    width: "100%", padding: "8px", borderRadius: 8, cursor: "pointer",
+                    background: `${W.amber}22`, border: `1px solid ${W.amber}66`,
+                    color: W.amber, fontFamily: "'Space Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
+                  }}>
                     {flattening ? "Closing..." : `✕ Close ${selectedIds.length} selected`}
                   </button>
                 )}
-                {/* Flatten ALL positioner */}
-                <button
-                  onClick={() => setConfirmAll("positions")}
-                  disabled={flattening || cancellingOrders}
-                  style={{
-                    width: "100%", padding: "9px", borderRadius: 8, cursor: "pointer",
-                    background: "#ff3d5a22", border: "1px solid #ff3d5a66",
-                    color: "#ff3d5a", fontFamily: "'Space Mono',monospace",
-                    fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
-                  }}
-                >
+                <button onClick={() => setConfirmAll("positions")} disabled={flattening || cancellingOrders} style={{
+                  width: "100%", padding: "9px", borderRadius: 8, cursor: "pointer",
+                  background: `${W.red}22`, border: `1px solid ${W.red}66`,
+                  color: W.red, fontFamily: "'Space Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
+                }}>
                   {flattening ? "Closing positions..." : "🔴 Flatten ALL — Close all positions"}
                 </button>
-                {/* Cancel alla väntande orders */}
-                <button
-                  onClick={() => setConfirmAll("orders")}
-                  disabled={flattening || cancellingOrders}
-                  style={{
-                    width: "100%", padding: "9px", borderRadius: 8, cursor: "pointer",
-                    background: "#f59e0b22", border: "1px solid #f59e0b66",
-                    color: "#f59e0b", fontFamily: "'Space Mono',monospace",
-                    fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
-                  }}
-                >
+                <button onClick={() => setConfirmAll("orders")} disabled={flattening || cancellingOrders} style={{
+                  width: "100%", padding: "9px", borderRadius: 8, cursor: "pointer",
+                  background: `${W.amber}22`, border: `1px solid ${W.amber}66`,
+                  color: W.amber, fontFamily: "'Space Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
+                }}>
                   {cancellingOrders ? "Cancelling orders..." : "⛔ Cancel ALL — Cancel all pending orders"}
                 </button>
               </div>
             </>
           ) : (
-            <div style={{ textAlign: "center", padding: "12px 0", fontFamily: "'Space Mono',monospace", fontSize: 11, color: "#4a6080" }}>
+            <div style={{ textAlign: "center", padding: "12px 0", fontFamily: "'Space Mono',monospace", fontSize: 11, color: W.muted }}>
               No open positions
             </div>
           )}
         </div>
       )}
 
-      {/* Bekräftelsedialog */}
       {confirmAll && (
-        <div style={{
-          position: "fixed", inset: 0, background: "#00000088", zIndex: 20000,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <div style={{
-            background: "#0d1420",
-            border: `1px solid ${confirmAll === "positions" ? "#ff3d5a66" : "#f59e0b66"}`,
-            borderRadius: 16, padding: 32, maxWidth: 340, width: "90%", textAlign: "center",
-          }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>
-              {confirmAll === "positions" ? "🔴" : "⛔"}
-            </div>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: confirmAll === "positions" ? "#ff3d5a" : "#f59e0b", marginBottom: 8 }}>
+        <div style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: W.surface, border: `1px solid ${confirmAll === "positions" ? W.red+"66" : W.amber+"66"}`, borderRadius: 16, padding: 32, maxWidth: 340, width: "90%", textAlign: "center" }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>{confirmAll === "positions" ? "🔴" : "⛔"}</div>
+            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: confirmAll === "positions" ? W.red : W.amber, marginBottom: 8 }}>
               {confirmAll === "positions" ? "Flatten ALL?" : "Cancel ALL Orders?"}
             </div>
-            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: "#6b859e", marginBottom: 8 }}>
+            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: W.textDim, marginBottom: 8 }}>
               {confirmAll === "positions"
-                ? <>This will close <strong style={{ color: "#c8d8e8" }}>all {positions.length} open positions</strong> immediately with market orders.</>
-                : <>This will cancel <strong style={{ color: "#c8d8e8" }}>all pending limit and stop orders</strong>. Open positions are not affected.</>
+                ? <>This will close <strong style={{ color: W.text }}>all {positions.length} open positions</strong> immediately with market orders.</>
+                : <>This will cancel <strong style={{ color: W.text }}>all pending limit and stop orders</strong>. Open positions are not affected.</>
               }
             </div>
             {confirmAll === "positions" && (
-              <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 13, color: totalUnrealized >= 0 ? "#00d084" : "#ff3d5a", marginBottom: 24, fontWeight: 700 }}>
+              <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 13, color: totalUnrealized >= 0 ? W.green : W.red, marginBottom: 24, fontWeight: 700 }}>
                 Unrealized: {totalUnrealized >= 0 ? "+" : ""}${Math.round(totalUnrealized)}
               </div>
             )}
             <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-              <button
-                onClick={() => setConfirmAll(false)}
-                style={{ flex: 1, padding: "12px", borderRadius: 10, cursor: "pointer", background: "transparent", border: "1px solid #1e2d40", color: "#6b859e", fontFamily: "'Space Mono',monospace", fontSize: 11 }}
-              >
+              <button onClick={() => setConfirmAll(false)} style={{ flex: 1, padding: "12px", borderRadius: 10, cursor: "pointer", background: "transparent", border: `1px solid ${W.border}`, color: W.muted, fontFamily: "'Space Mono',monospace", fontSize: 11 }}>
                 Cancel
               </button>
-              <button
-                onClick={() => { confirmAll === "positions" ? flattenAll() : cancelAllOrders(); }}
-                style={{ flex: 1, padding: "12px", borderRadius: 10, cursor: "pointer", background: confirmAll === "positions" ? "#ff3d5a22" : "#f59e0b22", border: `1px solid ${confirmAll === "positions" ? "#ff3d5a" : "#f59e0b"}`, color: confirmAll === "positions" ? "#ff3d5a" : "#f59e0b", fontFamily: "'Space Mono',monospace", fontSize: 11, fontWeight: 700 }}
-              >
+              <button onClick={() => { confirmAll === "positions" ? flattenAll() : cancelAllOrders(); }}
+                style={{ flex: 1, padding: "12px", borderRadius: 10, cursor: "pointer", background: confirmAll === "positions" ? `${W.red}22` : `${W.amber}22`, border: `1px solid ${confirmAll === "positions" ? W.red : W.amber}`, color: confirmAll === "positions" ? W.red : W.amber, fontFamily: "'Space Mono',monospace", fontSize: 11, fontWeight: 700 }}>
                 {confirmAll === "positions" ? "Yes, close all" : "Yes, cancel all"}
               </button>
             </div>
@@ -3050,7 +3013,7 @@ export default function TradingPlatform({ session }) {
       {showImportCSV && <CSVImportModal onClose={()=>setShowImportCSV(false)} onImport={async (trades)=>{ for(const t of trades){ await saveTrade({...t,id:"csv-"+Date.now()+Math.random()}); } setShowImportCSV(false); }} C={C}/>}
       {showEdgeModal && <EdgeModal onClose={()=>{setShowEdgeModal(false);setEditingEdge(null);}} onSave={(e)=>{ if(editingEdge){ saveEdges(edges.map(x=>x.id===editingEdge.id?e:x)); }else{ saveEdges([...edges,{...e,id:Date.now().toString()}]); } setShowEdgeModal(false);setEditingEdge(null); }} existing={editingEdge} C={C}/>}
       {showAddTrade && <AddTradeModal onClose={()=>setShowAddTrade(false)} onSave={async (t)=>{ await saveTrade({...t,id:"new-"+Date.now()}); setShowAddTrade(false); }} globalRules={rules} C={C} newsBlocker={newsBlocker} calendarEvents={calendarEvents}/>}
-      <FlattenWidget tvStatus={tvStatus} appIsDemo={isDemo}/>
+      <FlattenWidget tvStatus={tvStatus} appIsDemo={isDemo} C={C}/>
       {showRules && <RuleManager rules={rules} onChange={setRules} onClose={()=>setShowRules(false)}/>}
 
       {/* Nav */}
@@ -4671,7 +4634,7 @@ export default function TradingPlatform({ session }) {
             <button onClick={()=>setShowMobilePositions(false)} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:18}}>✕</button>
           </div>
           {/* Embed FlattenWidget content inline */}
-          <FlattenWidget tvStatus={tvStatus} mobileMode={true} appIsDemo={isDemo}/>
+          <FlattenWidget tvStatus={tvStatus} mobileMode={true} appIsDemo={isDemo} C={C}/>
         </div>
       )}
       {showMobilePositions && <div onClick={()=>setShowMobilePositions(false)} style={{position:"fixed",inset:0,zIndex:198}} className="fv-more-sheet"/>}
