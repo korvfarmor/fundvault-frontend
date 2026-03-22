@@ -2184,28 +2184,31 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
       doc.text(`${selectedTrades.length} trade${selectedTrades.length!==1?"s":""} · ${format==="full"?"Full report":"Summary"}`, PW-M, 24, {align:"right"});
       y = 36;
 
-      // Summary stats
+      // ── Summary stats ── clean 2-column table style, no emoji
       if (sections.summary) {
-        doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(...muted);
+        doc.setFontSize(7.5); doc.setFont("helvetica","bold"); doc.setTextColor(...muted);
         doc.text("PERFORMANCE SUMMARY", M, y); y += 5;
-        const stats = [
-          ["Net P&L", `${totalPnl>=0?"+":""}$${Math.abs(totalPnl).toLocaleString()}`, totalPnl>=0?green:red],
-          ["Win Rate", `${winRate}%`, winRate>=50?green:red],
-          ["Avg R:R", `${avgRR}R`, cyan],
-          ["Avg Rating", `${avgRating}★`, amber],
-          ["Trades", String(selectedTrades.length), muted],
-          ["Winners", `${wins}/${selectedTrades.length}`, green],
+
+        const statPairs = [
+          [["Net P&L", `${totalPnl>=0?"+":""}$${Math.abs(totalPnl).toLocaleString()}`, totalPnl>=0?green:red],
+           ["Win Rate", `${winRate}%`, winRate>=50?green:red]],
+          [["Avg R:R", `${avgRR}R`, cyan],
+           ["Avg Rating", `${avgRating}/5`, amber]],
+          [["Total Trades", String(selectedTrades.length), muted],
+           ["Winning Trades", `${wins} / ${selectedTrades.length}`, green]],
         ];
-        const colW = (PW-M*2)/3;
-        stats.forEach((s,i) => {
-          const cx = M+(i%3)*colW, cy = y+Math.floor(i/3)*18;
-          doc.setFillColor(17,24,39); doc.roundedRect(cx,cy,colW-4,14,2,2,"F");
-          doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.setTextColor(...muted);
-          doc.text(s[0].toUpperCase(), cx+4, cy+5);
-          doc.setFontSize(12); doc.setFont("helvetica","bold"); doc.setTextColor(...s[2]);
-          doc.text(s[1], cx+4, cy+11);
+        const colW2 = (PW-M*2-6)/2;
+        statPairs.forEach((pair, row) => {
+          pair.forEach((s, col) => {
+            const cx = M + col*(colW2+6), cy = y + row*16;
+            doc.setFillColor(17,24,39); doc.roundedRect(cx, cy, colW2, 13, 1.5, 1.5, "F");
+            doc.setFontSize(6.5); doc.setFont("helvetica","normal"); doc.setTextColor(...muted);
+            doc.text(s[0].toUpperCase(), cx+4, cy+5);
+            doc.setFontSize(11); doc.setFont("helvetica","bold"); doc.setTextColor(...s[2]);
+            doc.text(s[1], cx+4, cy+11);
+          });
         });
-        y += 42;
+        y += 52;
       }
 
       // Tag breakdown
@@ -2213,51 +2216,62 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
         const allTags = [...new Set(selectedTrades.flatMap(t=>t.tags||[]))];
         if (allTags.length) {
           if (y > 240) { doc.addPage(); y = 18; }
-          doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(...muted);
+          doc.setFontSize(7.5); doc.setFont("helvetica","bold"); doc.setTextColor(...muted);
           doc.text("SETUP TAG PERFORMANCE", M, y); y += 5;
           const tagData = allTags.map(tag => {
             const tt = selectedTrades.filter(t=>(t.tags||[]).includes(tag));
             const tw = tt.filter(t=>t.pnl>0);
             const pnl = tt.reduce((a,t)=>a+t.pnl,0);
-            return [tag, String(tt.length), `${Math.round(tw.length/tt.length*100)}%`, `${pnl>=0?"+":""}$${Math.round(pnl).toLocaleString()}`];
+            return [tag, String(tt.length), `${Math.round(tw.length/tt.length*100)}%`, `${pnl>=0?"+":""}$${Math.round(Math.abs(pnl)).toLocaleString()}`];
           });
           doc.autoTable({
             startY: y, head:[["Setup","Trades","Win Rate","P&L"]], body: tagData,
             margin:{left:M,right:M},
-            headStyles:{fillColor:[13,20,32],textColor:[74,96,128],fontSize:7,fontStyle:"bold"},
+            headStyles:{fillColor:[13,20,32],textColor:[100,120,150],fontSize:7,fontStyle:"bold"},
             bodyStyles:{fillColor:[17,24,39],textColor:[200,216,232],fontSize:8,cellPadding:3},
             alternateRowStyles:{fillColor:[22,31,48]},
-            columnStyles:{0:{cellWidth:70},1:{cellWidth:25},2:{cellWidth:25},3:{halign:"right"}},
+            columnStyles:{0:{cellWidth:75},1:{cellWidth:22,halign:"center"},2:{cellWidth:25,halign:"center"},3:{halign:"right"}},
+            didParseCell:(d) => {
+              if (d.section==="body" && d.column.index===3) {
+                const raw = String(d.cell.raw);
+                d.cell.styles.textColor = raw.startsWith("+") ? [0,208,132] : [255,61,90];
+              }
+            },
           });
           y = doc.lastAutoTable.finalY + 8;
         }
       }
 
-      // Trade table
+      // Trade table — drop Rating col, use numeric, fix time
       if (y > 230) { doc.addPage(); y = 18; }
-      doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(...muted);
+      doc.setFontSize(7.5); doc.setFont("helvetica","bold"); doc.setTextColor(...muted);
       doc.text("TRADES", M, y); y += 5;
       const tableRows = selectedTrades.map(t=>[
-        t.symbol, t.side, t.trade_date||"–",
-        `${t.entry||"–"} → ${t.exit||"–"}`,
+        t.symbol,
+        t.side,
+        t.trade_date||"–",
+        t.entry && t.exit ? `${t.entry}-${t.exit}` : t.entry||"–",
         (t.tags||[]).slice(0,2).join(", ")||"–",
-        t.rating ? "★".repeat(t.rating) : "–",
-        t.rr ? `${t.rr}R` : "–",
+        t.rating ? `${t.rating}/5` : "–",
+        t.rr != null ? `${t.rr}R` : "–",
         `${t.pnl>=0?"+":""}$${t.pnl}`,
       ]);
       doc.autoTable({
-        startY: y, head:[["Symbol","Side","Date","Time","Tags","Rating","R:R","P&L"]], body: tableRows,
+        startY: y, head:[["Symbol","Side","Date","Time","Tags","Rtg","R:R","P&L"]], body: tableRows,
         margin:{left:M,right:M},
-        headStyles:{fillColor:[13,20,32],textColor:[74,96,128],fontSize:7,fontStyle:"bold"},
+        headStyles:{fillColor:[13,20,32],textColor:[100,120,150],fontSize:7,fontStyle:"bold"},
         bodyStyles:{fillColor:[17,24,39],textColor:[200,216,232],fontSize:8,cellPadding:2.5},
         alternateRowStyles:{fillColor:[22,31,48]},
+        columnStyles:{0:{cellWidth:18},1:{cellWidth:16},2:{cellWidth:24},3:{cellWidth:24},4:{cellWidth:50},5:{cellWidth:14,halign:"center"},6:{cellWidth:16,halign:"center"},7:{halign:"right"}},
         didParseCell:(d) => {
-          if (d.section==="body" && d.column.index===7) {
-            const v = parseFloat(String(d.cell.raw).replace(/[^0-9.-]/g,""));
-            d.cell.styles.textColor = v>=0 ? [0,208,132] : [255,61,90];
-          }
-          if (d.section==="body" && d.column.index===1) {
-            d.cell.styles.textColor = d.cell.raw==="Long" ? [0,208,132] : [255,61,90];
+          if (d.section==="body") {
+            if (d.column.index===7) {
+              const v = parseFloat(String(d.cell.raw).replace(/[^0-9.-]/g,""));
+              d.cell.styles.textColor = v>=0 ? [0,208,132] : [255,61,90];
+            }
+            if (d.column.index===1) {
+              d.cell.styles.textColor = d.cell.raw==="Long" ? [0,208,132] : [255,61,90];
+            }
           }
         },
       });
@@ -2275,7 +2289,7 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
             doc.setFillColor(17,24,39); doc.roundedRect(M, y, PW-M*2, 22, 2, 2, "F");
             doc.setFontSize(9); doc.setFont("helvetica","bold");
             doc.setTextColor(...(t.pnl>=0?green:red));
-            doc.text(`${t.symbol} ${t.side}  ${t.pnl>=0?"+":""}$${t.pnl}  ${"★".repeat(t.rating||0)}`, M+3, y+7);
+            doc.text(`${t.symbol} ${t.side}  ${t.pnl>=0?"+":""}$${t.pnl}  ${t.rating?t.rating+"/5":""}`, M+3, y+7);
             doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.setTextColor(200,216,232);
             const lines = doc.splitTextToSize(t.review, PW-M*2-8);
             doc.text((lines[0]||"")+" "+(lines[1]||""), M+3, y+13);
