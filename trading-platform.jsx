@@ -1166,6 +1166,8 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
   const [tags,      setTags      ] = useState(trade.tags||[]);
   const [tagInput,  setTagInput  ] = useState("");
   const [drag,      setDrag      ] = useState(false);
+  const [saving,    setSaving    ] = useState(false);
+  const [saveError, setSaveError ] = useState(null);
   const [chartTab,  setChartTab  ] = useState("replay"); // "replay" | "screenshot"
   const fileRef = useRef();
   const tvRef   = useRef();
@@ -1358,10 +1360,23 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
             <textarea value={review} onChange={e=>setReview(e.target.value)}
               placeholder={"What went well?\nWhat could you improve?\nWere rules followed?"}
               style={{flex:1,minHeight:mob?100:220,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:12,resize:"none",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,lineHeight:1.7,outline:"none"}}/>
-            <button onClick={()=>onSave({...trade,screenshot,review,checks,rating,tags})}
-              style={{width:"100%",padding:"13px",background:`linear-gradient(135deg,${C.accent}22,${C.accent}11)`,border:`1px solid ${C.accent}66`,color:C.accent,borderRadius:8,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:12,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:700}}>
-              Save Review
+            <button
+              onClick={async () => {
+                if (saving) return;
+                setSaving(true);
+                setSaveError(null);
+                try {
+                  await onSave({...trade,screenshot,review,checks,rating,tags});
+                } catch(err) {
+                  setSaveError("Save failed — please try again");
+                  setSaving(false);
+                }
+              }}
+              disabled={saving}
+              style={{width:"100%",padding:"13px",background:saving?`${C.accent}11`:`linear-gradient(135deg,${C.accent}22,${C.accent}11)`,border:`1px solid ${C.accent}${saving?"33":"66"}`,color:saving?C.muted:C.accent,borderRadius:8,cursor:saving?"not-allowed":"pointer",fontFamily:"'Space Mono',monospace",fontSize:12,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:700,transition:"all 0.15s"}}>
+              {saving ? "Saving..." : "Save Review"}
             </button>
+            {saveError && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.red,textAlign:"center"}}>{saveError}</div>}
           </div>
         </div>
       </div>
@@ -3124,15 +3139,10 @@ export default function TradingPlatform({ session }) {
       rule_checks: updated.checks || {},
       trade_date:  updated.trade_date || new Date().toISOString().slice(0,10),
     };
-    try {
-      const isRealId = typeof updated.id === "string" && updated.id.includes("-");
-      if (isRealId) { await tradesApi.update(updated.id, payload); }
-      else          { await tradesApi.create(payload); }
-      await loadTrades();
-    } catch (err) {
-      console.error("Save trade failed:", err);
-      setTrades(tt => tt.map(t => t.id===updated.id ? updated : t));
-    }
+    const isRealId = typeof updated.id === "string" && updated.id.includes("-");
+    if (isRealId) { await tradesApi.update(updated.id, payload); }
+    else          { await tradesApi.create(payload); }
+    await loadTrades();
     setSelTrade(null);
   };
 
