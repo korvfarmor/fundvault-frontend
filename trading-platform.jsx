@@ -1173,7 +1173,24 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
   const tvRef   = useRef();
 
   const ratingLabels=["","Terrible — broke all rules","Poor — mostly off-plan","Okay — some mistakes","Good — mostly on-plan","Perfect — textbook execution"];
-  const handleFile=f=>{if(!f||!f.type.startsWith("image/"))return;const r=new FileReader();r.onload=e=>setScreenshot(e.target.result);r.readAsDataURL(f);};
+  const handleFile=f=>{
+    if(!f||!f.type.startsWith("image/"))return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const canvas=document.createElement("canvas");
+        const MAX=1200;
+        const ratio=Math.min(MAX/img.width,MAX/img.height,1);
+        canvas.width=Math.round(img.width*ratio);
+        canvas.height=Math.round(img.height*ratio);
+        canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+        setScreenshot(canvas.toDataURL("image/jpeg",0.75));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(f);
+  };
   const addTag=t=>{if(t&&!tags.includes(t))setTags([...tags,t]);setTagInput("");};
   const score=Object.values(checks).filter(Boolean).length;
   const total=globalRules.length;
@@ -1673,7 +1690,24 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
   const toggleTag = t => set("tags", form.tags.includes(t) ? form.tags.filter(x=>x!==t) : [...form.tags,t]);
   const addCustomTag = () => { if(tagInput.trim()&&!form.tags.includes(tagInput.trim())) set("tags",[...form.tags,tagInput.trim()]); setTagInput(""); };
-  const handleFile = f => { if(!f||!f.type.startsWith("image/")) return; const r=new FileReader(); r.onload=e=>set("screenshot",e.target.result); r.readAsDataURL(f); };
+  const handleFile = f => {
+    if(!f||!f.type.startsWith("image/")) return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const canvas=document.createElement("canvas");
+        const MAX=1200;
+        const ratio=Math.min(MAX/img.width,MAX/img.height,1);
+        canvas.width=Math.round(img.width*ratio);
+        canvas.height=Math.round(img.height*ratio);
+        canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+        set("screenshot", canvas.toDataURL("image/jpeg",0.75));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(f);
+  };
 
   const [newsOverride, setNewsOverride] = useState(false);
 
