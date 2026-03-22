@@ -2308,42 +2308,70 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
       });
       y = doc.lastAutoTable.finalY + 8;
 
-      // ── Per-trade reviews ────────────────────────────────────────────────────
-      if (sections.perTrade && format==="full") {
-        const withReviews = selectedTrades.filter(t=>t.review);
-        if (withReviews.length) {
-          if (y > 220) { doc.addPage(); y = 18; }
+      // ── Per-trade detail: review + screenshot combined ───────────────────────
+      if (format==="full" && (sections.perTrade || sections.screenshots)) {
+        const tradesWithContent = selectedTrades.filter(t => t.review || t.screenshot);
+        if (tradesWithContent.length) {
+          if (y > 200) { doc.addPage(); y = 18; }
           doc.setFontSize(7); doc.setFont("helvetica","bold"); doc.setTextColor(...muted);
-          doc.text("TRADE REVIEWS", M, y); y += 4;
-          withReviews.forEach(t => {
-            if (y > 255) { doc.addPage(); y = 18; }
-            doc.setFillColor(17,24,39); doc.roundedRect(M, y, PW-M*2, 20, 1.5, 1.5, "F");
-            doc.setFontSize(9); doc.setFont("helvetica","bold");
-            doc.setTextColor(...(t.pnl>=0?green:red));
-            doc.text(`${t.symbol} ${t.side}  ${pnlStr(t.pnl)}  Rating: ${t.rating||0}/5`, M+3, y+7);
-            doc.setFontSize(7.5); doc.setFont("helvetica","normal"); doc.setTextColor(...light);
-            const lines = doc.splitTextToSize(safeStr(t.review), PW-M*2-6);
-            doc.text(lines.slice(0,2).join(" "), M+3, y+13);
-            y += 24;
-          });
-        }
-      }
+          doc.text("TRADE DETAIL", M, y); y += 5;
 
-      // ── Screenshots ──────────────────────────────────────────────────────────
-      if (sections.screenshots && format==="full") {
-        const withShots = selectedTrades.filter(t=>t.screenshot);
-        if (withShots.length) {
-          doc.addPage(); y = 18;
-          doc.setFontSize(7); doc.setFont("helvetica","bold"); doc.setTextColor(...muted);
-          doc.text("CHART SCREENSHOTS", M, y); y += 8;
-          for (const t of withShots) {
-            if (y > 200) { doc.addPage(); y = 18; }
-            try {
-              doc.addImage(t.screenshot, "JPEG", M, y, PW-M*2, 76);
-              doc.setFontSize(7.5); doc.setFont("helvetica","normal"); doc.setTextColor(...muted);
-              doc.text(`${t.symbol} ${t.side}  ${pnlStr(t.pnl)}  ${t.trade_date||""}`, M, y+80);
-              y += 88;
-            } catch(e) {}
+          for (const t of tradesWithContent) {
+            const hasReview     = sections.perTrade && t.review;
+            const hasScreenshot = sections.screenshots && t.screenshot;
+            const reviewLines   = hasReview ? doc.splitTextToSize(safeStr(t.review), PW-M*2-6) : [];
+            const reviewH       = hasReview ? Math.min(reviewLines.length, 4)*4.5 + 2 : 0;
+            const headerH       = 16;
+            const shotH         = hasScreenshot ? 74 : 0;
+            const totalH        = headerH + reviewH + (hasScreenshot ? shotH + 4 : 0);
+
+            if (y + totalH > 270) { doc.addPage(); y = 18; }
+
+            // Card background
+            doc.setFillColor(17,24,39);
+            doc.roundedRect(M, y, PW-M*2, totalH + 6, 1.5, 1.5, "F");
+
+            // Coloured left accent bar
+            doc.setFillColor(...(t.pnl>=0 ? green : red));
+            doc.roundedRect(M, y, 3, totalH + 6, 1, 1, "F");
+
+            // Header row: symbol + side + P&L + date + rating + tags
+            doc.setFontSize(10); doc.setFont("helvetica","bold");
+            doc.setTextColor(...(t.pnl>=0 ? green : red));
+            doc.text(pnlStr(t.pnl), PW-M-2, y+8, {align:"right"});
+
+            doc.setTextColor(...light);
+            doc.text(`${t.symbol}  ${t.side}`, M+7, y+8);
+
+            doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.setTextColor(...muted);
+            const tagStr = (t.tags||[]).slice(0,3).join(", ") || "";
+            const meta   = [
+              t.trade_date||"",
+              t.entry ? `${t.entry}` : "",
+              t.rr != null ? `${parseFloat(t.rr).toFixed(1)}R` : "",
+              t.rating ? `Rating: ${t.rating}/5` : "",
+              tagStr,
+            ].filter(Boolean).join("  |  ");
+            doc.text(meta, M+7, y+13);
+
+            let cardY = y + headerH;
+
+            // Review notes
+            if (hasReview) {
+              doc.setFontSize(7.5); doc.setFont("helvetica","normal"); doc.setTextColor(180,200,220);
+              doc.text(reviewLines.slice(0,4), M+7, cardY + 4);
+              cardY += reviewH + 4;
+            }
+
+            // Screenshot
+            if (hasScreenshot) {
+              try {
+                doc.addImage(t.screenshot, "JPEG", M+4, cardY + 2, PW-M*2-8, shotH);
+                cardY += shotH + 4;
+              } catch(e) {}
+            }
+
+            y += totalH + 10;
           }
         }
       }
