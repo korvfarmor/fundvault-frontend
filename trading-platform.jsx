@@ -1737,25 +1737,36 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
     return null;
   })();
 
-  const handleSave = () => {
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState(null);
+
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true); setSaveErr(null);
     const finalPnl = parseFloat(form.pnl) || autoPnl || 0;
     const finalRr  = parseFloat(form.rr) || 0;
-    onSave({
-      symbol:     form.symbol,
-      side:       form.side,
-      entry:      form.entry,
-      exit:       form.exit,
-      pnl:        finalPnl,
-      rr:         finalRr,
-      holdMin:    holdMin || 0,
-      tags:       form.tags,
-      rating:     form.rating,
-      review:     form.review,
-      screenshot: form.screenshot,
-      checks:     globalRules.reduce((a,r)=>({...a,[r]:false}),{}),
-      trade_date: form.trade_date,
-      status:     finalPnl >= 0 ? "win" : "loss",
-    });
+    try {
+      await onSave({
+        symbol:     form.symbol,
+        side:       form.side,
+        entry:      form.entry,
+        exit:       form.exit,
+        pnl:        finalPnl,
+        rr:         finalRr,
+        holdMin:    holdMin || 0,
+        tags:       form.tags,
+        rating:     form.rating,
+        review:     form.review,
+        screenshot: form.screenshot,
+        checks:     form.checks || {},
+        trade_date: form.trade_date,
+        status:     finalPnl >= 0 ? "win" : "loss",
+      });
+    } catch(err) {
+      console.error("Save trade failed:", err);
+      setSaveErr("Save failed — " + (err.message || "please try again"));
+    }
+    setSaving(false);
   };
 
   const canSave = form.symbol && form.side && form.trade_date && (form.pnl || autoPnl!==null);
@@ -1972,10 +1983,11 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
             )}
 
             {/* Save */}
-            <button onClick={handleSave} disabled={!canSave || blockedByNews}
-              style={{width:"100%",padding:"14px",borderRadius:10,cursor:canSave&&!blockedByNews?"pointer":"not-allowed",background:canSave&&!blockedByNews?`linear-gradient(135deg,${C.accent}33,${C.accent}11)`:C.surface,border:`1px solid ${canSave&&!blockedByNews?C.accent+"55":C.border}`,color:canSave&&!blockedByNews?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:canSave&&!blockedByNews?1:0.5,transition:"all 0.15s"}}>
-              + SAVE TRADE
+            <button onClick={handleSave} disabled={!canSave || blockedByNews || saving}
+              style={{width:"100%",padding:"14px",borderRadius:10,cursor:canSave&&!blockedByNews&&!saving?"pointer":"not-allowed",background:canSave&&!blockedByNews?`linear-gradient(135deg,${C.accent}33,${C.accent}11)`:C.surface,border:`1px solid ${canSave&&!blockedByNews?C.accent+"55":C.border}`,color:canSave&&!blockedByNews?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:canSave&&!blockedByNews?1:0.5,transition:"all 0.15s"}}>
+              {saving ? "Saving..." : "+ SAVE TRADE"}
             </button>
+            {saveErr && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.red,textAlign:"center",marginTop:4}}>{saveErr}</div>}
           </div>
         </div>
       </div>
