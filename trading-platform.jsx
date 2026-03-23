@@ -1139,8 +1139,8 @@ const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase,
   const currentPlan = PLANS[plan] || PLANS.basic;
 
   const [profileForm, setProfileForm] = useState({ full_name: profile?.full_name || "" });
-  const [emailForm,   setEmailForm  ] = useState({ email: "" });
-  const [passForm,    setPassForm   ] = useState({ password: "", confirm: "" });
+  const [emailForm,   setEmailForm  ] = useState({ currentPassword: "", newEmail: "" });
+  const [passForm,    setPassForm   ] = useState({ currentPassword: "", password: "", confirm: "" });
   const [saving,      setSaving     ] = useState({});
   const [msg,         setMsg        ] = useState({});
   const [invoices,    setInvoices   ] = useState(null);
@@ -1148,6 +1148,14 @@ const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase,
 
   const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
   const getToken = async () => (await supabase.auth.getSession()).data.session?.access_token;
+
+  const reauthenticate = async (currentPassword) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: user?.email,
+      password: currentPassword,
+    });
+    if (error) throw new Error("Incorrect current password");
+  };
 
   const saveField = async (key, url, method, body, onSuccess) => {
     setSaving(s=>({...s,[key]:true})); setMsg(m=>({...m,[key]:""}));
@@ -1206,7 +1214,7 @@ const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase,
   const labelS = {fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6,display:"block"};
   const btnS   = (col) => ({width:"100%",padding:"11px",borderRadius:8,cursor:"pointer",background:`${col}22`,border:`1px solid ${col}55`,color:col,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"});
 
-  return <div style={{display:"flex",flexDirection:"column",gap:22,maxWidth:700}}>
+  return <div style={{display:"flex",flexDirection:"column",gap:22,maxWidth:700,margin:"0 auto",width:"100%"}}>
     <div>
       <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Settings</div>
       <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>My Account</div>
@@ -1266,30 +1274,64 @@ const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase,
 
     {/* ── Email ── */}
     <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
-      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}}>Change Email</div>
-      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:12}}>Current: <strong style={{color:C.text}}>{user?.email}</strong></div>
-      <label style={labelS}>New email address</label>
-      <div style={{display:"flex",gap:8,marginBottom:4}}>
-        <input type="email" value={emailForm.email} onChange={e=>setEmailForm({email:e.target.value})} placeholder="new@email.com" style={{...inputS,flex:1}}/>
-        <button onClick={()=>saveField("email","/profile/change-email","POST",{email:emailForm.email},()=>setEmailForm({email:""}))} disabled={saving.email||!emailForm.email}
-          style={{...btnS(C.accent),width:"auto",padding:"10px 18px",opacity:!emailForm.email?0.5:1}}>{saving.email?"...":"Update"}</button>
+      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Change Email</div>
+      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:16}}>A confirmation link will be sent to your <strong style={{color:C.text}}>current email ({user?.email})</strong> before any change takes effect.</div>
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:12}}>
+        <div>
+          <label style={labelS}>Current password <span style={{color:C.red}}>*</span></label>
+          <input type="password" value={emailForm.currentPassword} onChange={e=>setEmailForm(f=>({...f,currentPassword:e.target.value}))} placeholder="Confirm your identity" style={inputS}/>
+        </div>
+        <div>
+          <label style={labelS}>New email address <span style={{color:C.red}}>*</span></label>
+          <input type="email" value={emailForm.newEmail} onChange={e=>setEmailForm(f=>({...f,newEmail:e.target.value}))} placeholder="new@email.com" style={inputS}/>
+        </div>
       </div>
-      {msg.email && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:msg.email.startsWith("✓")?C.green:C.red}}>{msg.email}</div>}
+      {msg.email && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:msg.email.startsWith("✓")?C.green:C.red,marginBottom:8}}>{msg.email}</div>}
+      <button onClick={async ()=>{
+        if (!emailForm.currentPassword) { setMsg(m=>({...m,email:"⚠ Current password is required"})); return; }
+        if (!emailForm.newEmail) { setMsg(m=>({...m,email:"⚠ New email is required"})); return; }
+        setSaving(s=>({...s,email:true})); setMsg(m=>({...m,email:""}));
+        try {
+          await reauthenticate(emailForm.currentPassword);
+          await saveField("email","/profile/change-email","POST",{email:emailForm.newEmail},()=>setEmailForm({currentPassword:"",newEmail:""}));
+        } catch(e) { setMsg(m=>({...m,email:"⚠ "+e.message})); setSaving(s=>({...s,email:false})); }
+      }} disabled={saving.email||!emailForm.currentPassword||!emailForm.newEmail}
+        style={{...btnS(C.accent),opacity:(!emailForm.currentPassword||!emailForm.newEmail)?0.5:1}}>
+        {saving.email?"Verifying...":"Send confirmation email"}
+      </button>
     </div>
 
     {/* ── Password ── */}
     <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
-      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}}>Change Password</div>
+      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Change Password</div>
+      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:16}}>You must confirm your current password before setting a new one.</div>
       <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:12}}>
-        <div><label style={labelS}>New password</label><input type="password" value={passForm.password} onChange={e=>setPassForm(f=>({...f,password:e.target.value}))} placeholder="Min. 8 characters" style={inputS}/></div>
-        <div><label style={labelS}>Confirm password</label><input type="password" value={passForm.confirm} onChange={e=>setPassForm(f=>({...f,confirm:e.target.value}))} placeholder="Repeat password" style={inputS}/></div>
+        <div>
+          <label style={labelS}>Current password <span style={{color:C.red}}>*</span></label>
+          <input type="password" value={passForm.currentPassword} onChange={e=>setPassForm(f=>({...f,currentPassword:e.target.value}))} placeholder="Your current password" style={inputS}/>
+        </div>
+        <div>
+          <label style={labelS}>New password <span style={{color:C.red}}>*</span></label>
+          <input type="password" value={passForm.password} onChange={e=>setPassForm(f=>({...f,password:e.target.value}))} placeholder="Min. 8 characters" style={inputS}/>
+        </div>
+        <div>
+          <label style={labelS}>Confirm new password <span style={{color:C.red}}>*</span></label>
+          <input type="password" value={passForm.confirm} onChange={e=>setPassForm(f=>({...f,confirm:e.target.value}))} placeholder="Repeat new password" style={inputS}/>
+        </div>
       </div>
       {msg.password && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:msg.password.startsWith("✓")?C.green:C.red,marginBottom:8}}>{msg.password}</div>}
-      <button onClick={()=>{
-        if(passForm.password!==passForm.confirm){setMsg(m=>({...m,password:"⚠ Passwords don't match"}));return;}
-        saveField("password","/profile/change-password","POST",{password:passForm.password},()=>setPassForm({password:"",confirm:""}));
-      }} disabled={saving.password||passForm.password.length<8} style={{...btnS(C.accent),opacity:passForm.password.length<8?0.5:1}}>
-        {saving.password?"...":"Update Password"}
+      <button onClick={async ()=>{
+        if (!passForm.currentPassword) { setMsg(m=>({...m,password:"⚠ Current password is required"})); return; }
+        if (passForm.password.length < 8) { setMsg(m=>({...m,password:"⚠ New password must be at least 8 characters"})); return; }
+        if (passForm.password !== passForm.confirm) { setMsg(m=>({...m,password:"⚠ New passwords don't match"})); return; }
+        setSaving(s=>({...s,password:true})); setMsg(m=>({...m,password:""}));
+        try {
+          await reauthenticate(passForm.currentPassword);
+          await saveField("password","/profile/change-password","POST",{password:passForm.password},()=>setPassForm({currentPassword:"",password:"",confirm:""}));
+        } catch(e) { setMsg(m=>({...m,password:"⚠ "+e.message})); setSaving(s=>({...s,password:false})); }
+      }} disabled={saving.password||!passForm.currentPassword||passForm.password.length<8}
+        style={{...btnS(C.accent),opacity:(!passForm.currentPassword||passForm.password.length<8)?0.5:1}}>
+        {saving.password?"Verifying...":"Update Password"}
       </button>
     </div>
 
