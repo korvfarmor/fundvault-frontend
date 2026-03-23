@@ -2016,6 +2016,7 @@ const CSVImportModal = ({onClose, onImport, C}) => {
   const [mapping, setMapping] = useState({});
   const [preview, setPreview] = useState([]);
   const [error, setError] = useState("");
+  const [importing, setImporting] = useState(false);
   const fileRef = useRef();
 
   const parseCSV = (text) => {
@@ -2187,9 +2188,13 @@ const CSVImportModal = ({onClose, onImport, C}) => {
               </div>
               <div style={{display:"flex",gap:8}}>
                 <button onClick={()=>setStep(2)} style={{flex:1,padding:"11px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
-                <button onClick={()=>onImport(preview)}
-                  style={{flex:2,padding:"11px",borderRadius:10,cursor:"pointer",background:`linear-gradient(135deg,${C.green}33,${C.green}11)`,border:`1px solid ${C.green}55`,color:C.green,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
-                  ✓ Import {preview.length} Trades
+                <button onClick={async ()=>{
+                  setImporting(true);
+                  try { await onImport(preview); } catch(e) { console.error("Import error:",e); }
+                  setImporting(false);
+                }} disabled={importing}
+                  style={{flex:2,padding:"11px",borderRadius:10,cursor:importing?"wait":"pointer",background:importing?C.surface:`linear-gradient(135deg,${C.green}33,${C.green}11)`,border:`1px solid ${C.green}55`,color:C.green,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:importing?0.6:1}}>
+                  {importing ? `Importing... (${preview.length} trades)` : `✓ Import ${preview.length} Trades`}
                 </button>
               </div>
             </div>
@@ -3680,7 +3685,15 @@ export default function TradingPlatform({ session }) {
       )}
       <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
       {selTrade  && <TradeModal trade={selTrade} onClose={()=>setSelTrade(null)} onSave={saveTrade} globalRules={rules}/>}
-      {showImportCSV && <CSVImportModal onClose={()=>setShowImportCSV(false)} onImport={async (trades)=>{ for(const t of trades){ await saveTrade({...t,id:"csv-"+Date.now()+Math.random()}); } setShowImportCSV(false); }} C={C}/>}
+      {showImportCSV && <CSVImportModal onClose={()=>setShowImportCSV(false)} onImport={async (importedTrades)=>{
+        let saved = 0;
+        for(const t of importedTrades){
+          try { await saveTrade({...t, id:"csv-"+Date.now()+"-"+Math.random()}); saved++; }
+          catch(e) { console.error("Failed to import trade:", t.symbol, e); }
+        }
+        setShowImportCSV(false);
+        if (saved > 0) await loadTrades();
+      }} C={C}/>}
       {showExport    && <ExportModal onClose={()=>setShowExport(false)} trades={trades} C={C} userName={userName}/>}
       {showEdgeModal && <EdgeModal onClose={()=>{setShowEdgeModal(false);setEditingEdge(null);}} onSave={(e)=>{ if(editingEdge){ saveEdges(edges.map(x=>x.id===editingEdge.id?e:x)); }else{ saveEdges([...edges,{...e,id:Date.now().toString()}]); } setShowEdgeModal(false);setEditingEdge(null); }} existing={editingEdge} C={C}/>}
       {showAddTrade && <AddTradeModal onClose={()=>setShowAddTrade(false)} onSave={async (t)=>{ await saveTrade({...t,id:"new-"+Date.now()}); setShowAddTrade(false); }} globalRules={rules} C={C} newsBlocker={newsBlocker} calendarEvents={calendarEvents}/>}
