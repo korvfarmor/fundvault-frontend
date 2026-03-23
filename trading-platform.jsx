@@ -3476,7 +3476,7 @@ export default function TradingPlatform({ session }) {
   const TABS = ["dashboard","analytics","calendar","trades","edge","psychology","propfirm","news","accounts","copier"];
 
   const renderDateRangeBar = () => (
-    <div style={{position:"relative",display:"inline-block"}}>
+    <div style={{position:"relative",display:"inline-block"}} className="fv-date-picker">
       <button onClick={()=>setShowDatePicker(p=>!p)}
         style={{display:"flex",alignItems:"center",gap:8,background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.text}}>
         <span style={{color:C.muted,fontSize:10}}>📅</span>
@@ -3528,9 +3528,12 @@ export default function TradingPlatform({ session }) {
   // Close date picker when clicking outside
   useEffect(() => {
     if (!showDatePicker) return;
-    const close = () => setShowDatePicker(false);
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    const close = (e) => {
+      // Only close if click is outside the picker container
+      if (!e.target.closest('.fv-date-picker')) setShowDatePicker(false);
+    };
+    document.addEventListener("click", close, true);
+    return () => document.removeEventListener("click", close, true);
   }, [showDatePicker]);
 
   return (
@@ -3960,7 +3963,8 @@ export default function TradingPlatform({ session }) {
 
           const prevMonth = () => {
             const d = new Date(year, month-1, 1);
-            applyPreset && setDateRange({ from: d.toISOString().slice(0,10), to: new Date(year,month,0).toISOString().slice(0,10), preset:"custom" });
+            const last = new Date(year, month, 0);
+            setDateRange({ from: d.toISOString().slice(0,10), to: last.toISOString().slice(0,10), preset:"custom" });
           };
           const nextMonth = () => {
             const d = new Date(year, month+1, 1);
