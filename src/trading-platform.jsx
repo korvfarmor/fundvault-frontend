@@ -4046,37 +4046,63 @@ export default function TradingPlatform({ session }) {
         <div style={{display:"flex",gap:3}} className={`fv-nav-tabs${mobileMenu?" open":""}`}>
           {TABS.filter(t=>t!=="myaccount").map(t=><button key={t} onClick={()=>{setTab(t);setMobileMenu(false);}} style={{background:tab===t?C.accentDim:"transparent",border:tab===t?`1px solid ${C.accent}44`:"1px solid transparent",color:tab===t?C.accent:C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.05em",textTransform:"uppercase",transition:"all 0.15s"}}>{t==="propfirm"?"prop firm":t==="myaccount"?"account":t}</button>)}
         </div>
-        <div className="fv-nav-right" style={{display:"flex",alignItems:"center",gap:12}}>
-          <div style={{width:8,height:8,borderRadius:"50%",background:C.green,boxShadow:`0 0 8px ${C.green}`}}/>
-          <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim}}>Tradovate · Live</span>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <div style={{textAlign:"right"}}>
-              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.text,fontWeight:500}}>{profile?.full_name||userName}</div>
-              <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>{user?.email}</div>
-            </div>
-            {/* Avatar → My Account, with plan badge */}
-            <div style={{position:"relative",cursor:"pointer"}} onClick={()=>setTab("myaccount")} title="My Account">
-              <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent}33,${C.purple}33)`,border:`1px solid ${C.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:C.accent}}>{userInitial}</div>
-              <span style={{position:"absolute",bottom:-4,right:-4,background:plan==="pro"?C.purple:plan==="advanced"?C.accent:"#6b859e",color:"#000",borderRadius:6,padding:"1px 4px",fontFamily:"'Space Mono',monospace",fontSize:7,fontWeight:700,lineHeight:1.4,textTransform:"uppercase"}}>{plan}</span>
-            </div>
-            <button onClick={()=>setTab("myaccount")} style={{background:tab==="myaccount"?C.accentDim:"transparent",border:`1px solid ${tab==="myaccount"?C.accent+"44":C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:tab==="myaccount"?C.accent:C.muted,letterSpacing:"0.05em",textTransform:"uppercase"}}>Account</button>
-            <button onClick={syncTradovate} disabled={syncingTV} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",cursor:syncingTV?"not-allowed":"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:tvStatus?.connected?C.green:C.muted,letterSpacing:"0.05em",textTransform:"uppercase"}} title={tvStatus?.connected?"Sync trades from Tradovate":"Connect Tradovate first"}>{syncingTV?"Syncing...":tvStatus?.connected?"↻ Sync TV":"TV: Off"}</button>
-            <button onClick={toggleMode} style={{background:isDemo?"#a78bfa22":"#00e5ff11",border:`1px solid ${isDemo?"#a78bfa44":"#00e5ff22"}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:isDemo?"#a78bfa":"#00e5ff",fontWeight:700,letterSpacing:"0.05em"}}>
-              {isDemo?"🎭 DEMO":"⚡ LIVE"}
-            </button>
-            <button onClick={toggleTheme} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:13,color:C.muted,letterSpacing:"0.05em"}} title={darkMode?"Switch to light mode":"Switch to dark mode"}>
-              {darkMode?"☀️":"🌙"}
-            </button>
-            <button onClick={()=>setShowAlerts(s=>!s)} style={{position:"relative",background:unreadCount>0?`${C.red}18`:"transparent",border:`1px solid ${unreadCount>0?C.red+"44":C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:14,color:unreadCount>0?C.red:C.muted,transition:"all 0.15s"}}>
-              🔔
-              {unreadCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:C.red,color:"#fff",borderRadius:"50%",width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Space Mono',monospace",fontSize:9,fontWeight:700}}>{unreadCount>9?"9+":unreadCount}</span>}
-            </button>
-            <button onClick={handleSignOut} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.05em",textTransform:"uppercase"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.red;e.currentTarget.style.color=C.red;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.color=C.muted;}}>Sign out</button>
+        <div className="fv-nav-right" style={{display:"flex",alignItems:"center",gap:10}}>
+          {/* Tradovate Live indicator */}
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <div style={{width:7,height:7,borderRadius:"50%",background:C.green,boxShadow:`0 0 6px ${C.green}`}}/>
+            <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.textDim}}>Tradovate · Live</span>
           </div>
-          {/* Mobile burger */}
-          <button className="fv-menu-btn" onClick={()=>setMobileMenu(m=>!m)} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"6px 10px",cursor:"pointer",color:C.text,fontSize:16}}>
-            {mobileMenu?"✕":"☰"}
+          {/* Notifications */}
+          <button onClick={()=>setShowAlerts(s=>!s)} style={{position:"relative",background:unreadCount>0?`${C.red}18`:"transparent",border:`1px solid ${unreadCount>0?C.red+"44":C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:14,color:unreadCount>0?C.red:C.muted}}>
+            🔔
+            {unreadCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:C.red,color:"#fff",borderRadius:"50%",width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Space Mono',monospace",fontSize:9,fontWeight:700}}>{unreadCount>9?"9+":unreadCount}</span>}
           </button>
+          {/* Hamburger menu */}
+          <div style={{position:"relative"}}>
+            <button onClick={()=>setMobileMenu(m=>!m)}
+              style={{display:"flex",alignItems:"center",gap:8,background:mobileMenu?C.accentDim:C.surface,border:`1px solid ${mobileMenu?C.accent+"44":C.border}`,borderRadius:8,padding:"5px 10px",cursor:"pointer"}}>
+              <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent}33,${C.purple}33)`,border:`1px solid ${C.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:C.accent,flexShrink:0,position:"relative"}}>
+                {userInitial}
+                <span style={{position:"absolute",bottom:-3,right:-3,background:plan==="pro"?C.purple:plan==="advanced"?C.accent:"#6b859e",color:"#fff",borderRadius:4,padding:"1px 3px",fontFamily:"'Space Mono',monospace",fontSize:6,fontWeight:700,lineHeight:1.4,textTransform:"uppercase"}}>{plan}</span>
+              </div>
+              <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.textDim,letterSpacing:"0.05em"}}>{mobileMenu?"✕":"☰"}</span>
+            </button>
+            {/* Dropdown menu */}
+            {mobileMenu && (
+              <div onClick={e=>e.stopPropagation()} style={{position:"absolute",top:"calc(100% + 8px)",right:0,zIndex:500,background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:8,width:220,boxShadow:"0 8px 32px #00000066"}}>
+                {/* User info */}
+                <div style={{padding:"10px 12px 12px",borderBottom:`1px solid ${C.border}`,marginBottom:6}}>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,color:C.text}}>{profile?.full_name||userName}</div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,marginTop:2}}>{user?.email}</div>
+                  <span style={{marginTop:6,display:"inline-block",background:plan==="pro"?`${C.purple}22`:plan==="advanced"?`${C.accent}22`:"#6b859e22",color:plan==="pro"?C.purple:plan==="advanced"?C.accent:"#6b859e",borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:9,fontWeight:700,textTransform:"uppercase"}}>{plan}</span>
+                </div>
+                {/* My Account */}
+                <button onClick={()=>{setTab("myaccount");setMobileMenu(false);}} style={{width:"100%",textAlign:"left",background:"transparent",border:"none",padding:"9px 12px",cursor:"pointer",borderRadius:8,fontFamily:"'Space Mono',monospace",fontSize:10,color:C.text,display:"flex",alignItems:"center",gap:8}} onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  👤 My Account
+                </button>
+                <div style={{height:1,background:C.border,margin:"6px 0"}}/>
+                {/* TV Sync */}
+                <button onClick={()=>{syncTradovate();setMobileMenu(false);}} disabled={syncingTV} style={{width:"100%",textAlign:"left",background:"transparent",border:"none",padding:"9px 12px",cursor:"pointer",borderRadius:8,fontFamily:"'Space Mono',monospace",fontSize:10,color:tvStatus?.connected?C.green:C.muted,display:"flex",alignItems:"center",gap:8}} onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  {syncingTV?"⏳ Syncing...":tvStatus?.connected?"↻ Sync Tradovate":"📡 TV: Not connected"}
+                </button>
+                {/* Demo/Live */}
+                <button onClick={()=>{toggleMode();setMobileMenu(false);}} style={{width:"100%",textAlign:"left",background:"transparent",border:"none",padding:"9px 12px",cursor:"pointer",borderRadius:8,fontFamily:"'Space Mono',monospace",fontSize:10,color:isDemo?"#a78bfa":"#00e5ff",display:"flex",alignItems:"center",gap:8}} onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  {isDemo?"🎭 Demo mode":"⚡ Live mode"}
+                </button>
+                {/* Dark/Light */}
+                <button onClick={()=>{toggleTheme();setMobileMenu(false);}} style={{width:"100%",textAlign:"left",background:"transparent",border:"none",padding:"9px 12px",cursor:"pointer",borderRadius:8,fontFamily:"'Space Mono',monospace",fontSize:10,color:C.textDim,display:"flex",alignItems:"center",gap:8}} onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  {darkMode?"☀️ Light mode":"🌙 Dark mode"}
+                </button>
+                <div style={{height:1,background:C.border,margin:"6px 0"}}/>
+                {/* Sign out */}
+                <button onClick={handleSignOut} style={{width:"100%",textAlign:"left",background:"transparent",border:"none",padding:"9px 12px",cursor:"pointer",borderRadius:8,fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red,display:"flex",alignItems:"center",gap:8}} onMouseEnter={e=>e.currentTarget.style.background=`${C.red}11`} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  🚪 Sign out
+                </button>
+              </div>
+            )}
+          </div>
+          {/* Close dropdown on outside click */}
+          {mobileMenu && <div onClick={()=>setMobileMenu(false)} style={{position:"fixed",inset:0,zIndex:499}}/>}
         </div>
       </div>
 
