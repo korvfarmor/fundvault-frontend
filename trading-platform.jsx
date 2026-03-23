@@ -2876,52 +2876,7 @@ export default function TradingPlatform({ session }) {
   })();
 
   // Shared DateRangePicker component (inline)
-  const DateRangeBar = () => (
-    <div style={{position:"relative",display:"inline-block"}}>
-      <button onClick={()=>setShowDatePicker(p=>!p)}
-        style={{display:"flex",alignItems:"center",gap:8,background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.text}}>
-        <span style={{color:C.muted,fontSize:10}}>📅</span>
-        {rangeLabel}
-        <span style={{color:C.muted,fontSize:10}}>▾</span>
-      </button>
-      {showDatePicker && (
-        <div onClick={e=>e.stopPropagation()}
-          style={{position:"absolute",top:"calc(100% + 6px)",right:0,zIndex:500,background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16,width:280,boxShadow:"0 8px 32px #00000066"}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:12}}>
-            {[
-              {id:"week",      label:"This week"},
-              {id:"month",     label:"This month"},
-              {id:"lastmonth", label:"Last month"},
-              {id:"year",      label:"This year"},
-              {id:"all",       label:"All time"},
-            ].map(p=>(
-              <button key={p.id} onClick={()=>applyPreset(p.id)}
-                style={{padding:"7px 10px",borderRadius:7,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,
-                  background:dateRange.preset===p.id?C.accentDim:C.surface,
-                  border:`1px solid ${dateRange.preset===p.id?C.accent+"55":C.border}`,
-                  color:dateRange.preset===p.id?C.accent:C.textDim}}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-          <div style={{borderTop:`1px solid ${C.border}`,paddingTop:12}}>
-            <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",marginBottom:8}}>CUSTOM RANGE</div>
-            <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
-              <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}
-                style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 8px",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10,outline:"none"}}/>
-              <span style={{color:C.muted,fontSize:10}}>→</span>
-              <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}
-                style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 8px",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10,outline:"none"}}/>
-            </div>
-            <button onClick={applyCustom}
-              style={{width:"100%",padding:"8px",background:C.accentDim,border:`1px solid ${C.accent}55`,borderRadius:7,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700}}>
-              Apply
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+
   const [selTrade,   setSelTrade  ] = useState(null);
   const [showRules,  setShowRules ] = useState(false);
   const [showAddTrade, setShowAddTrade] = useState(false);
@@ -3523,6 +3478,53 @@ export default function TradingPlatform({ session }) {
 
   const TABS = ["dashboard","analytics","calendar","trades","edge","psychology","propfirm","news","accounts","copier"];
 
+  const renderDateRangeBar = () => (
+    <div style={{position:"relative",display:"inline-block"}}>
+      <button onClick={()=>setShowDatePicker(p=>!p)}
+        style={{display:"flex",alignItems:"center",gap:8,background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.text}}>
+        <span style={{color:C.muted,fontSize:10}}>📅</span>
+        {rangeLabel}
+        <span style={{color:C.muted,fontSize:10}}>▾</span>
+      </button>
+      {showDatePicker && (
+        <div onClick={e=>e.stopPropagation()}
+          style={{position:"absolute",top:"calc(100% + 6px)",right:0,zIndex:500,background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16,width:280,boxShadow:"0 8px 32px #00000066"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:12}}>
+            {[
+              {id:"week",      label:"This week"},
+              {id:"month",     label:"This month"},
+              {id:"lastmonth", label:"Last month"},
+              {id:"year",      label:"This year"},
+              {id:"all",       label:"All time"},
+            ].map(p=>(
+              <button key={p.id} onClick={()=>applyPreset(p.id)}
+                style={{padding:"7px 10px",borderRadius:7,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,
+                  background:dateRange.preset===p.id?C.accentDim:C.surface,
+                  border:`1px solid ${dateRange.preset===p.id?C.accent+"55":C.border}`,
+                  color:dateRange.preset===p.id?C.accent:C.textDim}}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <div style={{borderTop:`1px solid ${C.border}`,paddingTop:12}}>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",marginBottom:8}}>CUSTOM RANGE</div>
+            <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
+              <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}
+                style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 8px",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10,outline:"none"}}/>
+              <span style={{color:C.muted,fontSize:10}}>→</span>
+              <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}
+                style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 8px",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10,outline:"none"}}/>
+            </div>
+            <button onClick={applyCustom}
+              style={{width:"100%",padding:"8px",background:C.accentDim,border:`1px solid ${C.accent}55`,borderRadius:7,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700}}>
+              Apply
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   // Re-load trades when mode changes
   useEffect(() => { loadTrades(); }, [appMode, loadTrades]);
 
@@ -3771,7 +3773,7 @@ export default function TradingPlatform({ session }) {
           <div style={{display:"flex",flexDirection:"column",gap:22}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
               <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Overview</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Performance <span style={{color:C.accent}}>↗</span></div></div>
-              <DateRangeBar/>
+              {renderDateRangeBar()}
             </div>
             <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
               <StatCard label="Net P&L"  value={rangedTrades.length ? `${totalPnl>=0?"+":""}$${Math.abs(totalPnl).toLocaleString()}` : "$0"} sub={rangeLabel} color={C.green}/>
@@ -3838,7 +3840,7 @@ export default function TradingPlatform({ session }) {
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Deep Dive</div>
                 <div style={{fontFamily:"'Syne',sans-serif",fontSize:isMobile?22:28,fontWeight:800,marginTop:4}}>Analytics</div>
               </div>
-              <DateRangeBar/>
+              {renderDateRangeBar()}
             </div>
 
             {/* Tag performance */}
@@ -3977,7 +3979,7 @@ export default function TradingPlatform({ session }) {
               </div>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
                 <button onClick={prevMonth} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:13}}>←</button>
-                <DateRangeBar/>
+                {renderDateRangeBar()}
                 <button onClick={nextMonth} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:13}}>→</button>
               </div>
             </div>
@@ -4018,13 +4020,13 @@ export default function TradingPlatform({ session }) {
               </div>
               {isMobile ? (
                 <div style={{display:"flex",gap:7}}>
-                  <DateRangeBar/>
+                  {renderDateRangeBar()}
                   <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⬆ CSV</button>
                   <button onClick={()=>setShowRules(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⚙</button>
                 </div>
               ) : (
                 <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
-                  <DateRangeBar/>
+                  {renderDateRangeBar()}
                   <button onClick={()=>setShowAddTrade(true)} style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"7px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>+ Add Trade</button>
                   <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬆ Import CSV</button>
                   <button onClick={()=>setShowExport(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬇ Export PDF</button>
