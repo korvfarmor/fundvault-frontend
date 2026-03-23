@@ -3384,6 +3384,22 @@ export default function TradingPlatform({ session }) {
     setFirms(ff => ff.map(f => f.id===firmId ? {...f, activeType:typeId} : f));
   };
 
+  const rangedTrades = trades.filter(t =>
+    (!t.trade_date || (t.trade_date >= dateRange.from && t.trade_date <= dateRange.to))
+  );
+
+  const rangeLabel = (() => {
+    if (dateRange.preset === "week")      return "This week";
+    if (dateRange.preset === "month")     return new Date(dateRange.from+"T12:00").toLocaleString("en-US",{month:"long",year:"numeric"});
+    if (dateRange.preset === "lastmonth") return "Last month";
+    if (dateRange.preset === "year")      return new Date(dateRange.from).getFullYear().toString();
+    if (dateRange.preset === "all")       return "All time";
+    const fmt = d => new Date(d+"T12:00").toLocaleDateString("en-US",{month:"short",day:"numeric"});
+    return `${fmt(dateRange.from)} – ${fmt(dateRange.to)}`;
+  })();
+
+  const filteredTrades = tagFilter==="All" ? rangedTrades : rangedTrades.filter(t=>(t.tags||[]).includes(tagFilter));
+
   // ── Stats computed from ranged trades (respects date range picker) ───────────
   const wins     = rangedTrades.filter(d=>d.pnl>0).length;
   const losses   = rangedTrades.filter(d=>d.pnl<0).length;
@@ -3442,19 +3458,6 @@ export default function TradingPlatform({ session }) {
     </div>
   ) : null;
 
-  const filteredTrades = tagFilter==="All" ? rangedTrades : rangedTrades.filter(t=>(t.tags||[]).includes(tagFilter));
-
-  const rangeLabel = (() => {
-    if (dateRange.preset === "week")      return "This week";
-    if (dateRange.preset === "month")     return new Date(dateRange.from+"T12:00").toLocaleString("en-US",{month:"long",year:"numeric"});
-    if (dateRange.preset === "lastmonth") return "Last month";
-    if (dateRange.preset === "year")      return new Date(dateRange.from).getFullYear().toString();
-    if (dateRange.preset === "all")       return "All time";
-    const fmt = d => new Date(d+"T12:00").toLocaleDateString("en-US",{month:"short",day:"numeric"});
-    return `${fmt(dateRange.from)} – ${fmt(dateRange.to)}`;
-  })();
-  const rangedTrades = trades.filter(t =>
-    (!t.trade_date || (t.trade_date >= dateRange.from && t.trade_date <= dateRange.to))
 
   const getPropStatus = rule => {
     if(rule.type==="loss")    { const u=Math.abs(Math.min(0,acct.todayPnl));    return {used:u,    pct:u/rule.value,                           status:u>=rule.value?"breach":u>=rule.value*.75?"warning":"ok"}; }
