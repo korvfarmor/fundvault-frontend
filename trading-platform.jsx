@@ -3475,6 +3475,8 @@ export default function TradingPlatform({ session }) {
     return tagOk && symOk;
   });
   const allSymbols = [...new Set(rangedTrades.map(t=>t.symbol).filter(Boolean))].sort();
+  // All filterable tags = trade tags + user's custom rules
+  const allFilterTags = [...new Set([...allTags, ...rules])];
 
   // ── Stats computed from ranged trades (respects date range picker) ───────────
   const wins     = rangedTrades.filter(d=>d.pnl>0).length;
@@ -4155,7 +4157,7 @@ export default function TradingPlatform({ session }) {
                         <div style={{marginBottom:14}}>
                           <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Setup / Tag</div>
                           <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                            {["All",...allTags].map(f=>(
+                            {["All",...allFilterTags].map(f=>(
                               <button key={f} onClick={()=>setTagFilter(f)}
                                 style={{padding:"4px 10px",borderRadius:6,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,background:tagFilter===f?`${tagColor(f)}22`:C.surface,border:`1px solid ${tagFilter===f?tagColor(f)+"55":C.border}`,color:tagFilter===f?tagColor(f):C.textDim,fontWeight:tagFilter===f?700:400}}>
                                 {f}
@@ -4187,7 +4189,7 @@ export default function TradingPlatform({ session }) {
                   <button key={s} onClick={()=>setSymbolFilter(symbolFilter===s?"All":s)}
                     style={{flexShrink:0,background:symbolFilter===s?C.accentDim:C.surface,border:`1px solid ${symbolFilter===s?C.accent+"55":C.border}`,color:symbolFilter===s?C.accent:C.muted,borderRadius:20,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,whiteSpace:"nowrap"}}>{s}</button>
                 ))}
-                {allTags.map(f=>(
+                {allFilterTags.map(f=>(
                   <button key={f} onClick={()=>setTagFilter(tagFilter===f?"All":f)}
                     style={{flexShrink:0,background:tagFilter===f?`${tagColor(f)}22`:C.surface,border:`1px solid ${tagFilter===f?tagColor(f)+"66":C.border}`,color:tagFilter===f?tagColor(f):C.muted,borderRadius:20,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,whiteSpace:"nowrap"}}>{f}</button>
                 ))}
