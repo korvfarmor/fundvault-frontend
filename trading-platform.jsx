@@ -2017,6 +2017,7 @@ const CSVImportModal = ({onClose, onImport, C}) => {
   const [preview, setPreview] = useState([]);
   const [error, setError] = useState("");
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
   const fileRef = useRef();
 
   const parseCSV = (text) => {
@@ -2186,16 +2187,29 @@ const CSVImportModal = ({onClose, onImport, C}) => {
                   ))}</tbody>
                 </table>
               </div>
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>setStep(2)} style={{flex:1,padding:"11px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
-                <button onClick={async ()=>{
-                  setImporting(true);
-                  try { await onImport(preview); } catch(e) { console.error("Import error:",e); }
-                  setImporting(false);
-                }} disabled={importing}
-                  style={{flex:2,padding:"11px",borderRadius:10,cursor:importing?"wait":"pointer",background:importing?C.surface:`linear-gradient(135deg,${C.green}33,${C.green}11)`,border:`1px solid ${C.green}55`,color:C.green,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:importing?0.6:1}}>
-                  {importing ? `Importing... (${preview.length} trades)` : `✓ Import ${preview.length} Trades`}
-                </button>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {importing && (
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                      <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Importing trades...</span>
+                      <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent}}>{importProgress} / {preview.length}</span>
+                    </div>
+                    <div style={{height:4,background:C.border,borderRadius:2,overflow:"hidden"}}>
+                      <div style={{height:"100%",background:C.green,borderRadius:2,width:`${(importProgress/preview.length)*100}%`,transition:"width 0.2s"}}/>
+                    </div>
+                  </div>
+                )}
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>setStep(2)} disabled={importing} style={{flex:1,padding:"11px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,opacity:importing?0.4:1}}>← Back</button>
+                  <button onClick={async ()=>{
+                    setImporting(true); setImportProgress(0);
+                    try { await onImport(preview, setImportProgress); } catch(e) { console.error("Import error:",e); }
+                    setImporting(false);
+                  }} disabled={importing}
+                    style={{flex:2,padding:"11px",borderRadius:10,cursor:importing?"wait":"pointer",background:importing?C.surface:`linear-gradient(135deg,${C.green}33,${C.green}11)`,border:`1px solid ${C.green}55`,color:C.green,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:importing?0.6:1}}>
+                    {importing ? "Saving..." : `✓ Import ${preview.length} Trades`}
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -3347,7 +3361,30 @@ export default function TradingPlatform({ session }) {
     setSelTrade(null);
   };
 
-  // ── Sync Tradovate ─────────────────────────────────────────────────────────
+  // ── Delete trade ──────────────────────────────────────────────────────────
+  const deleteTrade = async (id) => {
+    if (isDemo) {
+      setTrades(tt => tt.filter(t => t.id !== id));
+      return;
+    }
+    const isRealId = typeof id === "string" && id.includes("-") && !id.startsWith("new-") && !id.startsWith("csv-");
+    if (isRealId) {
+      try {
+        // Try tradesApi first, fall back to direct fetch
+        if (typeof tradesApi.delete === "function") {
+          await tradesApi.delete(id);
+        } else {
+          const { data: { session } } = await supabase.auth.getSession();
+          const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+          await fetch(`${API}/trades/${id}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${session?.access_token}` },
+          });
+        }
+      } catch(e) { console.error("Delete failed:", e); return; }
+    }
+    setTrades(tt => tt.filter(t => t.id !== id));
+  };
   const syncTradovate = async () => {
     setSyncingTV(true);
     try {
@@ -3685,11 +3722,12 @@ export default function TradingPlatform({ session }) {
       )}
       <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
       {selTrade  && <TradeModal trade={selTrade} onClose={()=>setSelTrade(null)} onSave={saveTrade} globalRules={rules}/>}
-      {showImportCSV && <CSVImportModal onClose={()=>setShowImportCSV(false)} onImport={async (importedTrades)=>{
+      {showImportCSV && <CSVImportModal onClose={()=>setShowImportCSV(false)} onImport={async (importedTrades, onProgress)=>{
         let saved = 0;
         for(const t of importedTrades){
           try { await saveTrade({...t, id:"csv-"+Date.now()+"-"+Math.random()}); saved++; }
           catch(e) { console.error("Failed to import trade:", t.symbol, e); }
+          if (onProgress) onProgress(saved);
         }
         setShowImportCSV(false);
         if (saved > 0) await loadTrades();
@@ -4119,6 +4157,9 @@ export default function TradingPlatform({ session }) {
                 ) : filteredTrades.map(t=>(
                   <div key={t.id} onClick={()=>setSelTrade(t)}
                     style={{background:C.card,border:`1px solid ${t.pnl>=0?C.green+"33":C.red+"33"}`,borderRadius:12,padding:"14px 16px",cursor:"pointer",position:"relative",overflow:"hidden"}}>
+                    <button onClick={e=>{e.stopPropagation(); if(window.confirm(`Delete ${t.symbol} trade?`)) deleteTrade(t.id);}}
+                      style={{position:"absolute",top:10,right:10,background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:14,opacity:0.5,padding:"2px 6px",zIndex:1}}
+                      title="Delete">✕</button>
                     <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:t.pnl>=0?C.green:C.red,borderRadius:"12px 0 0 12px"}}/>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -4163,6 +4204,7 @@ export default function TradingPlatform({ session }) {
                         <td style={{padding:"11px 14px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:t.pnl>=0?C.green:C.red}}>{t.pnl>=0?"+":""}${t.pnl}</td>
                         <td style={{padding:"11px 14px"}}>{rs!==null?<span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:rs===rules.length?C.green:C.accent}}>{rs}/{rules.length} ✓</span>:<span style={{color:C.muted,fontSize:10}}>–</span>}</td>
                         <td style={{padding:"11px 14px"}}><button onClick={()=>setSelTrade(t)} style={{background:C.accentDim,border:`1px solid ${C.accent}33`,color:C.accent,borderRadius:6,padding:"4px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10}}>Review →</button></td>
+                        <td style={{padding:"11px 14px"}}><button onClick={()=>{ if(window.confirm(`Delete ${t.symbol} trade?`)) deleteTrade(t.id); }} style={{background:"transparent",border:`1px solid ${C.red}33`,color:C.red,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:12,opacity:0.6}} title="Delete trade">✕</button></td>
                       </tr>;
                     })}</tbody>
                   </table>
