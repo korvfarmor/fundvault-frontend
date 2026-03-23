@@ -5380,9 +5380,8 @@ export default function TradingPlatform({ session }) {
           </div>;
         })()}
 
-        {tab==="myaccount" && <MyAccountTab C={C} plan={plan} profile={profile} user={user} userName={userName} loadProfile={loadProfile} supabase={supabase} setTab={setTab} />
+        {tab==="myaccount" && <MyAccountTab C={C} plan={plan} profile={profile} user={user} userName={userName} loadProfile={loadProfile} supabase={supabase} setTab={setTab} />}
 
-        
         {/* ── TRADE COPIER ────────────────────────────────────────────────────── */}
         {tab==="copier"&&(()=>{
           if (!canAccess("pro")) return <UpgradeGate plan="pro" C={C} onUpgrade={()=>setTab("myaccount")} feature="Trade Copier" desc="Mirror trades across multiple accounts automatically. Available on the Pro plan." />;
@@ -5834,5 +5833,4 @@ export default function TradingPlatform({ session }) {
 
     </div>
   );
-}
 }
