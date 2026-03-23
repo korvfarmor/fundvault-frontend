@@ -5240,7 +5240,7 @@ export default function TradingPlatform({ session }) {
                 </div>
                 {currentSession.score>0 && (
                   <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim}}>
-                    {currentSession.score===5?"Perfect execution":currentSession.score>=4?"Strong session":currentSession.score>=3?"Solid but room to improve":currentSession.score>=2?"Difficult session":currentSession.score>=1?"Tough day — keep going"}
+                    {currentSession.score===5?"Perfect execution":currentSession.score>=4?"Strong session":currentSession.score>=3?"Solid but room to improve":currentSession.score>=2?"Difficult session":"Tough day — keep going"}
                   </span>
                 )}
                 <span style={{marginLeft:"auto",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>Auto-saved</span>
