@@ -3198,7 +3198,23 @@ export default function TradingPlatform({ session }) {
 
   // ── Save trade (create or update) ─────────────────────────────────────────
   const saveTrade = async (updated) => {
+    // Demo mode — update local state only, no API call
+    if (isDemo) {
+      setTrades(tt => {
+        const exists = tt.find(t => t.id === updated.id);
+        if (exists) return tt.map(t => t.id === updated.id ? {...t, ...updated} : t);
+        return [{...updated, id: Date.now()}, ...tt];
+      });
+      setSelTrade(null);
+      return;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) throw new Error("Not authenticated");
+
     const payload = {
+      user_id:     userId,
       symbol:      updated.symbol,
       side:        updated.side,
       entry_time:  updated.entry,
@@ -3213,8 +3229,8 @@ export default function TradingPlatform({ session }) {
       rule_checks: updated.checks || {},
       trade_date:  updated.trade_date || new Date().toISOString().slice(0,10),
     };
-    const isRealId = typeof updated.id === "string" 
-      && updated.id.includes("-") 
+    const isRealId = typeof updated.id === "string"
+      && updated.id.includes("-")
       && !updated.id.startsWith("new-")
       && !updated.id.startsWith("csv-");
     if (isRealId) { await tradesApi.update(updated.id, payload); }
