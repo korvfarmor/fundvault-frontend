@@ -3814,6 +3814,72 @@ export default function TradingPlatform({ session }) {
     return [...acc, {date:d.date, equity: Math.round(prev+d.pnl)}];
   }, []);
 
+  // ── Advanced risk metrics ──────────────────────────────────────────────────
+  const grossWin  = rangedTrades.filter(d=>d.pnl>0).reduce((a,b)=>a+b.pnl,0);
+  const grossLoss = Math.abs(rangedTrades.filter(d=>d.pnl<0).reduce((a,b)=>a+b.pnl,0));
+  const profitFactor = grossLoss > 0 ? (grossWin/grossLoss).toFixed(2) : wins > 0 ? "∞" : "–";
+  const expectancy   = rangedTrades.length
+    ? ((winRate/100 * avgWin) - ((1-winRate/100) * avgLoss)).toFixed(0)
+    : null;
+  const maxConsecLosses = (() => {
+    const sorted = [...rangedTrades].sort((a,b)=>a.trade_date?.localeCompare(b.trade_date));
+    let max=0, cur=0;
+    sorted.forEach(t=>{ if(t.pnl<0){cur++;if(cur>max)max=cur;}else cur=0; });
+    return max;
+  })();
+  const maxConsecWins = (() => {
+    const sorted = [...rangedTrades].sort((a,b)=>a.trade_date?.localeCompare(b.trade_date));
+    let max=0, cur=0;
+    sorted.forEach(t=>{ if(t.pnl>0){cur++;if(cur>max)max=cur;}else cur=0; });
+    return max;
+  })();
+
+  // ── Today's P&L vs daily limit ─────────────────────────────────────────────
+  const todayStr = (() => { const n=new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; })();
+  const todayPnl = trades.filter(t=>t.trade_date===todayStr).reduce((a,t)=>a+t.pnl,0);
+  const activeDailyLimit = (() => {
+    const acc = propAccounts.find(a=>a.id===activePropAccId) || propAccounts[0];
+    if (!acc) return null;
+    const firm = PROP_FIRMS?.find(f=>f.id===acc.firmId);
+    if (!firm) return null;
+    const plan = firm.plans?.find(p=>p.id===acc.planId);
+    if (!plan) return null;
+    const dlRule = plan.rules?.find(r=>r.id==="dl");
+    return dlRule ? { limit: dlRule.value, nickname: acc.nickname } : null;
+  })();
+
+  // ── Heatmap data (day × hour) ──────────────────────────────────────────────
+  const heatmapData = (() => {
+    const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
+    const grid = {};
+    DAYS.forEach(d => { grid[d] = {}; });
+    rangedTrades.forEach(t => {
+      if (!t.trade_date || !t.entry) return;
+      const dow = new Date(t.trade_date+"T12:00").getDay();
+      const dayName = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][dow];
+      if (!DAYS.includes(dayName)) return;
+      const hour = t.entry.slice(0,2)+":00";
+      if (!grid[dayName][hour]) grid[dayName][hour] = {pnl:0,trades:0,wins:0};
+      grid[dayName][hour].pnl    += t.pnl;
+      grid[dayName][hour].trades += 1;
+      if (t.pnl>0) grid[dayName][hour].wins += 1;
+    });
+    const hours = [...new Set(rangedTrades.filter(t=>t.entry).map(t=>t.entry.slice(0,2)+":00"))].sort();
+    return { grid, days: DAYS, hours };
+  })();
+
+  // ── Session journal state ──────────────────────────────────────────────────
+  const [sessionJournals, setSessionJournals] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("fv_sessions")||"{}"); } catch { return {}; }
+  });
+  const saveSession = (date, data) => {
+    const updated = {...sessionJournals, [date]: data};
+    setSessionJournals(updated);
+    localStorage.setItem("fv_sessions", JSON.stringify(updated));
+  };
+  const [sessionDate, setSessionDate] = useState(todayStr);
+  const currentSession = sessionJournals[sessionDate] || {plan:"",recap:"",emotion:"",mistakes:"",score:0};
+
   const liveTimeData = (() => {
     const hourMap = {};
     rangedTrades.forEach(t => {
@@ -4157,14 +4223,46 @@ export default function TradingPlatform({ session }) {
               <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Overview</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Performance <span style={{color:C.accent}}>↗</span></div></div>
               {renderMonthNav()}
             </div>
-            <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-              <StatCard label="Net P&L"  value={rangedTrades.length ? `${totalPnl>=0?"+":""}$${Math.abs(totalPnl).toLocaleString()}` : "$0"} sub={rangeLabel} color={C.green}/>
-              <StatCard label="Win Rate" value={rangedTrades.length ? `${winRate}%` : "–"} sub={`${wins}/${rangedTrades.length} trades`} color={C.accent}/>
-              <StatCard label="Avg Win"  value={`$${avgWin}`} sub="Per winning trade" color={C.green}/>
-              <StatCard label="Avg Loss" value={`$${avgLoss}`} sub="Per losing trade" color={C.red}/>
-              <StatCard label="Max DD"   value={maxDD ? `$${maxDD.toLocaleString()}` : "–"} sub="Peak-to-trough" color={C.red}/>
-              <StatCard label="Avg R:R"  value={avgRR ? `${avgRR}R` : "–"} sub="Risk/reward ratio" color={C.accent}/>
+            <div style={{display:"flex",gap:12,flexWrap:"wrap"}} className="fv-stat-cards">
+              <StatCard label="Net P&L"       value={rangedTrades.length ? `${totalPnl>=0?"+":""}$${Math.abs(totalPnl).toLocaleString()}` : "$0"} sub={rangeLabel} color={C.green}/>
+              <StatCard label="Win Rate"      value={rangedTrades.length ? `${winRate}%` : "–"} sub={`${wins}/${rangedTrades.length} trades`} color={C.accent}/>
+              <StatCard label="Profit Factor" value={profitFactor} sub={grossLoss>0?`$${Math.round(grossWin)} / $${Math.round(grossLoss)}`:"No losses"} color={parseFloat(profitFactor)>=1.5?C.green:parseFloat(profitFactor)>=1?C.accent:C.red}/>
+              <StatCard label="Expectancy"    value={expectancy!==null?`$${expectancy}`:"–"} sub="Per trade avg" color={expectancy>0?C.green:C.red}/>
+              <StatCard label="Max DD"        value={maxDD ? `-$${maxDD.toLocaleString()}` : "–"} sub="Peak-to-trough" color={C.red}/>
+              <StatCard label="Avg R:R"       value={avgRR ? `${avgRR}R` : "–"} sub="Risk/reward ratio" color={C.accent}/>
             </div>
+
+            {/* Daily P&L bar vs prop firm limit */}
+            {activeDailyLimit && (
+              <div style={{background:C.card,border:`1px solid ${Math.abs(todayPnl)>activeDailyLimit.limit*0.8?C.red+"44":C.border}`,borderRadius:12,padding:"16px 20px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                  <div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Today vs Daily Limit · {activeDailyLimit.nickname}</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:18,marginTop:3,color:todayPnl>=0?C.green:Math.abs(todayPnl)>activeDailyLimit.limit*0.8?C.red:C.text}}>
+                      {todayPnl>=0?"+":""}${Math.round(todayPnl).toLocaleString()}
+                      <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,fontWeight:400,marginLeft:8}}>of -${activeDailyLimit.limit.toLocaleString()} limit</span>
+                    </div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Used</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:20,color:todayPnl<0?C.red:C.green}}>
+                      {todayPnl<0?Math.round(Math.abs(todayPnl)/activeDailyLimit.limit*100):0}%
+                    </div>
+                  </div>
+                </div>
+                <div style={{height:8,background:C.border,borderRadius:4,overflow:"hidden",position:"relative"}}>
+                  <div style={{
+                    height:"100%",borderRadius:4,transition:"width 0.5s",
+                    width:`${Math.min(todayPnl<0?Math.abs(todayPnl)/activeDailyLimit.limit*100:0,100)}%`,
+                    background:Math.abs(todayPnl)>activeDailyLimit.limit*0.8?C.red:Math.abs(todayPnl)>activeDailyLimit.limit*0.5?C.amber:C.green,
+                  }}/>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}>
+                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>$0</span>
+                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>-${activeDailyLimit.limit.toLocaleString()}</span>
+                </div>
+              </div>
+            )}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Equity Curve</div>
@@ -4313,6 +4411,92 @@ export default function TradingPlatform({ session }) {
             )}
 
             {false && <AIFeedback trades={trades}/>}
+
+            {/* ── Advanced risk metrics ── */}
+            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:isMobile?14:22}}>
+              <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}}>Risk Metrics</div>
+              <div style={{display:"flex",gap:12,flexWrap:"wrap"}} className="fv-stat-cards">
+                <StatCard label="Profit Factor" value={profitFactor} sub={grossLoss>0?`$${Math.round(grossWin).toLocaleString()} gross win`:"No losing trades"} color={parseFloat(profitFactor)>=1.5?C.green:parseFloat(profitFactor)>=1?C.accent:C.red}/>
+                <StatCard label="Expectancy"    value={expectancy!==null?`$${expectancy}`:"–"} sub="Expected $ per trade" color={expectancy>0?C.green:C.red}/>
+                <StatCard label="Avg Win"       value={avgWin?`$${avgWin}`:"–"} sub="Per winning trade" color={C.green}/>
+                <StatCard label="Avg Loss"      value={avgLoss?`$${avgLoss}`:"–"} sub="Per losing trade" color={C.red}/>
+                <StatCard label="Max Consec. L" value={maxConsecLosses||"–"} sub="Consecutive losses" color={C.red}/>
+                <StatCard label="Max Consec. W" value={maxConsecWins||"–"} sub="Consecutive wins" color={C.green}/>
+              </div>
+            </div>
+
+            {/* ── Heatmap: day × hour ── */}
+            {!isMobile && heatmapData.hours.length > 0 && (
+              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:4}}>Performance Heatmap</div>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:16}}>P&L by day and time of entry — spot your best and worst windows</div>
+                <div style={{overflowX:"auto"}}>
+                  <table style={{borderCollapse:"separate",borderSpacing:4,minWidth:400}}>
+                    <thead>
+                      <tr>
+                        <th style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,padding:"0 8px",textAlign:"left",fontWeight:400}}></th>
+                        {heatmapData.hours.map(h=>(
+                          <th key={h} style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,padding:"0 4px",textAlign:"center",fontWeight:400,minWidth:52}}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {heatmapData.days.map(day=>(
+                        <tr key={day}>
+                          <td style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,padding:"4px 8px 4px 0",whiteSpace:"nowrap"}}>{day}</td>
+                          {heatmapData.hours.map(hour=>{
+                            const cell = heatmapData.grid[day]?.[hour];
+                            const pnl = cell?.pnl || 0;
+                            const trades = cell?.trades || 0;
+                            const wr = cell ? Math.round(cell.wins/cell.trades*100) : 0;
+                            const intensity = Math.min(Math.abs(pnl)/500, 1);
+                            const bg = !cell ? C.surface
+                              : pnl > 0 ? `rgba(0,208,132,${0.12+intensity*0.55})`
+                              : `rgba(255,61,90,${0.12+intensity*0.55})`;
+                            return (
+                              <td key={hour} title={cell?`${day} ${hour}\n${trades} trade${trades!==1?"s":""}\nP&L: ${pnl>=0?"+":""}$${Math.round(pnl)}\nWR: ${wr}%`:""} style={{background:bg,borderRadius:6,padding:"10px 6px",textAlign:"center",cursor:cell?"default":"default",minWidth:52,border:`1px solid ${C.border}22`}}>
+                                {cell ? <>
+                                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:11,color:pnl>=0?C.green:C.red}}>{pnl>=0?"+":""}${Math.abs(Math.round(pnl))>=1000?Math.round(pnl/100)/10+"k":Math.round(pnl)}</div>
+                                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,marginTop:2}}>{trades}t · {wr}%</div>
+                                </> : <div style={{color:C.border,fontSize:10}}>–</div>}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{display:"flex",gap:16,marginTop:12,flexWrap:"wrap"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <div style={{width:12,height:12,borderRadius:3,background:"rgba(0,208,132,0.6)"}}/>
+                    <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>Profitable window</span>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <div style={{width:12,height:12,borderRadius:3,background:"rgba(255,61,90,0.6)"}}/>
+                    <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>Losing window</span>
+                  </div>
+                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>Hover for details</span>
+                </div>
+              </div>
+            )}
+            {isMobile && heatmapData.hours.length > 0 && (
+              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:14}}>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Best Trading Hours</div>
+                {heatmapData.hours.map(hour=>{
+                  const totalPnlHour = heatmapData.days.reduce((a,d)=>a+(heatmapData.grid[d]?.[hour]?.pnl||0),0);
+                  const totalTrades  = heatmapData.days.reduce((a,d)=>a+(heatmapData.grid[d]?.[hour]?.trades||0),0);
+                  if(!totalTrades) return null;
+                  return <div key={hour} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                    <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,width:46,flexShrink:0}}>{hour}</span>
+                    <div style={{flex:1,height:7,background:C.border,borderRadius:3,overflow:"hidden"}}>
+                      <div style={{height:"100%",width:`${Math.min(Math.abs(totalPnlHour)/50,100)}%`,background:totalPnlHour>=0?C.green:C.red,borderRadius:3}}/>
+                    </div>
+                    <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:totalPnlHour>=0?C.green:C.red,width:64,textAlign:"right",fontWeight:700}}>{totalPnlHour>=0?"+":""}${Math.round(totalPnlHour)}</span>
+                  </div>;
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -4964,6 +5148,102 @@ export default function TradingPlatform({ session }) {
                   <button onClick={()=>{if(newHabit.trim()){setHabits(hh=>[...hh,{id:Date.now().toString(),label:newHabit.trim(),icon:"⚡",category:"Mindset"}]);setNewHabit("");}}}
                     style={{background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,borderRadius:8,padding:"9px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:12}}>+ Add</button>
                 </div>
+              </div>
+            </div>
+
+            {/* ── Session Journal ── */}
+            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:isMobile?14:22}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
+                <div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Session Journal</div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginTop:2}}>Pre-market plan & post-market recap</div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <button onClick={()=>setSessionDate(prev=>{const d=new Date(prev+"T12:00");d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);})}
+                    style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:12}}>←</button>
+                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.text,minWidth:100,textAlign:"center"}}>{sessionDate===todayStr?"Today":sessionDate}</span>
+                  <button onClick={()=>setSessionDate(prev=>{const d=new Date(prev+"T12:00");d.setDate(d.getDate()+1);const t=new Date();const ts=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;return d.toISOString().slice(0,10)<=ts?d.toISOString().slice(0,10):prev;})}
+                    style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:12}}>→</button>
+                  <button onClick={()=>setSessionDate(todayStr)}
+                    style={{background:sessionDate===todayStr?C.accentDim:C.surface,border:`1px solid ${sessionDate===todayStr?C.accent+"44":C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",color:sessionDate===todayStr?C.accent:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:10}}>Today</button>
+                </div>
+              </div>
+
+              {/* Session day P&L */}
+              {(() => {
+                const dayPnl = trades.filter(t=>t.trade_date===sessionDate).reduce((a,t)=>a+t.pnl,0);
+                const dayTrades = trades.filter(t=>t.trade_date===sessionDate).length;
+                if (!dayTrades) return null;
+                return (
+                  <div style={{background:C.surface,borderRadius:8,padding:"10px 14px",marginBottom:14,display:"flex",gap:16,alignItems:"center"}}>
+                    <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,textTransform:"uppercase"}}>P&L</div><div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,color:dayPnl>=0?C.green:C.red}}>{dayPnl>=0?"+":""}${Math.round(dayPnl).toLocaleString()}</div></div>
+                    <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,textTransform:"uppercase"}}>Trades</div><div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>{dayTrades}</div></div>
+                  </div>
+                );
+              })()}
+
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:14}}>
+                {/* Pre-market plan */}
+                <div>
+                  <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6,display:"block"}}>📋 Pre-market Plan</label>
+                  <textarea
+                    value={currentSession.plan}
+                    onChange={e=>saveSession(sessionDate,{...currentSession,plan:e.target.value})}
+                    placeholder={"What's your plan for today?\n• Key levels to watch\n• Setups you're looking for\n• Max loss / targets"}
+                    style={{width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none",resize:"vertical",minHeight:120,lineHeight:1.6}}/>
+                </div>
+                {/* Post-market recap */}
+                <div>
+                  <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.purple,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6,display:"block"}}>🔍 Post-market Recap</label>
+                  <textarea
+                    value={currentSession.recap}
+                    onChange={e=>saveSession(sessionDate,{...currentSession,recap:e.target.value})}
+                    placeholder={"How did the session go?\n• Did you follow your plan?\n• Key mistakes made\n• What to improve tomorrow"}
+                    style={{width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none",resize:"vertical",minHeight:120,lineHeight:1.6}}/>
+                </div>
+              </div>
+
+              {/* Emotion + mistakes */}
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:14,marginTop:14}}>
+                <div>
+                  <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:8,display:"block"}}>Emotional State</label>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {[{e:"😤",l:"Frustrated"},{e:"😰",l:"Anxious"},{e:"😐",l:"Neutral"},{e:"😊",l:"Confident"},{e:"🔥",l:"In the zone"}].map(({e,l})=>(
+                      <button key={l} onClick={()=>saveSession(sessionDate,{...currentSession,emotion:currentSession.emotion===l?"":l})}
+                        style={{background:currentSession.emotion===l?C.accentDim:C.surface,border:`1px solid ${currentSession.emotion===l?C.accent+"55":C.border}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                        <span style={{fontSize:18}}>{e}</span>
+                        <span style={{fontFamily:"'Space Mono',monospace",fontSize:8,color:currentSession.emotion===l?C.accent:C.muted}}>{l}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6,display:"block"}}>⚠️ Mistakes / Lessons</label>
+                  <textarea
+                    value={currentSession.mistakes}
+                    onChange={e=>saveSession(sessionDate,{...currentSession,mistakes:e.target.value})}
+                    placeholder="What mistakes did you make? What's the lesson?"
+                    style={{width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none",resize:"vertical",minHeight:90,lineHeight:1.6}}/>
+                </div>
+              </div>
+
+              {/* Session score */}
+              <div style={{marginTop:14,padding:"12px 16px",background:C.surface,borderRadius:8,display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,textTransform:"uppercase"}}>Session Score</div>
+                <div style={{display:"flex",gap:6}}>
+                  {[1,2,3,4,5].map(n=>(
+                    <button key={n} onClick={()=>saveSession(sessionDate,{...currentSession,score:currentSession.score===n?0:n})}
+                      style={{background:"transparent",border:"none",cursor:"pointer",fontSize:22,opacity:n<=currentSession.score?1:0.25,filter:n<=currentSession.score?"none":"grayscale(1)",transition:"all 0.1s"}}>
+                      ⭐
+                    </button>
+                  ))}
+                </div>
+                {currentSession.score>0 && (
+                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim}}>
+                    {currentSession.score===5?"Perfect execution":currentSession.score>=4?"Strong session":currentSession.score>=3?"Solid but room to improve":currentSession.score>=2?"Difficult session":currentSession.score>=1?"Tough day — keep going"}
+                  </span>
+                )}
+                <span style={{marginLeft:"auto",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>Auto-saved</span>
               </div>
             </div>
           </div>;
