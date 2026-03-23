@@ -3475,8 +3475,6 @@ export default function TradingPlatform({ session }) {
     return tagOk && symOk;
   });
   const allSymbols = [...new Set(rangedTrades.map(t=>t.symbol).filter(Boolean))].sort();
-  // All filterable tags = trade tags + user's custom rules
-  const allFilterTags = [...new Set([...allTags, ...rules])];
 
   // ── Stats computed from ranged trades (respects date range picker) ───────────
   const wins     = rangedTrades.filter(d=>d.pnl>0).length;
@@ -3522,6 +3520,7 @@ export default function TradingPlatform({ session }) {
   })();
 
   const allTags = [...new Set(rangedTrades.flatMap(t=>t.tags||[]))];
+  const allFilterTags = [...new Set([...allTags, ...rules])];
   const tagStats= allTags.map(tag=>{
     const tg=rangedTrades.filter(t=>(t.tags||[]).includes(tag));
     const tw=tg.filter(t=>t.pnl>0);
