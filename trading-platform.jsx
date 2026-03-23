@@ -2983,6 +2983,8 @@ export default function TradingPlatform({ session }) {
     setWizardBalance(""); setWizardNickname(""); setEditingPropAcc(null);
   };
   const [tagFilter,  setTagFilter ] = useState("All");
+  const [symbolFilter, setSymbolFilter] = useState("All");
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [newRule,    setNewRule   ] = useState({label:"",type:"loss",value:""});
   const [econFilter, setEconFilter] = useState("all");
   const [calendarEvents, setCalendarEvents] = useState([]); // shared with AddTradeModal for blocker
@@ -3467,7 +3469,12 @@ export default function TradingPlatform({ session }) {
     return `${fmt(dateRange.from)} – ${fmt(dateRange.to)}`;
   })();
 
-  const filteredTrades = tagFilter==="All" ? rangedTrades : rangedTrades.filter(t=>(t.tags||[]).includes(tagFilter));
+  const filteredTrades = rangedTrades.filter(t => {
+    const tagOk = tagFilter === "All" || (t.tags||[]).includes(tagFilter);
+    const symOk = symbolFilter === "All" || t.symbol === symbolFilter;
+    return tagOk && symOk;
+  });
+  const allSymbols = [...new Set(rangedTrades.map(t=>t.symbol).filter(Boolean))].sort();
 
   // ── Stats computed from ranged trades (respects date range picker) ───────────
   const wins     = rangedTrades.filter(d=>d.pnl>0).length;
@@ -3547,6 +3554,14 @@ export default function TradingPlatform({ session }) {
 
   // Re-load trades when mode changes
   useEffect(() => { loadTrades(); }, [appMode, loadTrades]);
+
+  // Close filter menu when clicking outside
+  useEffect(() => {
+    if (!showFilterMenu) return;
+    const close = (e) => { if (!e.target.closest('.fv-filter-menu')) setShowFilterMenu(false); };
+    document.addEventListener("click", close, true);
+    return () => document.removeEventListener("click", close, true);
+  }, [showFilterMenu]);
 
 
 
@@ -4116,8 +4131,49 @@ export default function TradingPlatform({ session }) {
                   <button onClick={()=>setShowAddTrade(true)} style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"7px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>+ Add Trade</button>
                   <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬆ Import CSV</button>
                   <button onClick={()=>setShowExport(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬇ Export PDF</button>
+                  {/* Filter dropdown */}
+                  <div style={{position:"relative"}} className="fv-filter-menu">
+                    <button onClick={()=>setShowFilterMenu(m=>!m)}
+                      style={{background:(tagFilter!=="All"||symbolFilter!=="All")?C.accentDim:C.surface,border:`1px solid ${(tagFilter!=="All"||symbolFilter!=="All")?C.accent+"55":C.border}`,color:(tagFilter!=="All"||symbolFilter!=="All")?C.accent:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
+                      ⚙ Filter {(tagFilter!=="All"||symbolFilter!=="All") && <span style={{background:C.accent,color:C.bg,borderRadius:10,padding:"1px 6px",fontSize:9,fontWeight:700}}>ON</span>}
+                    </button>
+                    {showFilterMenu && (
+                      <div onClick={e=>e.stopPropagation()} style={{position:"absolute",top:"calc(100% + 6px)",right:0,zIndex:500,background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16,width:260,boxShadow:"0 8px 32px #00000066"}}>
+                        {/* Symbol filter */}
+                        <div style={{marginBottom:14}}>
+                          <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Instrument</div>
+                          <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                            {["All",...allSymbols].map(s=>(
+                              <button key={s} onClick={()=>setSymbolFilter(s)}
+                                style={{padding:"4px 10px",borderRadius:6,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,background:symbolFilter===s?C.accentDim:C.surface,border:`1px solid ${symbolFilter===s?C.accent+"55":C.border}`,color:symbolFilter===s?C.accent:C.textDim,fontWeight:symbolFilter===s?700:400}}>
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        {/* Tag filter — includes rules */}
+                        <div style={{marginBottom:14}}>
+                          <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Setup / Tag</div>
+                          <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                            {["All",...allTags].map(f=>(
+                              <button key={f} onClick={()=>setTagFilter(f)}
+                                style={{padding:"4px 10px",borderRadius:6,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,background:tagFilter===f?`${tagColor(f)}22`:C.surface,border:`1px solid ${tagFilter===f?tagColor(f)+"55":C.border}`,color:tagFilter===f?tagColor(f):C.textDim,fontWeight:tagFilter===f?700:400}}>
+                                {f}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        {/* Reset */}
+                        {(tagFilter!=="All"||symbolFilter!=="All") && (
+                          <button onClick={()=>{setTagFilter("All");setSymbolFilter("All");}}
+                            style={{width:"100%",padding:"7px",borderRadius:7,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:10}}>
+                            ✕ Clear filters
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <button onClick={()=>setShowRules(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⚙ My Rules</button>
-                  {["All",...allTags].map(f=><button key={f} onClick={()=>setTagFilter(f)} style={{background:tagFilter===f?`${tagColor(f)}22`:C.surface,border:`1px solid ${tagFilter===f?tagColor(f)+"66":C.border}`,color:tagFilter===f?tagColor(f):C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>{f}</button>)}
                 </div>
               )}
             </div>
@@ -4125,8 +4181,15 @@ export default function TradingPlatform({ session }) {
             {/* Tag filter pills — mobile */}
             {isMobile && (
               <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4,WebkitOverflowScrolling:"touch"}}>
-                {["All",...allTags].map(f=>(
-                  <button key={f} onClick={()=>setTagFilter(f)} style={{flexShrink:0,background:tagFilter===f?`${tagColor(f)}22`:C.surface,border:`1px solid ${tagFilter===f?tagColor(f)+"66":C.border}`,color:tagFilter===f?tagColor(f):C.muted,borderRadius:20,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,whiteSpace:"nowrap"}}>{f}</button>
+                <button onClick={()=>{setTagFilter("All");setSymbolFilter("All");}}
+                  style={{flexShrink:0,background:(tagFilter==="All"&&symbolFilter==="All")?C.accentDim:C.surface,border:`1px solid ${(tagFilter==="All"&&symbolFilter==="All")?C.accent+"55":C.border}`,color:(tagFilter==="All"&&symbolFilter==="All")?C.accent:C.muted,borderRadius:20,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10}}>All</button>
+                {allSymbols.map(s=>(
+                  <button key={s} onClick={()=>setSymbolFilter(symbolFilter===s?"All":s)}
+                    style={{flexShrink:0,background:symbolFilter===s?C.accentDim:C.surface,border:`1px solid ${symbolFilter===s?C.accent+"55":C.border}`,color:symbolFilter===s?C.accent:C.muted,borderRadius:20,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,whiteSpace:"nowrap"}}>{s}</button>
+                ))}
+                {allTags.map(f=>(
+                  <button key={f} onClick={()=>setTagFilter(tagFilter===f?"All":f)}
+                    style={{flexShrink:0,background:tagFilter===f?`${tagColor(f)}22`:C.surface,border:`1px solid ${tagFilter===f?tagColor(f)+"66":C.border}`,color:tagFilter===f?tagColor(f):C.muted,borderRadius:20,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,whiteSpace:"nowrap"}}>{f}</button>
                 ))}
               </div>
             )}
@@ -4193,7 +4256,7 @@ export default function TradingPlatform({ session }) {
                     <tbody>{filteredTrades.map((t,i)=>{
                       const rs=t.checks?Object.values(t.checks).filter(Boolean).length:null;
                       return <tr key={t.id} style={{borderBottom:i<filteredTrades.length-1?`1px solid ${C.border}`:"none"}} onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                        <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>#{t.id}</td>
+                        <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>#{i+1}</td>
                         <td style={{padding:"11px 14px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15}}>{t.symbol}</td>
                         <td style={{padding:"11px 14px"}}><span style={{background:t.side==="Long"?"#00d08418":"#ff3d5a18",color:t.side==="Long"?C.green:C.red,borderRadius:4,padding:"3px 8px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{t.side}</span></td>
                         <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.textDim}}>{t.entry}</td>
