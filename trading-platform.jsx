@@ -3766,10 +3766,8 @@ export default function TradingPlatform({ session }) {
       <FlattenWidget tvStatus={tvStatus} appIsDemo={isDemo} C={C}/>
       {showRules && <RuleManager rules={rules} onChange={(newRules)=>{
         setRules(newRules);
-        rulesApi.save(newRules.map((label,i)=>({id:String(i+1),label}))).catch(()=>{
-          // Fallback: save to localStorage if API fails
-          localStorage.setItem("fv_rules", JSON.stringify(newRules));
-        });
+        localStorage.setItem("fv_rules", JSON.stringify(newRules));
+        rulesApi.save(newRules.map((label,i)=>({id:String(i+1),label}))).catch(()=>{});
       }} onClose={()=>setShowRules(false)}/>}
 
       {/* Nav */}
