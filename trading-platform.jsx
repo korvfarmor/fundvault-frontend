@@ -1216,7 +1216,7 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
   })();
 
   // Build TradingView widget URL with trade date pre-set
-  const tvDate   = trade.trade_date || new Date().toISOString().slice(0,10);
+  const tvDate   = trade.trade_date || (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })();
   const isDark   = document.documentElement.style.background !== "rgb(240, 244, 248)";
   const tvTheme  = isDark ? "dark" : "light";
 
@@ -1657,7 +1657,7 @@ const ADD_TAGS = ["Kill Zone","Displacement","FVG","OB","BOS","CHoCH","Liquidity
 const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEvents}) => {
   const [form, setForm] = useState({
     symbol:"NQ", contractType:"standard", side:"Long",
-    trade_date: new Date().toISOString().slice(0,10),
+    trade_date: (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })(),
     contracts:"1", entry:"", exit:"",
     entryPrice:"", exitPrice:"",
     pnl:"", rr:"", tags:[], review:"", rating:0, screenshot:null,
@@ -1715,7 +1715,7 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
   const newsWarning = (() => {
     if (!newsBlocker?.enabled || !calendarEvents?.length) return null;
     const now = new Date();
-    const today = now.toISOString().slice(0,10);
+    const today = (() => { const _n=now; return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })();
     const nowMin = now.getHours()*60 + now.getMinutes();
     for (const ev of calendarEvents) {
       if (ev.date !== today) continue;
@@ -2058,7 +2058,7 @@ const CSVImportModal = ({onClose, onImport, C}) => {
       const pnl = parseFloat((row[mapping.pnl]||"0").replace(/[$,()]/g,'').replace(/\((.+)\)/,'−$1')) || 0;
       const entryRaw = row[mapping.entry]||"";
       const exitRaw  = row[mapping.exit]||"";
-      const entryDate = entryRaw.slice(0,10) || new Date().toISOString().slice(0,10);
+      const entryDate = entryRaw.slice(0,10) || (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })();
       const entryTime = entryRaw.slice(11,16) || "09:30";
       const exitTime  = exitRaw.slice(11,16)  || "09:45";
       const rr = parseFloat(row[mapping.rr]||"0") || 0;
@@ -2497,7 +2497,7 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
         doc.text(`FundVault  |  fundvault.app  |  Page ${i} of ${pages}`, PW/2, 293, {align:"center"});
       }
 
-      doc.save(`FundVault-trades-${new Date().toISOString().slice(0,10)}.pdf`);
+      doc.save(`FundVault-trades-${(() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })()}.pdf`);
     } catch(err) {
       console.error("PDF failed:", err);
       alert("PDF generation failed. See browser console for details.");
@@ -2812,52 +2812,79 @@ export default function TradingPlatform({ session }) {
   }, []);
 
   // ── Shared date range — used by Dashboard, Analytics, Calendar, Trades, Psychology
+  // ── Timezone-safe local date helpers ─────────────────────────────────────
+  // Never use .toISOString() for date strings — it converts to UTC which breaks
+  // dates in UTC+ timezones (e.g. Stockholm). Always use local year/month/day.
+  const localISO = (y, m, d) =>
+    `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  const lastDayOf = (y, m) => new Date(y, m, 0).getDate(); // m=1-12
+
   const getDefaultRange = () => {
     const now = new Date();
-    return {
-      from: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10),
-      to:   new Date(now.getFullYear(), now.getMonth()+1, 0).toISOString().slice(0,10),
-      preset: "month",
-    };
+    const y = now.getFullYear(), m = now.getMonth()+1;
+    return { from: localISO(y,m,1), to: localISO(y,m,lastDayOf(y,m)), preset:"month", year:y, month:m };
   };
   const [dateRange, setDateRange] = useState(getDefaultRange);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [customFrom, setCustomFrom] = useState(dateRange.from);
-  const [customTo,   setCustomTo  ] = useState(dateRange.to);
 
-  const applyPreset = (preset) => {
+  // Navigate to a specific year+month
+  const goToMonth = (y, m) => {
+    // Wrap month overflow
+    if (m < 1)  { y--; m = 12; }
+    if (m > 12) { y++; m = 1; }
+    setDateRange({ from: localISO(y,m,1), to: localISO(y,m,lastDayOf(y,m)), preset:"month", year:y, month:m });
+  };
+
+  const goLastMonth = () => {
     const now = new Date();
-    let from, to;
-    if (preset === "week") {
-      const day = now.getDay() || 7;
-      from = new Date(now); from.setDate(now.getDate() - day + 1);
-      to   = new Date(from); to.setDate(from.getDate() + 6);
-    } else if (preset === "month") {
-      from = new Date(now.getFullYear(), now.getMonth(), 1);
-      to   = new Date(now.getFullYear(), now.getMonth()+1, 0);
-    } else if (preset === "lastmonth") {
-      from = new Date(now.getFullYear(), now.getMonth()-1, 1);
-      to   = new Date(now.getFullYear(), now.getMonth(), 0);
-    } else if (preset === "year") {
-      from = new Date(now.getFullYear(), 0, 1);
-      to   = new Date(now.getFullYear(), 11, 31);
-    } else if (preset === "all") {
-      from = new Date(2020, 0, 1);
-      to   = new Date(now.getFullYear()+1, 11, 31);
-    }
-    const f = from.toISOString().slice(0,10);
-    const t = to.toISOString().slice(0,10);
-    setDateRange({ from: f, to: t, preset });
-    setCustomFrom(f); setCustomTo(t);
-    setShowDatePicker(false);
+    const y = now.getFullYear(), m = now.getMonth(); // getMonth() = 0-based, so this is last month
+    const lm = m === 0 ? 12 : m;
+    const ly = m === 0 ? y-1 : y;
+    setDateRange({ from: localISO(ly,lm,1), to: localISO(ly,lm,lastDayOf(ly,lm)), preset:"lastmonth", year:ly, month:lm });
   };
 
-  const applyCustom = () => {
-    if (customFrom && customTo && customFrom <= customTo) {
-      setDateRange({ from: customFrom, to: customTo, preset: "custom" });
-      setShowDatePicker(false);
-    }
+  const goThisMonth = () => {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth()+1;
+    setDateRange({ from: localISO(y,m,1), to: localISO(y,m,lastDayOf(y,m)), preset:"month", year:y, month:m });
   };
+
+  const goAllTime = () => {
+    setDateRange({ from: "2020-01-01", to: "2099-12-31", preset:"all", year:0, month:0 });
+  };
+
+  // Current display year/month (from dateRange)
+  const drYear  = dateRange.year  || new Date(dateRange.from+"T12:00").getFullYear();
+  const drMonth = dateRange.month || (new Date(dateRange.from+"T12:00").getMonth()+1);
+
+  // Month label for display
+  const monthDisplayLabel = dateRange.preset === "all"
+    ? "All Time"
+    : new Date(dateRange.from+"T12:00").toLocaleString("en-US",{month:"long",year:"numeric"});
+
+  // Shared month navigation bar used on Dashboard, Analytics, Trades
+  const renderMonthNav = () => (
+    <div style={{display:"flex",alignItems:"center",gap:6}}>
+      <button onClick={()=>goToMonth(drYear, drMonth-1)}
+        style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:14,lineHeight:1}}>←</button>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 16px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.text,minWidth:130,textAlign:"center"}}>
+        {monthDisplayLabel}
+      </div>
+      <button onClick={()=>goToMonth(drYear, drMonth+1)}
+        style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:14,lineHeight:1}}>→</button>
+      <button onClick={goThisMonth}
+        style={{background:dateRange.preset==="month"&&drYear===new Date().getFullYear()&&drMonth===new Date().getMonth()+1?C.accentDim:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.textDim}}>
+        This month
+      </button>
+      <button onClick={goLastMonth}
+        style={{background:dateRange.preset==="lastmonth"?C.accentDim:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.textDim}}>
+        Last month
+      </button>
+      <button onClick={goAllTime}
+        style={{background:dateRange.preset==="all"?C.accentDim:C.card,border:`1px solid ${dateRange.preset==="all"?C.accent+"55":C.border}`,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:dateRange.preset==="all"?C.accent:C.textDim,fontWeight:dateRange.preset==="all"?700:400}}>
+        All time
+      </button>
+    </div>
+  );
 
   const [selTrade,   setSelTrade  ] = useState(null);
   const [showRules,  setShowRules ] = useState(false);
@@ -2875,7 +2902,7 @@ export default function TradingPlatform({ session }) {
   const saveEdges = (data) => { setEdges(data); localStorage.setItem("fv_edges", JSON.stringify(data)); };
   const [newTradeForm, setNewTradeForm] = useState({
     symbol:"NQ", contractType:"standard", side:"Long",
-    trade_date: new Date().toISOString().slice(0,10),
+    trade_date: (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })(),
     contracts:"1", entry:"", exit:"", entryPrice:"", exitPrice:"",
     pnl:"", rr:"", tags:[], review:"", rating:0, screenshot:null,
   });
@@ -3127,7 +3154,7 @@ export default function TradingPlatform({ session }) {
     if (!trades.length && !propAccounts.length) return;
     const newAlerts = [];
     const now = new Date();
-    const today = now.toISOString().slice(0,10);
+    const today = (() => { const _n=now; return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })();
     const todayTrades = trades.filter(t=>t.trade_date===today);
     const todayPnl = todayTrades.reduce((a,t)=>a+t.pnl,0);
 
@@ -3228,7 +3255,7 @@ export default function TradingPlatform({ session }) {
     loadTrades();
     rulesApi.list().then(data => { if (data?.length) setRules(data.map(r => r.label)); }).catch(()=>{});
     psychApi.habits().then(data => { if (data?.length) setHabits(data); }).catch(()=>{});
-    const today = new Date().toISOString().slice(0,10);
+    const today = (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })();
     psychApi.checkins({from:today,to:today}).then(data => {
       if (data?.[0]) { setMood(data[0].mood||0); setHChecks(data[0].habits||{}); setNote(data[0].note||""); }
     }).catch(()=>{});
@@ -3303,7 +3330,7 @@ export default function TradingPlatform({ session }) {
       review:      updated.review || "",
       screenshot:  updated.screenshot || null,
       rule_checks: updated.checks || {},
-      trade_date:  updated.trade_date || new Date().toISOString().slice(0,10),
+      trade_date:  updated.trade_date || (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })(),
     };
     const isRealId = typeof updated.id === "string"
       && updated.id.includes("-")
@@ -3328,7 +3355,7 @@ export default function TradingPlatform({ session }) {
 
   // ── Save check-in ──────────────────────────────────────────────────────────
   const saveCheckin = () => {
-    psychApi.saveCheckin({ check_date: new Date().toISOString().slice(0,10), mood, note, habits: hChecks }).catch(()=>{});
+    psychApi.saveCheckin({ check_date: (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })(), mood, note, habits: hChecks }).catch(()=>{});
   };
 
   // Get active firm object and its currently selected account type
@@ -3349,7 +3376,7 @@ export default function TradingPlatform({ session }) {
     );
 
     const startBalance = startBalances[activeFirm] || 50000;
-    const today = new Date().toISOString().slice(0,10);
+    const today = (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })();
     const todayTrades = firmTrades.filter(t => t.trade_date === today);
     const todayPnl = todayTrades.reduce((a,t) => a+t.pnl, 0);
 
@@ -3475,66 +3502,11 @@ export default function TradingPlatform({ session }) {
 
   const TABS = ["dashboard","analytics","calendar","trades","edge","psychology","propfirm","news","accounts","copier"];
 
-  const renderDateRangeBar = () => (
-    <div style={{position:"relative",display:"inline-block"}} className="fv-date-picker">
-      <button onClick={()=>setShowDatePicker(p=>!p)}
-        style={{display:"flex",alignItems:"center",gap:8,background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.text}}>
-        <span style={{color:C.muted,fontSize:10}}>📅</span>
-        {rangeLabel}
-        <span style={{color:C.muted,fontSize:10}}>▾</span>
-      </button>
-      {showDatePicker && (
-        <div onClick={e=>e.stopPropagation()}
-          style={{position:"absolute",top:"calc(100% + 6px)",right:0,zIndex:500,background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16,width:280,boxShadow:"0 8px 32px #00000066"}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:12}}>
-            {[
-              {id:"week",      label:"This week"},
-              {id:"month",     label:"This month"},
-              {id:"lastmonth", label:"Last month"},
-              {id:"year",      label:"This year"},
-              {id:"all",       label:"All time"},
-            ].map(p=>(
-              <button key={p.id} onClick={()=>applyPreset(p.id)}
-                style={{padding:"7px 10px",borderRadius:7,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,
-                  background:dateRange.preset===p.id?C.accentDim:C.surface,
-                  border:`1px solid ${dateRange.preset===p.id?C.accent+"55":C.border}`,
-                  color:dateRange.preset===p.id?C.accent:C.textDim}}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-          <div style={{borderTop:`1px solid ${C.border}`,paddingTop:12}}>
-            <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",marginBottom:8}}>CUSTOM RANGE</div>
-            <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
-              <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}
-                style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 8px",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10,outline:"none"}}/>
-              <span style={{color:C.muted,fontSize:10}}>→</span>
-              <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}
-                style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 8px",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10,outline:"none"}}/>
-            </div>
-            <button onClick={applyCustom}
-              style={{width:"100%",padding:"8px",background:C.accentDim,border:`1px solid ${C.accent}55`,borderRadius:7,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700}}>
-              Apply
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 
   // Re-load trades when mode changes
   useEffect(() => { loadTrades(); }, [appMode, loadTrades]);
 
-  // Close date picker when clicking outside
-  useEffect(() => {
-    if (!showDatePicker) return;
-    const close = (e) => {
-      // Only close if click is outside the picker container
-      if (!e.target.closest('.fv-date-picker')) setShowDatePicker(false);
-    };
-    document.addEventListener("click", close, true);
-    return () => document.removeEventListener("click", close, true);
-  }, [showDatePicker]);
+
 
   return (
     <div className="fv-root" style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'DM Sans',sans-serif",display:"flex",flexDirection:"column"}}>
@@ -3773,7 +3745,7 @@ export default function TradingPlatform({ session }) {
           <div style={{display:"flex",flexDirection:"column",gap:22}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
               <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Overview</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Performance <span style={{color:C.accent}}>↗</span></div></div>
-              {renderDateRangeBar()}
+              {renderMonthNav()}
             </div>
             <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
               <StatCard label="Net P&L"  value={rangedTrades.length ? `${totalPnl>=0?"+":""}$${Math.abs(totalPnl).toLocaleString()}` : "$0"} sub={rangeLabel} color={C.green}/>
@@ -3840,7 +3812,7 @@ export default function TradingPlatform({ session }) {
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Deep Dive</div>
                 <div style={{fontFamily:"'Syne',sans-serif",fontSize:isMobile?22:28,fontWeight:800,marginTop:4}}>Analytics</div>
               </div>
-              {renderDateRangeBar()}
+              {renderMonthNav()}
             </div>
 
             {/* Tag performance */}
@@ -3961,25 +3933,9 @@ export default function TradingPlatform({ session }) {
           const bestDayNum  = Object.entries(calPnl).find(([,v])=>v===bestDay)?.[0];
           const worstDayNum = Object.entries(calPnl).find(([,v])=>v===worstDay)?.[0];
 
-          const prevMonth = () => {
-            const d = new Date(year, month-1, 1);
-            const last = new Date(year, month, 0);
-            setDateRange({ from: d.toISOString().slice(0,10), to: last.toISOString().slice(0,10), preset:"custom" });
-          };
-          const nextMonth = () => {
-            const d = new Date(year, month+1, 1);
-            const last = new Date(year,month+2,0);
-            setDateRange({ from: d.toISOString().slice(0,10), to: last.toISOString().slice(0,10), preset:"custom" });
-          };
-          const goToday = () => {
-            const now = new Date();
-            setDateRange({ from: new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10), to: new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().slice(0,10), preset:"month" });
-          };
+          const prevMonth = () => goToMonth(drYear, drMonth-1);
+          const nextMonth = () => goToMonth(drYear, drMonth+1);
           const isAllTime = dateRange.preset === "all";
-          const toggleAllTime = () => {
-            if (isAllTime) goToday();
-            else applyPreset("all");
-          };
 
           return <div style={{display:"flex",flexDirection:"column",gap:22}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
@@ -3991,18 +3947,14 @@ export default function TradingPlatform({ session }) {
               </div>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
                 {/* All time toggle */}
-                <button onClick={toggleAllTime} style={{
+                <button onClick={isAllTime ? goThisMonth : goAllTime} style={{
                   background:isAllTime?C.accentDim:C.card,
                   border:`1px solid ${isAllTime?C.accent+"55":C.border}`,
                   borderRadius:8,padding:"6px 14px",cursor:"pointer",
                   fontFamily:"'Space Mono',monospace",fontSize:10,
                   color:isAllTime?C.accent:C.muted,
                   fontWeight:isAllTime?700:400,
-                  transition:"all 0.15s",
                 }}>All time</button>
-                {/* Today shortcut */}
-                {!isAllTime && <button onClick={goToday} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:10}}>Today</button>}
-                {/* Month navigation — hidden in all-time mode */}
                 {!isAllTime && <>
                   <button onClick={prevMonth} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 16px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:15,lineHeight:1}}>←</button>
                   <span style={{fontFamily:"'Space Mono',monospace",fontSize:12,color:C.text,minWidth:120,textAlign:"center"}}>{monthLabel}</span>
@@ -4103,13 +4055,13 @@ export default function TradingPlatform({ session }) {
               </div>
               {isMobile ? (
                 <div style={{display:"flex",gap:7}}>
-                  {renderDateRangeBar()}
+                  {renderMonthNav()}
                   <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⬆ CSV</button>
                   <button onClick={()=>setShowRules(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⚙</button>
                 </div>
               ) : (
                 <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
-                  {renderDateRangeBar()}
+                  {renderMonthNav()}
                   <button onClick={()=>setShowAddTrade(true)} style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"7px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>+ Add Trade</button>
                   <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬆ Import CSV</button>
                   <button onClick={()=>setShowExport(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬇ Export PDF</button>
