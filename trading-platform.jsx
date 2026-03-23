@@ -2926,7 +2926,13 @@ export default function TradingPlatform({ session }) {
     pnl:"", rr:"", tags:[], review:"", rating:0, screenshot:null,
   });
   const [trades,     setTrades    ] = useState([]);
-  const [rules,      setRules     ] = useState(DEFAULT_RULES);
+  const [rules, setRules] = useState(() => {
+    try {
+      const saved = localStorage.getItem("fv_rules");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return DEFAULT_RULES;
+  });
   const [habits,     setHabits    ] = useState(DEFAULT_HABITS);
   const [mood,       setMood      ] = useState(0);
   const [hChecks,    setHChecks   ] = useState({});
@@ -3274,7 +3280,13 @@ export default function TradingPlatform({ session }) {
   // ── Load rules, habits, check-in, tradovate status on mount ───────────────
   useEffect(() => {
     loadTrades();
-    rulesApi.list().then(data => { if (data?.length) setRules(data.map(r => r.label)); }).catch(()=>{});
+    rulesApi.list().then(data => {
+      if (data?.length) {
+        const r = data.map(r => r.label);
+        setRules(r);
+        localStorage.setItem("fv_rules", JSON.stringify(r));
+      }
+    }).catch(()=>{});
     psychApi.habits().then(data => { if (data?.length) setHabits(data); }).catch(()=>{});
     const today = (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })();
     psychApi.checkins({from:today,to:today}).then(data => {
@@ -3752,7 +3764,13 @@ export default function TradingPlatform({ session }) {
       {showEdgeModal && <EdgeModal onClose={()=>{setShowEdgeModal(false);setEditingEdge(null);}} onSave={(e)=>{ if(editingEdge){ saveEdges(edges.map(x=>x.id===editingEdge.id?e:x)); }else{ saveEdges([...edges,{...e,id:Date.now().toString()}]); } setShowEdgeModal(false);setEditingEdge(null); }} existing={editingEdge} C={C}/>}
       {showAddTrade && <AddTradeModal onClose={()=>setShowAddTrade(false)} onSave={async (t)=>{ await saveTrade({...t,id:"new-"+Date.now()}); setShowAddTrade(false); }} globalRules={rules} C={C} newsBlocker={newsBlocker} calendarEvents={calendarEvents}/>}
       <FlattenWidget tvStatus={tvStatus} appIsDemo={isDemo} C={C}/>
-      {showRules && <RuleManager rules={rules} onChange={setRules} onClose={()=>setShowRules(false)}/>}
+      {showRules && <RuleManager rules={rules} onChange={(newRules)=>{
+        setRules(newRules);
+        rulesApi.save(newRules.map((label,i)=>({id:String(i+1),label}))).catch(()=>{
+          // Fallback: save to localStorage if API fails
+          localStorage.setItem("fv_rules", JSON.stringify(newRules));
+        });
+      }} onClose={()=>setShowRules(false)}/>}
 
       {/* Nav */}
       <div className="fv-navbar" style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",height:58,borderBottom:`1px solid ${C.border}`,background:C.surface,position:"sticky",top:0,zIndex:100}}>
