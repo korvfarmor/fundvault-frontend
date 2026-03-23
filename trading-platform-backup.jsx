@@ -1129,234 +1129,6 @@ function NewsTab({ econFilter, setEconFilter, C, newsBlocker, saveNewsBlocker, o
   );
 }
 
-// ── My Account Tab ───────────────────────────────────────────────────────────
-const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase, setTab }) => {
-  const PLANS = {
-    basic:    { label:"Basic",    color:"#6b859e", features:["Manual trade logging","Psychology tracking","Edge Library","Prop firm tracker","PDF export"] },
-    advanced: { label:"Advanced", color:C.accent,  features:["Everything in Basic","Tradovate / NinjaTrader sync","Auto-import trades","Live P&L tracking"] },
-    pro:      { label:"Pro",      color:"#a78bfa",  features:["Everything in Advanced","Trade Copier (multi-account)","Priority support"] },
-  };
-  const currentPlan = PLANS[plan] || PLANS.basic;
-
-  const [profileForm, setProfileForm] = useState({ full_name: profile?.full_name || "" });
-  const [emailForm,   setEmailForm  ] = useState({ email: "" });
-  const [passForm,    setPassForm   ] = useState({ password: "", confirm: "" });
-  const [saving,      setSaving     ] = useState({});
-  const [msg,         setMsg        ] = useState({});
-  const [invoices,    setInvoices   ] = useState(null);
-  const [showDelete,  setShowDelete ] = useState(false);
-
-  const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
-  const getToken = async () => (await supabase.auth.getSession()).data.session?.access_token;
-
-  const saveField = async (key, url, method, body, onSuccess) => {
-    setSaving(s=>({...s,[key]:true})); setMsg(m=>({...m,[key]:""}));
-    try {
-      const res = await fetch(`${API}${url}`, {
-        method, headers:{ Authorization:`Bearer ${await getToken()}`, "Content-Type":"application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setMsg(m=>({...m,[key]:"✓ "+data.message}));
-      if (onSuccess) onSuccess();
-      await loadProfile();
-    } catch(e) { setMsg(m=>({...m,[key]:"⚠ "+e.message})); }
-    setSaving(s=>({...s,[key]:false}));
-  };
-
-  const startCheckout = async (targetPlan) => {
-    try {
-      const res = await fetch(`${API}/stripe/create-checkout`, {
-        method:"POST", headers:{Authorization:`Bearer ${await getToken()}`,"Content-Type":"application/json"},
-        body: JSON.stringify({ plan: targetPlan }),
-      });
-      const { url, error } = await res.json();
-      if (error) { alert("Stripe not configured yet: "+error); return; }
-      if (url) window.location.href = url;
-    } catch(e) { alert("Could not start checkout: "+e.message); }
-  };
-
-  const openPortal = async () => {
-    try {
-      const res = await fetch(`${API}/stripe/portal`, {
-        method:"POST", headers:{Authorization:`Bearer ${await getToken()}`},
-      });
-      const { url, error } = await res.json();
-      if (error) { alert("Stripe not configured yet: "+error); return; }
-      if (url) window.location.href = url;
-    } catch(e) { alert("Could not open billing portal: "+e.message); }
-  };
-
-  const loadInvoices = async () => {
-    try {
-      const res = await fetch(`${API}/stripe/invoices`, { headers:{Authorization:`Bearer ${await getToken()}`} });
-      setInvoices(await res.json());
-    } catch { setInvoices([]); }
-  };
-
-  const deleteAccount = async () => {
-    try {
-      await fetch(`${API}/profile`, { method:"DELETE", headers:{Authorization:`Bearer ${await getToken()}`} });
-      await supabase.auth.signOut();
-    } catch(e) { alert("Delete failed: "+e.message); }
-  };
-
-  const inputS = {width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"};
-  const labelS = {fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6,display:"block"};
-  const btnS   = (col) => ({width:"100%",padding:"11px",borderRadius:8,cursor:"pointer",background:`${col}22`,border:`1px solid ${col}55`,color:col,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"});
-
-  return <div style={{display:"flex",flexDirection:"column",gap:22,maxWidth:700}}>
-    <div>
-      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Settings</div>
-      <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>My Account</div>
-    </div>
-
-    {/* ── Current plan ── */}
-    <div style={{background:C.card,border:`2px solid ${currentPlan.color}44`,borderRadius:14,padding:22,position:"relative",overflow:"hidden"}}>
-      <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:currentPlan.color}}/>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12,marginBottom:16}}>
-        <div>
-          <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}}>Current plan</div>
-          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:24,color:currentPlan.color}}>{currentPlan.label}</div>
-        </div>
-        {plan!=="basic" && <button onClick={openPortal} style={{...btnS(C.muted),width:"auto",padding:"8px 16px"}}>Manage billing ↗</button>}
-      </div>
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
-        {currentPlan.features.map(f=><span key={f} style={{background:`${currentPlan.color}18`,border:`1px solid ${currentPlan.color}33`,color:currentPlan.color,borderRadius:20,padding:"3px 12px",fontFamily:"'Space Mono',monospace",fontSize:10}}>✓ {f}</span>)}
-      </div>
-      {plan!=="pro" && (
-        <div style={{display:"grid",gridTemplateColumns:plan==="basic"?"1fr 1fr":"1fr",gap:10,marginTop:4}}>
-          {plan==="basic" && (
-            <div style={{background:C.surface,border:`1px solid ${C.accent}44`,borderRadius:10,padding:16}}>
-              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:C.accent,marginBottom:4}}>Advanced</div>
-              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:12}}>Tradovate sync + auto-import</div>
-              <button onClick={()=>startCheckout("advanced")} style={btnS(C.accent)}>Upgrade to Advanced →</button>
-            </div>
-          )}
-          <div style={{background:C.surface,border:`1px solid #a78bfa44`,borderRadius:10,padding:16}}>
-            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:"#a78bfa",marginBottom:4}}>Pro</div>
-            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:12}}>All features incl. Trade Copier</div>
-            <button onClick={()=>startCheckout("pro")} style={btnS("#a78bfa")}>Upgrade to Pro →</button>
-          </div>
-        </div>
-      )}
-    </div>
-
-    {/* ── Profile ── */}
-    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
-      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}}>Profile</div>
-      <div style={{display:"flex",gap:16,alignItems:"center",marginBottom:20}}>
-        <div style={{width:64,height:64,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent}33,#a78bfa33)`,border:`1px solid ${C.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,fontWeight:700,color:C.accent,flexShrink:0}}>
-          {(profile?.full_name||userName||"?").charAt(0).toUpperCase()}
-        </div>
-        <div>
-          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:18}}>{profile?.full_name||userName}</div>
-          <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:2}}>{user?.email}</div>
-        </div>
-      </div>
-      <label style={labelS}>Display Name</label>
-      <div style={{display:"flex",gap:8,marginBottom:4}}>
-        <input value={profileForm.full_name} onChange={e=>setProfileForm(f=>({...f,full_name:e.target.value}))} placeholder="Your name" style={{...inputS,flex:1}}/>
-        <button onClick={()=>saveField("name","/profile","PATCH",{full_name:profileForm.full_name})} disabled={saving.name}
-          style={{...btnS(C.accent),width:"auto",padding:"10px 18px"}}>{saving.name?"...":"Save"}</button>
-      </div>
-      {msg.name && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:msg.name.startsWith("✓")?C.green:C.red}}>{msg.name}</div>}
-    </div>
-
-    {/* ── Email ── */}
-    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
-      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}}>Change Email</div>
-      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:12}}>Current: <strong style={{color:C.text}}>{user?.email}</strong></div>
-      <label style={labelS}>New email address</label>
-      <div style={{display:"flex",gap:8,marginBottom:4}}>
-        <input type="email" value={emailForm.email} onChange={e=>setEmailForm({email:e.target.value})} placeholder="new@email.com" style={{...inputS,flex:1}}/>
-        <button onClick={()=>saveField("email","/profile/change-email","POST",{email:emailForm.email},()=>setEmailForm({email:""}))} disabled={saving.email||!emailForm.email}
-          style={{...btnS(C.accent),width:"auto",padding:"10px 18px",opacity:!emailForm.email?0.5:1}}>{saving.email?"...":"Update"}</button>
-      </div>
-      {msg.email && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:msg.email.startsWith("✓")?C.green:C.red}}>{msg.email}</div>}
-    </div>
-
-    {/* ── Password ── */}
-    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
-      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}}>Change Password</div>
-      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:12}}>
-        <div><label style={labelS}>New password</label><input type="password" value={passForm.password} onChange={e=>setPassForm(f=>({...f,password:e.target.value}))} placeholder="Min. 8 characters" style={inputS}/></div>
-        <div><label style={labelS}>Confirm password</label><input type="password" value={passForm.confirm} onChange={e=>setPassForm(f=>({...f,confirm:e.target.value}))} placeholder="Repeat password" style={inputS}/></div>
-      </div>
-      {msg.password && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:msg.password.startsWith("✓")?C.green:C.red,marginBottom:8}}>{msg.password}</div>}
-      <button onClick={()=>{
-        if(passForm.password!==passForm.confirm){setMsg(m=>({...m,password:"⚠ Passwords don't match"}));return;}
-        saveField("password","/profile/change-password","POST",{password:passForm.password},()=>setPassForm({password:"",confirm:""}));
-      }} disabled={saving.password||passForm.password.length<8} style={{...btnS(C.accent),opacity:passForm.password.length<8?0.5:1}}>
-        {saving.password?"...":"Update Password"}
-      </button>
-    </div>
-
-    {/* ── Invoice history ── */}
-    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-        <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Invoice History</div>
-        {!invoices && <button onClick={loadInvoices} style={{...btnS(C.muted),width:"auto",padding:"6px 14px",fontSize:10}}>Load invoices</button>}
-      </div>
-      {!invoices && <div style={{color:C.muted,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>Click "Load invoices" to view your billing history.</div>}
-      {invoices?.length===0 && <div style={{color:C.muted,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>No invoices yet.</div>}
-      {invoices?.length>0 && (
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>{["Date","Amount","Status",""].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",fontWeight:400}}>{h}</th>)}</tr></thead>
-          <tbody>{invoices.map(inv=>(
-            <tr key={inv.id} style={{borderBottom:`1px solid ${C.border}`}}>
-              <td style={{padding:"10px 12px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim}}>{inv.date}</td>
-              <td style={{padding:"10px 12px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14}}>{inv.currency} {inv.amount.toFixed(2)}</td>
-              <td style={{padding:"10px 12px"}}><span style={{background:inv.status==="paid"?`${C.green}18`:`${C.amber}18`,color:inv.status==="paid"?C.green:C.amber,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{inv.status}</span></td>
-              <td style={{padding:"10px 12px"}}>{inv.pdf&&<a href={inv.pdf} target="_blank" rel="noreferrer" style={{color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:10}}>PDF ↗</a>}</td>
-            </tr>
-          ))}</tbody>
-        </table>
-      )}
-    </div>
-
-    {/* ── Danger zone ── */}
-    <div style={{background:C.card,border:`1px solid ${C.red}33`,borderRadius:12,padding:22}}>
-      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.red,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Danger Zone</div>
-      {!showDelete ? (
-        <button onClick={()=>setShowDelete(true)} style={{...btnS(C.red),maxWidth:240}}>Delete Account</button>
-      ) : (
-        <div style={{background:`${C.red}11`,border:`1px solid ${C.red}44`,borderRadius:10,padding:16}}>
-          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,color:C.red,marginBottom:8}}>Are you absolutely sure?</div>
-          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:16}}>This will permanently delete your account and all trade data. This cannot be undone.</div>
-          <div style={{display:"flex",gap:8}}>
-            <button onClick={()=>setShowDelete(false)} style={{...btnS(C.muted),flex:1}}>Cancel</button>
-            <button onClick={deleteAccount} style={{...btnS(C.red),flex:1}}>Yes, delete everything</button>
-          </div>
-        </div>
-      )}
-    </div>
-  </div>;
-};
-
-// ── Upgrade Gate ─────────────────────────────────────────────────────────────
-const UpgradeGate = ({ plan, feature, desc, C, onUpgrade }) => {
-  const planColor = plan === "pro" ? "#a78bfa" : "#00e5ff";
-  return (
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:420,gap:24,textAlign:"center",padding:40}}>
-      <div style={{fontSize:52}}>🔒</div>
-      <div>
-        <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:26,marginBottom:8}}>{feature}</div>
-        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,color:C.textDim,maxWidth:420}}>{desc}</div>
-      </div>
-      <div style={{background:C.card,border:`1px solid ${planColor}44`,borderRadius:14,padding:"20px 32px",display:"inline-flex",flexDirection:"column",alignItems:"center",gap:10}}>
-        <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Required plan</span>
-        <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:planColor,textTransform:"capitalize"}}>{plan}</span>
-      </div>
-      <button onClick={onUpgrade}
-        style={{background:`linear-gradient(135deg,${planColor}33,${planColor}11)`,border:`1px solid ${planColor}55`,color:planColor,borderRadius:10,padding:"12px 28px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em"}}>
-        View Upgrade Options →
-      </button>
-    </div>
-  );
-};
-
 const StatCard = ({label,value,sub,color}) => (
   <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:"20px 24px",flex:1,minWidth:130,position:"relative",overflow:"hidden"}}>
     <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:color||C.accent,borderRadius:"12px 12px 0 0"}}/>
@@ -3014,31 +2786,6 @@ export default function TradingPlatform({ session }) {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [mobileMore, setMobileMore] = useState(false);
   const [showMobilePositions, setShowMobilePositions] = useState(false);
-
-  // ── Plan / subscription state ─────────────────────────────────────────────
-  const [profile, setProfile] = useState(null);
-  const plan = profile?.plan || "basic"; // "basic" | "advanced" | "pro"
-  const isPro      = plan === "pro";
-  const isAdvanced = plan === "advanced" || isPro;
-  const isBasic    = plan === "basic";
-  // Feature gate helper — returns true if user has required plan
-  const canAccess = (required) => {
-    if (required === "basic")    return true;
-    if (required === "advanced") return isAdvanced;
-    if (required === "pro")      return isPro;
-    return false;
-  };
-
-  const loadProfile = async () => {
-    try {
-      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${API}/profile`, {
-        headers: { Authorization: `Bearer ${session?.access_token}` }
-      });
-      if (res.ok) setProfile(await res.json());
-    } catch {}
-  };
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth <= 768);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth <= 768);
@@ -3067,7 +2814,7 @@ export default function TradingPlatform({ session }) {
   };
   C = darkMode ? DARK : LIGHT;
   // ── Tab state — persisted in URL hash ────────────────────────────────────────
-  const VALID_TABS = ["dashboard","analytics","calendar","trades","edge","psychology","propfirm","news","accounts","copier","myaccount"];
+  const VALID_TABS = ["dashboard","analytics","calendar","trades","edge","psychology","propfirm","news","accounts","copier"];
   const hashTab = () => {
     const h = window.location.hash.replace("#","");
     return VALID_TABS.includes(h) ? h : "dashboard";
@@ -3533,7 +3280,6 @@ export default function TradingPlatform({ session }) {
   // ── Load rules, habits, check-in, tradovate status on mount ───────────────
   useEffect(() => {
     loadTrades();
-    loadProfile();
     rulesApi.list().then(data => {
       if (data?.length) {
         const r = data.map(r => r.label);
@@ -3816,7 +3562,7 @@ export default function TradingPlatform({ session }) {
 
   const cats=[...new Set(habits.map(h=>h.category))];
 
-  const TABS = ["dashboard","analytics","calendar","trades","edge","psychology","propfirm","news","accounts","copier","myaccount"];
+  const TABS = ["dashboard","analytics","calendar","trades","edge","psychology","propfirm","news","accounts","copier"];
 
 
   // Re-load trades when mode changes
@@ -4044,65 +3790,34 @@ export default function TradingPlatform({ session }) {
           <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.amber,background:"#f59e0b18",border:"1px solid #f59e0b44",borderRadius:4,padding:"2px 8px"}}>PROP FOCUS</span>
         </div>
         <div style={{display:"flex",gap:3}} className={`fv-nav-tabs${mobileMenu?" open":""}`}>
-          {TABS.filter(t=>t!=="myaccount").map(t=><button key={t} onClick={()=>{setTab(t);setMobileMenu(false);}} style={{background:tab===t?C.accentDim:"transparent",border:tab===t?`1px solid ${C.accent}44`:"1px solid transparent",color:tab===t?C.accent:C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.05em",textTransform:"uppercase",transition:"all 0.15s"}}>{t==="propfirm"?"prop firm":t==="myaccount"?"account":t}</button>)}
+          {TABS.map(t=><button key={t} onClick={()=>{setTab(t);setMobileMenu(false);}} style={{background:tab===t?C.accentDim:"transparent",border:tab===t?`1px solid ${C.accent}44`:"1px solid transparent",color:tab===t?C.accent:C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.05em",textTransform:"uppercase",transition:"all 0.15s"}}>{t==="propfirm"?"prop firm":t==="edge"?"edge":t}</button>)}
         </div>
-        <div className="fv-nav-right" style={{display:"flex",alignItems:"center",gap:10}}>
-          {/* Tradovate Live indicator */}
-          <div style={{display:"flex",alignItems:"center",gap:6}}>
-            <div style={{width:7,height:7,borderRadius:"50%",background:C.green,boxShadow:`0 0 6px ${C.green}`}}/>
-            <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.textDim}}>Tradovate · Live</span>
-          </div>
-          {/* Notifications */}
-          <button onClick={()=>setShowAlerts(s=>!s)} style={{position:"relative",background:unreadCount>0?`${C.red}18`:"transparent",border:`1px solid ${unreadCount>0?C.red+"44":C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:14,color:unreadCount>0?C.red:C.muted}}>
-            🔔
-            {unreadCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:C.red,color:"#fff",borderRadius:"50%",width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Space Mono',monospace",fontSize:9,fontWeight:700}}>{unreadCount>9?"9+":unreadCount}</span>}
-          </button>
-          {/* Hamburger menu */}
-          <div style={{position:"relative"}}>
-            <button onClick={()=>setMobileMenu(m=>!m)}
-              style={{display:"flex",alignItems:"center",gap:8,background:mobileMenu?C.accentDim:C.surface,border:`1px solid ${mobileMenu?C.accent+"44":C.border}`,borderRadius:8,padding:"5px 10px",cursor:"pointer"}}>
-              <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent}33,${C.purple}33)`,border:`1px solid ${C.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:C.accent,flexShrink:0,position:"relative"}}>
-                {userInitial}
-                <span style={{position:"absolute",bottom:-3,right:-3,background:plan==="pro"?C.purple:plan==="advanced"?C.accent:"#6b859e",color:"#fff",borderRadius:4,padding:"1px 3px",fontFamily:"'Space Mono',monospace",fontSize:6,fontWeight:700,lineHeight:1.4,textTransform:"uppercase"}}>{plan}</span>
-              </div>
-              <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.textDim,letterSpacing:"0.05em"}}>{mobileMenu?"✕":"☰"}</span>
+        <div className="fv-nav-right" style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:8,height:8,borderRadius:"50%",background:C.green,boxShadow:`0 0 8px ${C.green}`}}/>
+          <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim}}>Tradovate · Live</span>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.text,fontWeight:500}}>{userName}</div>
+              <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>{user?.email}</div>
+            </div>
+            <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent}33,${C.purple}33)`,border:`1px solid ${C.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:C.accent}}>{userInitial}</div>
+            <button onClick={syncTradovate} disabled={syncingTV} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",cursor:syncingTV?"not-allowed":"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:tvStatus?.connected?C.green:C.muted,letterSpacing:"0.05em",textTransform:"uppercase"}} title={tvStatus?.connected?"Sync trades from Tradovate":"Connect Tradovate first"}>{syncingTV?"Syncing...":tvStatus?.connected?"↻ Sync TV":"TV: Off"}</button>
+            <button onClick={toggleMode} style={{background:isDemo?"#a78bfa22":"#00e5ff11",border:`1px solid ${isDemo?"#a78bfa44":"#00e5ff22"}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:isDemo?"#a78bfa":"#00e5ff",fontWeight:700,letterSpacing:"0.05em"}}>
+              {isDemo?"🎭 DEMO":"⚡ LIVE"}
             </button>
-            {/* Dropdown menu */}
-            {mobileMenu && (
-              <div onClick={e=>e.stopPropagation()} style={{position:"absolute",top:"calc(100% + 8px)",right:0,zIndex:500,background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:8,width:220,boxShadow:"0 8px 32px #00000066"}}>
-                {/* User info */}
-                <div style={{padding:"10px 12px 12px",borderBottom:`1px solid ${C.border}`,marginBottom:6}}>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,color:C.text}}>{profile?.full_name||userName}</div>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,marginTop:2}}>{user?.email}</div>
-                  <span style={{marginTop:6,display:"inline-block",background:plan==="pro"?`${C.purple}22`:plan==="advanced"?`${C.accent}22`:"#6b859e22",color:plan==="pro"?C.purple:plan==="advanced"?C.accent:"#6b859e",borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:9,fontWeight:700,textTransform:"uppercase"}}>{plan}</span>
-                </div>
-                {/* My Account */}
-                <button onClick={()=>{setTab("myaccount");setMobileMenu(false);}} style={{width:"100%",textAlign:"left",background:"transparent",border:"none",padding:"9px 12px",cursor:"pointer",borderRadius:8,fontFamily:"'Space Mono',monospace",fontSize:10,color:C.text,display:"flex",alignItems:"center",gap:8}} onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  👤 My Account
-                </button>
-                <div style={{height:1,background:C.border,margin:"6px 0"}}/>
-                {/* TV Sync */}
-                <button onClick={()=>{syncTradovate();setMobileMenu(false);}} disabled={syncingTV} style={{width:"100%",textAlign:"left",background:"transparent",border:"none",padding:"9px 12px",cursor:"pointer",borderRadius:8,fontFamily:"'Space Mono',monospace",fontSize:10,color:tvStatus?.connected?C.green:C.muted,display:"flex",alignItems:"center",gap:8}} onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  {syncingTV?"⏳ Syncing...":tvStatus?.connected?"↻ Sync Tradovate":"📡 TV: Not connected"}
-                </button>
-                {/* Demo/Live */}
-                <button onClick={()=>{toggleMode();setMobileMenu(false);}} style={{width:"100%",textAlign:"left",background:"transparent",border:"none",padding:"9px 12px",cursor:"pointer",borderRadius:8,fontFamily:"'Space Mono',monospace",fontSize:10,color:isDemo?"#a78bfa":"#00e5ff",display:"flex",alignItems:"center",gap:8}} onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  {isDemo?"🎭 Demo mode":"⚡ Live mode"}
-                </button>
-                {/* Dark/Light */}
-                <button onClick={()=>{toggleTheme();setMobileMenu(false);}} style={{width:"100%",textAlign:"left",background:"transparent",border:"none",padding:"9px 12px",cursor:"pointer",borderRadius:8,fontFamily:"'Space Mono',monospace",fontSize:10,color:C.textDim,display:"flex",alignItems:"center",gap:8}} onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  {darkMode?"☀️ Light mode":"🌙 Dark mode"}
-                </button>
-                <div style={{height:1,background:C.border,margin:"6px 0"}}/>
-                {/* Sign out */}
-                <button onClick={handleSignOut} style={{width:"100%",textAlign:"left",background:"transparent",border:"none",padding:"9px 12px",cursor:"pointer",borderRadius:8,fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red,display:"flex",alignItems:"center",gap:8}} onMouseEnter={e=>e.currentTarget.style.background=`${C.red}11`} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  🚪 Sign out
-                </button>
-              </div>
-            )}
+            <button onClick={toggleTheme} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:13,color:C.muted,letterSpacing:"0.05em"}} title={darkMode?"Switch to light mode":"Switch to dark mode"}>
+              {darkMode?"☀️":"🌙"}
+            </button>
+            <button onClick={()=>setShowAlerts(s=>!s)} style={{position:"relative",background:unreadCount>0?`${C.red}18`:"transparent",border:`1px solid ${unreadCount>0?C.red+"44":C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:14,color:unreadCount>0?C.red:C.muted,transition:"all 0.15s"}}>
+              🔔
+              {unreadCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:C.red,color:"#fff",borderRadius:"50%",width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Space Mono',monospace",fontSize:9,fontWeight:700}}>{unreadCount>9?"9+":unreadCount}</span>}
+            </button>
+            <button onClick={handleSignOut} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.05em",textTransform:"uppercase"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.red;e.currentTarget.style.color=C.red;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.color=C.muted;}}>Sign out</button>
           </div>
-          {/* Close dropdown on outside click */}
-          {mobileMenu && <div onClick={()=>setMobileMenu(false)} style={{position:"fixed",inset:0,zIndex:499}}/>}
+          {/* Mobile burger */}
+          <button className="fv-menu-btn" onClick={()=>setMobileMenu(m=>!m)} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"6px 10px",cursor:"pointer",color:C.text,fontSize:16}}>
+            {mobileMenu?"✕":"☰"}
+          </button>
         </div>
       </div>
 
@@ -5197,7 +4912,6 @@ export default function TradingPlatform({ session }) {
 
         {/* ── ACCOUNTS ────────────────────────────────────────────────────────── */}
         {tab==="accounts"&&(()=>{
-          if (!canAccess("advanced")) return <UpgradeGate plan="advanced" C={C} onUpgrade={()=>setTab("myaccount")} feature="Tradovate & NinjaTrader sync" desc="Connect your broker accounts to automatically import trades and track live P&L." />;
           const disconnectAccount = async (accountId) => {
             try {
               const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
@@ -5406,11 +5120,8 @@ export default function TradingPlatform({ session }) {
           </div>;
         })()}
 
-        {tab==="myaccount" && <MyAccountTab C={C} plan={plan} profile={profile} user={user} userName={userName} loadProfile={loadProfile} supabase={supabase} setTab={setTab} />}
-
         {/* ── TRADE COPIER ────────────────────────────────────────────────────── */}
         {tab==="copier"&&(()=>{
-          if (!canAccess("pro")) return <UpgradeGate plan="pro" C={C} onUpgrade={()=>setTab("myaccount")} feature="Trade Copier" desc="Mirror trades across multiple accounts automatically. Available on the Pro plan." />;
           const FIRM_LABELS = {"mffu":"MFFU","lucid":"Lucid","alpha":"Alpha","tpt":"TPT","tradeify":"Tradeify"};
           const FIRM_COLORS = {"mffu":C.accent,"lucid":"#a78bfa","alpha":"#34d399","tpt":C.amber,"tradeify":"#f472b6"};
           const activeGroup = copierGroups.find(g=>g.id===activeGroupId);
@@ -5829,7 +5540,6 @@ export default function TradingPlatform({ session }) {
               {id:"news",      icon:"📰", label:"News"},
               {id:"accounts",  icon:"🔗", label:"Accounts"},
               {id:"copier",    icon:"📡", label:"Copier"},
-              {id:"myaccount",icon:"👤", label:"Account"},
             ].map(item=>(
               <button key={item.id} onClick={()=>{setTab(item.id);setMobileMore(false);}}
                 style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,padding:"12px 8px",borderRadius:10,background:tab===item.id?C.accentDim:C.surface,border:`1px solid ${tab===item.id?C.accent+"44":C.border}`,cursor:"pointer"}}>
