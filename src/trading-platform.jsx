@@ -1129,6 +1129,212 @@ function NewsTab({ econFilter, setEconFilter, C, newsBlocker, saveNewsBlocker, o
   );
 }
 
+// ── My Account Tab ───────────────────────────────────────────────────────────
+const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase, setTab }) => {
+  const PLANS = {
+    basic:    { label:"Basic",    color:"#6b859e", features:["Manual trade logging","Psychology tracking","Edge Library","Prop firm tracker","PDF export"] },
+    advanced: { label:"Advanced", color:C.accent,  features:["Everything in Basic","Tradovate / NinjaTrader sync","Auto-import trades","Live P&L tracking"] },
+    pro:      { label:"Pro",      color:"#a78bfa",  features:["Everything in Advanced","Trade Copier (multi-account)","Priority support"] },
+  };
+  const currentPlan = PLANS[plan] || PLANS.basic;
+
+  const [profileForm, setProfileForm] = useState({ full_name: profile?.full_name || "" });
+  const [emailForm,   setEmailForm  ] = useState({ email: "" });
+  const [passForm,    setPassForm   ] = useState({ password: "", confirm: "" });
+  const [saving,      setSaving     ] = useState({});
+  const [msg,         setMsg        ] = useState({});
+  const [invoices,    setInvoices   ] = useState(null);
+  const [showDelete,  setShowDelete ] = useState(false);
+
+  const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+  const getToken = async () => (await supabase.auth.getSession()).data.session?.access_token;
+
+  const saveField = async (key, url, method, body, onSuccess) => {
+    setSaving(s=>({...s,[key]:true})); setMsg(m=>({...m,[key]:""}));
+    try {
+      const res = await fetch(`${API}${url}`, {
+        method, headers:{ Authorization:`Bearer ${await getToken()}`, "Content-Type":"application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setMsg(m=>({...m,[key]:"✓ "+data.message}));
+      if (onSuccess) onSuccess();
+      await loadProfile();
+    } catch(e) { setMsg(m=>({...m,[key]:"⚠ "+e.message})); }
+    setSaving(s=>({...s,[key]:false}));
+  };
+
+  const startCheckout = async (targetPlan) => {
+    try {
+      const res = await fetch(`${API}/stripe/create-checkout`, {
+        method:"POST", headers:{Authorization:`Bearer ${await getToken()}`,"Content-Type":"application/json"},
+        body: JSON.stringify({ plan: targetPlan }),
+      });
+      const { url, error } = await res.json();
+      if (error) { alert("Stripe not configured yet: "+error); return; }
+      if (url) window.location.href = url;
+    } catch(e) { alert("Could not start checkout: "+e.message); }
+  };
+
+  const openPortal = async () => {
+    try {
+      const res = await fetch(`${API}/stripe/portal`, {
+        method:"POST", headers:{Authorization:`Bearer ${await getToken()}`},
+      });
+      const { url, error } = await res.json();
+      if (error) { alert("Stripe not configured yet: "+error); return; }
+      if (url) window.location.href = url;
+    } catch(e) { alert("Could not open billing portal: "+e.message); }
+  };
+
+  const loadInvoices = async () => {
+    try {
+      const res = await fetch(`${API}/stripe/invoices`, { headers:{Authorization:`Bearer ${await getToken()}`} });
+      setInvoices(await res.json());
+    } catch { setInvoices([]); }
+  };
+
+  const deleteAccount = async () => {
+    try {
+      await fetch(`${API}/profile`, { method:"DELETE", headers:{Authorization:`Bearer ${await getToken()}`} });
+      await supabase.auth.signOut();
+    } catch(e) { alert("Delete failed: "+e.message); }
+  };
+
+  const inputS = {width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"};
+  const labelS = {fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6,display:"block"};
+  const btnS   = (col) => ({width:"100%",padding:"11px",borderRadius:8,cursor:"pointer",background:`${col}22`,border:`1px solid ${col}55`,color:col,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"});
+
+  return <div style={{display:"flex",flexDirection:"column",gap:22,maxWidth:700}}>
+    <div>
+      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Settings</div>
+      <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>My Account</div>
+    </div>
+
+    {/* ── Current plan ── */}
+    <div style={{background:C.card,border:`2px solid ${currentPlan.color}44`,borderRadius:14,padding:22,position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:currentPlan.color}}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12,marginBottom:16}}>
+        <div>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}}>Current plan</div>
+          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:24,color:currentPlan.color}}>{currentPlan.label}</div>
+        </div>
+        {plan!=="basic" && <button onClick={openPortal} style={{...btnS(C.muted),width:"auto",padding:"8px 16px"}}>Manage billing ↗</button>}
+      </div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+        {currentPlan.features.map(f=><span key={f} style={{background:`${currentPlan.color}18`,border:`1px solid ${currentPlan.color}33`,color:currentPlan.color,borderRadius:20,padding:"3px 12px",fontFamily:"'Space Mono',monospace",fontSize:10}}>✓ {f}</span>)}
+      </div>
+      {plan!=="pro" && (
+        <div style={{display:"grid",gridTemplateColumns:plan==="basic"?"1fr 1fr":"1fr",gap:10,marginTop:4}}>
+          {plan==="basic" && (
+            <div style={{background:C.surface,border:`1px solid ${C.accent}44`,borderRadius:10,padding:16}}>
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:C.accent,marginBottom:4}}>Advanced</div>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:12}}>Tradovate sync + auto-import</div>
+              <button onClick={()=>startCheckout("advanced")} style={btnS(C.accent)}>Upgrade to Advanced →</button>
+            </div>
+          )}
+          <div style={{background:C.surface,border:`1px solid #a78bfa44`,borderRadius:10,padding:16}}>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:"#a78bfa",marginBottom:4}}>Pro</div>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:12}}>All features incl. Trade Copier</div>
+            <button onClick={()=>startCheckout("pro")} style={btnS("#a78bfa")}>Upgrade to Pro →</button>
+          </div>
+        </div>
+      )}
+    </div>
+
+    {/* ── Profile ── */}
+    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
+      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}}>Profile</div>
+      <div style={{display:"flex",gap:16,alignItems:"center",marginBottom:20}}>
+        <div style={{width:64,height:64,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent}33,#a78bfa33)`,border:`1px solid ${C.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,fontWeight:700,color:C.accent,flexShrink:0}}>
+          {(profile?.full_name||userName||"?").charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:18}}>{profile?.full_name||userName}</div>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:2}}>{user?.email}</div>
+        </div>
+      </div>
+      <label style={labelS}>Display Name</label>
+      <div style={{display:"flex",gap:8,marginBottom:4}}>
+        <input value={profileForm.full_name} onChange={e=>setProfileForm(f=>({...f,full_name:e.target.value}))} placeholder="Your name" style={{...inputS,flex:1}}/>
+        <button onClick={()=>saveField("name","/profile","PATCH",{full_name:profileForm.full_name})} disabled={saving.name}
+          style={{...btnS(C.accent),width:"auto",padding:"10px 18px"}}>{saving.name?"...":"Save"}</button>
+      </div>
+      {msg.name && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:msg.name.startsWith("✓")?C.green:C.red}}>{msg.name}</div>}
+    </div>
+
+    {/* ── Email ── */}
+    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
+      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}}>Change Email</div>
+      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:12}}>Current: <strong style={{color:C.text}}>{user?.email}</strong></div>
+      <label style={labelS}>New email address</label>
+      <div style={{display:"flex",gap:8,marginBottom:4}}>
+        <input type="email" value={emailForm.email} onChange={e=>setEmailForm({email:e.target.value})} placeholder="new@email.com" style={{...inputS,flex:1}}/>
+        <button onClick={()=>saveField("email","/profile/change-email","POST",{email:emailForm.email},()=>setEmailForm({email:""}))} disabled={saving.email||!emailForm.email}
+          style={{...btnS(C.accent),width:"auto",padding:"10px 18px",opacity:!emailForm.email?0.5:1}}>{saving.email?"...":"Update"}</button>
+      </div>
+      {msg.email && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:msg.email.startsWith("✓")?C.green:C.red}}>{msg.email}</div>}
+    </div>
+
+    {/* ── Password ── */}
+    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
+      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}}>Change Password</div>
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:12}}>
+        <div><label style={labelS}>New password</label><input type="password" value={passForm.password} onChange={e=>setPassForm(f=>({...f,password:e.target.value}))} placeholder="Min. 8 characters" style={inputS}/></div>
+        <div><label style={labelS}>Confirm password</label><input type="password" value={passForm.confirm} onChange={e=>setPassForm(f=>({...f,confirm:e.target.value}))} placeholder="Repeat password" style={inputS}/></div>
+      </div>
+      {msg.password && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:msg.password.startsWith("✓")?C.green:C.red,marginBottom:8}}>{msg.password}</div>}
+      <button onClick={()=>{
+        if(passForm.password!==passForm.confirm){setMsg(m=>({...m,password:"⚠ Passwords don't match"}));return;}
+        saveField("password","/profile/change-password","POST",{password:passForm.password},()=>setPassForm({password:"",confirm:""}));
+      }} disabled={saving.password||passForm.password.length<8} style={{...btnS(C.accent),opacity:passForm.password.length<8?0.5:1}}>
+        {saving.password?"...":"Update Password"}
+      </button>
+    </div>
+
+    {/* ── Invoice history ── */}
+    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Invoice History</div>
+        {!invoices && <button onClick={loadInvoices} style={{...btnS(C.muted),width:"auto",padding:"6px 14px",fontSize:10}}>Load invoices</button>}
+      </div>
+      {!invoices && <div style={{color:C.muted,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>Click "Load invoices" to view your billing history.</div>}
+      {invoices?.length===0 && <div style={{color:C.muted,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>No invoices yet.</div>}
+      {invoices?.length>0 && (
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>{["Date","Amount","Status",""].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",fontWeight:400}}>{h}</th>)}</tr></thead>
+          <tbody>{invoices.map(inv=>(
+            <tr key={inv.id} style={{borderBottom:`1px solid ${C.border}`}}>
+              <td style={{padding:"10px 12px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim}}>{inv.date}</td>
+              <td style={{padding:"10px 12px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14}}>{inv.currency} {inv.amount.toFixed(2)}</td>
+              <td style={{padding:"10px 12px"}}><span style={{background:inv.status==="paid"?`${C.green}18`:`${C.amber}18`,color:inv.status==="paid"?C.green:C.amber,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{inv.status}</span></td>
+              <td style={{padding:"10px 12px"}}>{inv.pdf&&<a href={inv.pdf} target="_blank" rel="noreferrer" style={{color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:10}}>PDF ↗</a>}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      )}
+    </div>
+
+    {/* ── Danger zone ── */}
+    <div style={{background:C.card,border:`1px solid ${C.red}33`,borderRadius:12,padding:22}}>
+      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.red,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Danger Zone</div>
+      {!showDelete ? (
+        <button onClick={()=>setShowDelete(true)} style={{...btnS(C.red),maxWidth:240}}>Delete Account</button>
+      ) : (
+        <div style={{background:`${C.red}11`,border:`1px solid ${C.red}44`,borderRadius:10,padding:16}}>
+          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,color:C.red,marginBottom:8}}>Are you absolutely sure?</div>
+          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:16}}>This will permanently delete your account and all trade data. This cannot be undone.</div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setShowDelete(false)} style={{...btnS(C.muted),flex:1}}>Cancel</button>
+            <button onClick={deleteAccount} style={{...btnS(C.red),flex:1}}>Yes, delete everything</button>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>;
+};
+
 // ── Upgrade Gate ─────────────────────────────────────────────────────────────
 const UpgradeGate = ({ plan, feature, desc, C, onUpgrade }) => {
   const planColor = plan === "pro" ? "#a78bfa" : "#00e5ff";
@@ -5174,215 +5380,9 @@ export default function TradingPlatform({ session }) {
           </div>;
         })()}
 
-        {/* ── MY ACCOUNT ──────────────────────────────────────────────────────── */}
-        {tab==="myaccount"&&(()=>{
-          const PLANS = {
-            basic:    { label:"Basic",    color:"#6b859e", features:["Manual trade logging","Psychology tracking","Edge Library","Prop firm tracker","PDF export"] },
-            advanced: { label:"Advanced", color:C.accent,  features:["Everything in Basic","Tradovate / NinjaTrader sync","Auto-import trades","Live P&L tracking"] },
-            pro:      { label:"Pro",      color:C.purple,  features:["Everything in Advanced","Trade Copier (multi-account)","Priority support"] },
-          };
-          const currentPlan = PLANS[plan];
+        {tab==="myaccount" && <MyAccountTab C={C} plan={plan} profile={profile} user={user} userName={userName} loadProfile={loadProfile} supabase={supabase} setTab={setTab} />
 
-          const [profileForm, setProfileForm] = useState({ full_name: profile?.full_name || "" });
-          const [emailForm,   setEmailForm  ] = useState({ email: "" });
-          const [passForm,    setPassForm   ] = useState({ password: "", confirm: "" });
-          const [saving,      setSaving     ] = useState({});
-          const [msg,         setMsg        ] = useState({});
-          const [invoices,    setInvoices   ] = useState(null);
-          const [showDelete,  setShowDelete ] = useState(false);
-
-          const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
-          const getToken = async () => (await supabase.auth.getSession()).data.session?.access_token;
-
-          const saveField = async (key, body, onSuccess) => {
-            setSaving(s=>({...s,[key]:true})); setMsg(m=>({...m,[key]:""}));
-            try {
-              const res = await fetch(`${API}/profile${key==="email"?"/change-email":key==="password"?"/change-password":""}`, {
-                method: key==="email"||key==="password" ? "POST" : "PATCH",
-                headers: { Authorization:`Bearer ${await getToken()}`, "Content-Type":"application/json" },
-                body: JSON.stringify(body),
-              });
-              const data = await res.json();
-              if (!res.ok) throw new Error(data.error);
-              setMsg(m=>({...m,[key]:"✓ "+data.message}));
-              if (onSuccess) onSuccess();
-              await loadProfile();
-            } catch(e) { setMsg(m=>({...m,[key]:"⚠ "+e.message})); }
-            setSaving(s=>({...s,[key]:false}));
-          };
-
-          const startCheckout = async (targetPlan) => {
-            try {
-              const res = await fetch(`${API}/stripe/create-checkout`, {
-                method:"POST", headers:{Authorization:`Bearer ${await getToken()}`,"Content-Type":"application/json"},
-                body: JSON.stringify({ plan: targetPlan }),
-              });
-              const { url } = await res.json();
-              if (url) window.location.href = url;
-            } catch(e) { alert("Could not start checkout: "+e.message); }
-          };
-
-          const openPortal = async () => {
-            try {
-              const res = await fetch(`${API}/stripe/portal`, {
-                method:"POST", headers:{Authorization:`Bearer ${await getToken()}`},
-              });
-              const { url } = await res.json();
-              if (url) window.location.href = url;
-            } catch(e) { alert("Could not open billing portal: "+e.message); }
-          };
-
-          const loadInvoices = async () => {
-            try {
-              const res = await fetch(`${API}/stripe/invoices`, { headers:{Authorization:`Bearer ${await getToken()}`} });
-              setInvoices(await res.json());
-            } catch { setInvoices([]); }
-          };
-
-          const deleteAccount = async () => {
-            try {
-              await fetch(`${API}/profile`, { method:"DELETE", headers:{Authorization:`Bearer ${await getToken()}`} });
-              await supabase.auth.signOut();
-            } catch(e) { alert("Delete failed: "+e.message); }
-          };
-
-          const inputS = {width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"};
-          const labelS = {fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6,display:"block"};
-          const btnS   = (col) => ({width:"100%",padding:"11px",borderRadius:8,cursor:"pointer",background:`${col}22`,border:`1px solid ${col}55`,color:col,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"});
-
-          return <div style={{display:"flex",flexDirection:"column",gap:22,maxWidth:700}}>
-            <div>
-              <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Settings</div>
-              <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>My Account</div>
-            </div>
-
-            {/* ── Current plan ──────────────────────────────────────────────── */}
-            <div style={{background:C.card,border:`2px solid ${currentPlan.color}44`,borderRadius:14,padding:22,position:"relative",overflow:"hidden"}}>
-              <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:currentPlan.color}}/>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12,marginBottom:16}}>
-                <div>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}}>Current plan</div>
-                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:24,color:currentPlan.color}}>{currentPlan.label}</div>
-                </div>
-                <div style={{display:"flex",gap:8}}>
-                  {!isBasic && <button onClick={openPortal} style={{...btnS(C.muted),width:"auto",padding:"8px 16px"}}>Manage billing ↗</button>}
-                </div>
-              </div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
-                {currentPlan.features.map(f=><span key={f} style={{background:`${currentPlan.color}18`,border:`1px solid ${currentPlan.color}33`,color:currentPlan.color,borderRadius:20,padding:"3px 12px",fontFamily:"'Space Mono',monospace",fontSize:10}}>✓ {f}</span>)}
-              </div>
-
-              {/* Upgrade options */}
-              {!isPro && (
-                <div style={{display:"grid",gridTemplateColumns:isBasic?"1fr 1fr":"1fr",gap:10,marginTop:4}}>
-                  {isBasic && (
-                    <div style={{background:C.surface,border:`1px solid ${C.accent}44`,borderRadius:10,padding:16}}>
-                      <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:C.accent,marginBottom:4}}>Advanced</div>
-                      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:12}}>Tradovate sync + auto-import</div>
-                      <button onClick={()=>startCheckout("advanced")} style={btnS(C.accent)}>Upgrade to Advanced →</button>
-                    </div>
-                  )}
-                  <div style={{background:C.surface,border:`1px solid ${C.purple}44`,borderRadius:10,padding:16}}>
-                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:C.purple,marginBottom:4}}>Pro</div>
-                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:12}}>All features incl. Trade Copier</div>
-                    <button onClick={()=>startCheckout("pro")} style={btnS(C.purple)}>Upgrade to Pro →</button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* ── Profile ───────────────────────────────────────────────────── */}
-            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
-              <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}}>Profile</div>
-              <div style={{display:"flex",gap:16,alignItems:"center",marginBottom:20}}>
-                <div style={{width:64,height:64,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent}33,${C.purple}33)`,border:`1px solid ${C.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,fontWeight:700,color:C.accent,flexShrink:0}}>
-                  {(profile?.full_name||userName).charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:18}}>{profile?.full_name||userName}</div>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:2}}>{user?.email}</div>
-                </div>
-              </div>
-              <label style={labelS}>Display Name</label>
-              <div style={{display:"flex",gap:8,marginBottom:msg.name?4:0}}>
-                <input value={profileForm.full_name} onChange={e=>setProfileForm(f=>({...f,full_name:e.target.value}))} placeholder="Your name" style={{...inputS,flex:1}}/>
-                <button onClick={()=>saveField("name",{full_name:profileForm.full_name})} disabled={saving.name}
-                  style={{...btnS(C.accent),width:"auto",padding:"10px 18px"}}>{saving.name?"...":"Save"}</button>
-              </div>
-              {msg.name && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:msg.name.startsWith("✓")?C.green:C.red,marginBottom:8}}>{msg.name}</div>}
-            </div>
-
-            {/* ── Email ─────────────────────────────────────────────────────── */}
-            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
-              <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}}>Change Email</div>
-              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:12}}>Current: <strong style={{color:C.text}}>{user?.email}</strong></div>
-              <label style={labelS}>New email address</label>
-              <div style={{display:"flex",gap:8,marginBottom:msg.email?4:0}}>
-                <input type="email" value={emailForm.email} onChange={e=>setEmailForm({email:e.target.value})} placeholder="new@email.com" style={{...inputS,flex:1}}/>
-                <button onClick={()=>saveField("email",{email:emailForm.email},()=>setEmailForm({email:""}))} disabled={saving.email||!emailForm.email}
-                  style={{...btnS(C.accent),width:"auto",padding:"10px 18px",opacity:!emailForm.email?0.5:1}}>{saving.email?"...":"Update"}</button>
-              </div>
-              {msg.email && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:msg.email.startsWith("✓")?C.green:C.red}}>{msg.email}</div>}
-            </div>
-
-            {/* ── Password ──────────────────────────────────────────────────── */}
-            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
-              <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:16}}>Change Password</div>
-              <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:msg.password?4:12}}>
-                <div><label style={labelS}>New password</label><input type="password" value={passForm.password} onChange={e=>setPassForm(f=>({...f,password:e.target.value}))} placeholder="Min. 8 characters" style={inputS}/></div>
-                <div><label style={labelS}>Confirm password</label><input type="password" value={passForm.confirm} onChange={e=>setPassForm(f=>({...f,confirm:e.target.value}))} placeholder="Repeat password" style={inputS}/></div>
-              </div>
-              {msg.password && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:msg.password.startsWith("✓")?C.green:C.red,marginBottom:8}}>{msg.password}</div>}
-              <button onClick={()=>{
-                if(passForm.password!==passForm.confirm){setMsg(m=>({...m,password:"⚠ Passwords don't match"}));return;}
-                saveField("password",{password:passForm.password},()=>setPassForm({password:"",confirm:""}));
-              }} disabled={saving.password||passForm.password.length<8} style={{...btnS(C.accent),opacity:passForm.password.length<8?0.5:1}}>
-                {saving.password?"...":"Update Password"}
-              </button>
-            </div>
-
-            {/* ── Invoice history ───────────────────────────────────────────── */}
-            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Invoice History</div>
-                {!invoices && <button onClick={loadInvoices} style={{...btnS(C.muted),width:"auto",padding:"6px 14px",fontSize:10}}>Load invoices</button>}
-              </div>
-              {!invoices && <div style={{color:C.muted,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>Click "Load invoices" to view your billing history.</div>}
-              {invoices?.length===0 && <div style={{color:C.muted,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>No invoices yet — you're on the free plan.</div>}
-              {invoices?.length>0 && (
-                <table style={{width:"100%",borderCollapse:"collapse"}}>
-                  <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>{["Date","Amount","Status",""].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",fontWeight:400}}>{h}</th>)}</tr></thead>
-                  <tbody>{invoices.map(inv=>(
-                    <tr key={inv.id} style={{borderBottom:`1px solid ${C.border}`}}>
-                      <td style={{padding:"10px 12px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim}}>{inv.date}</td>
-                      <td style={{padding:"10px 12px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14}}>{inv.currency} {inv.amount.toFixed(2)}</td>
-                      <td style={{padding:"10px 12px"}}><span style={{background:inv.status==="paid"?`${C.green}18`:`${C.amber}18`,color:inv.status==="paid"?C.green:C.amber,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{inv.status}</span></td>
-                      <td style={{padding:"10px 12px"}}>{inv.pdf&&<a href={inv.pdf} target="_blank" rel="noreferrer" style={{color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:10}}>PDF ↗</a>}</td>
-                    </tr>
-                  ))}</tbody>
-                </table>
-              )}
-            </div>
-
-            {/* ── Danger zone ───────────────────────────────────────────────── */}
-            <div style={{background:C.card,border:`1px solid ${C.red}33`,borderRadius:12,padding:22}}>
-              <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.red,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Danger Zone</div>
-              {!showDelete ? (
-                <button onClick={()=>setShowDelete(true)} style={{...btnS(C.red),maxWidth:240}}>Delete Account</button>
-              ) : (
-                <div style={{background:`${C.red}11`,border:`1px solid ${C.red}44`,borderRadius:10,padding:16}}>
-                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,color:C.red,marginBottom:8}}>Are you absolutely sure?</div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:16}}>This will permanently delete your account and all trade data. This cannot be undone.</div>
-                  <div style={{display:"flex",gap:8}}>
-                    <button onClick={()=>setShowDelete(false)} style={{...btnS(C.muted),flex:1}}>Cancel</button>
-                    <button onClick={deleteAccount} style={{...btnS(C.red),flex:1}}>Yes, delete everything</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>;
-        })()}
-
+        
         {/* ── TRADE COPIER ────────────────────────────────────────────────────── */}
         {tab==="copier"&&(()=>{
           if (!canAccess("pro")) return <UpgradeGate plan="pro" C={C} onUpgrade={()=>setTab("myaccount")} feature="Trade Copier" desc="Mirror trades across multiple accounts automatically. Available on the Pro plan." />;
@@ -5834,4 +5834,5 @@ export default function TradingPlatform({ session }) {
 
     </div>
   );
+}
 }
