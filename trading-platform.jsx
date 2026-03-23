@@ -3971,26 +3971,107 @@ export default function TradingPlatform({ session }) {
             const last = new Date(year,month+2,0);
             setDateRange({ from: d.toISOString().slice(0,10), to: last.toISOString().slice(0,10), preset:"custom" });
           };
+          const goToday = () => {
+            const now = new Date();
+            setDateRange({ from: new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10), to: new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().slice(0,10), preset:"month" });
+          };
+          const isAllTime = dateRange.preset === "all";
+          const toggleAllTime = () => {
+            if (isAllTime) goToday();
+            else applyPreset("all");
+          };
 
           return <div style={{display:"flex",flexDirection:"column",gap:22}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
               <div>
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Monthly View</div>
-                <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4,textTransform:"capitalize"}}>{monthLabel}</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4,textTransform:"capitalize"}}>
+                  {isAllTime ? "All Time" : monthLabel}
+                </div>
               </div>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <button onClick={prevMonth} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:13}}>←</button>
-                {renderDateRangeBar()}
-                <button onClick={nextMonth} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:13}}>→</button>
+                {/* All time toggle */}
+                <button onClick={toggleAllTime} style={{
+                  background:isAllTime?C.accentDim:C.card,
+                  border:`1px solid ${isAllTime?C.accent+"55":C.border}`,
+                  borderRadius:8,padding:"6px 14px",cursor:"pointer",
+                  fontFamily:"'Space Mono',monospace",fontSize:10,
+                  color:isAllTime?C.accent:C.muted,
+                  fontWeight:isAllTime?700:400,
+                  transition:"all 0.15s",
+                }}>All time</button>
+                {/* Today shortcut */}
+                {!isAllTime && <button onClick={goToday} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:10}}>Today</button>}
+                {/* Month navigation — hidden in all-time mode */}
+                {!isAllTime && <>
+                  <button onClick={prevMonth} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 16px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:15,lineHeight:1}}>←</button>
+                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:12,color:C.text,minWidth:120,textAlign:"center"}}>{monthLabel}</span>
+                  <button onClick={nextMonth} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 16px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:15,lineHeight:1}}>→</button>
+                </>}
               </div>
             </div>
+            {/* Stats — all-time shows totals, monthly shows month data */}
             <div style={{display:"flex",gap:12}}>
-              <StatCard label="Month P&L"  value={`${monthPnl>=0?"+":""}$${Math.abs(Math.round(monthPnl))}`} sub="Total"                                 color={monthPnl>=0?C.green:C.red}/>
-              <StatCard label="Green Days" value={String(greenDays)}   sub={`Out of ${tradingDays}`}          color={C.green}/>
-              <StatCard label="Red Days"   value={String(redDays)}     sub={`Out of ${tradingDays}`}          color={C.red}/>
-              <StatCard label="Best Day"   value={bestDay?`+$${Math.round(bestDay)}`:"–"}   sub={bestDayNum?`Day ${bestDayNum}`:"No trades"}  color={C.accent}/>
-              <StatCard label="Worst Day"  value={worstDay?`-$${Math.abs(Math.round(worstDay))}`:"–"} sub={worstDayNum?`Day ${worstDayNum}`:"No trades"} color={C.red}/>
+              {isAllTime ? <>
+                <StatCard label="Total P&L"   value={`${trades.reduce((a,t)=>a+t.pnl,0)>=0?"+":""}$${Math.abs(trades.reduce((a,t)=>a+t.pnl,0)).toLocaleString()}`} sub={`${trades.length} trades`} color={trades.reduce((a,t)=>a+t.pnl,0)>=0?C.green:C.red}/>
+                <StatCard label="Green Days"  value={String(Object.values(Object.fromEntries(trades.map(t=>[t.trade_date,(trades.filter(x=>x.trade_date===t.trade_date).reduce((a,x)=>a+x.pnl,0))]))).filter(p=>p>0).length)} sub="All time" color={C.green}/>
+                <StatCard label="Red Days"    value={String(Object.values(Object.fromEntries(trades.map(t=>[t.trade_date,(trades.filter(x=>x.trade_date===t.trade_date).reduce((a,x)=>a+x.pnl,0))]))).filter(p=>p<0).length)} sub="All time" color={C.red}/>
+                <StatCard label="Win Rate"    value={trades.length?`${Math.round(trades.filter(t=>t.pnl>0).length/trades.length*100)}%`:"–"} sub={`${trades.filter(t=>t.pnl>0).length}/${trades.length}`} color={C.accent}/>
+                <StatCard label="Best Day"    value={(() => { const byDay={}; trades.forEach(t=>{byDay[t.trade_date]=(byDay[t.trade_date]||0)+t.pnl;}); const best=Math.max(0,...Object.values(byDay)); return best?`+$${Math.round(best).toLocaleString()}`:"–"; })()} sub="Single day" color={C.accent}/>
+              </> : <>
+                <StatCard label="Month P&L"  value={`${monthPnl>=0?"+":""}$${Math.abs(Math.round(monthPnl))}`} sub="Total" color={monthPnl>=0?C.green:C.red}/>
+                <StatCard label="Green Days" value={String(greenDays)}   sub={`Out of ${tradingDays}`} color={C.green}/>
+                <StatCard label="Red Days"   value={String(redDays)}     sub={`Out of ${tradingDays}`} color={C.red}/>
+                <StatCard label="Best Day"   value={bestDay?`+$${Math.round(bestDay)}`:"–"} sub={bestDayNum?`Day ${bestDayNum}`:"No trades"} color={C.accent}/>
+                <StatCard label="Worst Day"  value={worstDay?`-$${Math.abs(Math.round(worstDay))}`:"–"} sub={worstDayNum?`Day ${worstDayNum}`:"No trades"} color={C.red}/>
+              </>}
             </div>
+
+            {/* Calendar grid — monthly view only; all-time shows monthly summary list */}
+            {isAllTime ? (() => {
+              const byMonth = {};
+              trades.forEach(t => {
+                if (!t.trade_date) return;
+                const m = t.trade_date.slice(0,7);
+                if (!byMonth[m]) byMonth[m] = {pnl:0, wins:0, total:0};
+                byMonth[m].pnl += t.pnl;
+                byMonth[m].total++;
+                if (t.pnl>0) byMonth[m].wins++;
+              });
+              const months = Object.entries(byMonth).sort(([a],[b])=>b.localeCompare(a));
+              if (!months.length) return <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:40,textAlign:"center",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:12}}>No trades logged yet</div>;
+              return (
+                <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse"}}>
+                    <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>
+                      {["Month","Trades","Win Rate","P&L"].map(h=><th key={h} style={{padding:"10px 18px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:400}}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>{months.map(([m, s], i)=>{
+                      const label = new Date(m+"-15").toLocaleString("en-US",{month:"long",year:"numeric"});
+                      const wr = Math.round(s.wins/s.total*100);
+                      return (
+                        <tr key={m} style={{borderBottom:i<months.length-1?`1px solid ${C.border}`:"none",cursor:"pointer"}}
+                          onMouseEnter={e=>e.currentTarget.style.background=C.surface}
+                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+                          onClick={()=>setDateRange({from:`${m}-01`,to:new Date(...m.split("-").map((v,i)=>i===1?+v:+v),0).toISOString?.()?.slice(0,10)||`${m}-31`,preset:"custom"})}>
+                          <td style={{padding:"12px 18px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14}}>{label}</td>
+                          <td style={{padding:"12px 18px",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.muted}}>{s.total}</td>
+                          <td style={{padding:"12px 18px"}}>
+                            <div style={{display:"flex",alignItems:"center",gap:8}}>
+                              <div style={{width:60,height:5,background:C.border,borderRadius:3,overflow:"hidden"}}>
+                                <div style={{height:"100%",width:`${wr}%`,background:wr>=60?C.green:wr>=40?C.accent:C.red,borderRadius:3}}/>
+                              </div>
+                              <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:wr>=60?C.green:wr>=40?C.accent:C.red,fontWeight:700}}>{wr}%</span>
+                            </div>
+                          </td>
+                          <td style={{padding:"12px 18px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:s.pnl>=0?C.green:C.red}}>{s.pnl>=0?"+":""}${Math.round(s.pnl).toLocaleString()}</td>
+                        </tr>
+                      );
+                    })}</tbody>
+                  </table>
+                </div>
+              );
+            })() : (
             <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
               <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:8,marginBottom:8}}>{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=><div key={d} style={{textAlign:"center",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,padding:"4px 0"}}>{d}</div>)}</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:8}}>
@@ -4006,6 +4087,7 @@ export default function TradingPlatform({ session }) {
                 })}
               </div>
             </div>
+            )}
           </div>;
         })()}
 
