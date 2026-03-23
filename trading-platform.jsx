@@ -2794,7 +2794,134 @@ export default function TradingPlatform({ session }) {
     });
   };
   C = darkMode ? DARK : LIGHT;
-  const [tab,        setTab       ] = useState("dashboard");
+  // ── Tab state — persisted in URL hash ────────────────────────────────────────
+  const VALID_TABS = ["dashboard","analytics","calendar","trades","edge","psychology","propfirm","news","accounts","copier"];
+  const hashTab = () => {
+    const h = window.location.hash.replace("#","");
+    return VALID_TABS.includes(h) ? h : "dashboard";
+  };
+  const [tab, setTabState] = useState(hashTab);
+  const setTab = (t) => {
+    setTabState(t);
+    window.location.hash = t;
+  };
+  useEffect(() => {
+    const onHash = () => setTabState(hashTab());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  // ── Shared date range — used by Dashboard, Analytics, Calendar, Trades, Psychology
+  const getDefaultRange = () => {
+    const now = new Date();
+    return {
+      from: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10),
+      to:   new Date(now.getFullYear(), now.getMonth()+1, 0).toISOString().slice(0,10),
+      preset: "month",
+    };
+  };
+  const [dateRange, setDateRange] = useState(getDefaultRange);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [customFrom, setCustomFrom] = useState(dateRange.from);
+  const [customTo,   setCustomTo  ] = useState(dateRange.to);
+
+  const applyPreset = (preset) => {
+    const now = new Date();
+    let from, to;
+    if (preset === "week") {
+      const day = now.getDay() || 7;
+      from = new Date(now); from.setDate(now.getDate() - day + 1);
+      to   = new Date(from); to.setDate(from.getDate() + 6);
+    } else if (preset === "month") {
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+      to   = new Date(now.getFullYear(), now.getMonth()+1, 0);
+    } else if (preset === "lastmonth") {
+      from = new Date(now.getFullYear(), now.getMonth()-1, 1);
+      to   = new Date(now.getFullYear(), now.getMonth(), 0);
+    } else if (preset === "year") {
+      from = new Date(now.getFullYear(), 0, 1);
+      to   = new Date(now.getFullYear(), 11, 31);
+    } else if (preset === "all") {
+      from = new Date(2020, 0, 1);
+      to   = new Date(now.getFullYear()+1, 11, 31);
+    }
+    const f = from.toISOString().slice(0,10);
+    const t = to.toISOString().slice(0,10);
+    setDateRange({ from: f, to: t, preset });
+    setCustomFrom(f); setCustomTo(t);
+    setShowDatePicker(false);
+  };
+
+  const applyCustom = () => {
+    if (customFrom && customTo && customFrom <= customTo) {
+      setDateRange({ from: customFrom, to: customTo, preset: "custom" });
+      setShowDatePicker(false);
+    }
+  };
+
+  // Filter trades by date range
+  const rangedTrades = trades.filter(t =>
+    (!t.trade_date || (t.trade_date >= dateRange.from && t.trade_date <= dateRange.to))
+  );
+
+  // Date range display label
+  const rangeLabel = (() => {
+    if (dateRange.preset === "week")      return "This week";
+    if (dateRange.preset === "month")     return new Date(dateRange.from+"T12:00").toLocaleString("en-US",{month:"long",year:"numeric"});
+    if (dateRange.preset === "lastmonth") return "Last month";
+    if (dateRange.preset === "year")      return new Date(dateRange.from).getFullYear().toString();
+    if (dateRange.preset === "all")       return "All time";
+    const fmt = d => new Date(d+"T12:00").toLocaleDateString("en-US",{month:"short",day:"numeric"});
+    return `${fmt(dateRange.from)} – ${fmt(dateRange.to)}`;
+  })();
+
+  // Shared DateRangePicker component (inline)
+  const DateRangeBar = () => (
+    <div style={{position:"relative",display:"inline-block"}}>
+      <button onClick={()=>setShowDatePicker(p=>!p)}
+        style={{display:"flex",alignItems:"center",gap:8,background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.text}}>
+        <span style={{color:C.muted,fontSize:10}}>📅</span>
+        {rangeLabel}
+        <span style={{color:C.muted,fontSize:10}}>▾</span>
+      </button>
+      {showDatePicker && (
+        <div onClick={e=>e.stopPropagation()}
+          style={{position:"absolute",top:"calc(100% + 6px)",right:0,zIndex:500,background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16,width:280,boxShadow:"0 8px 32px #00000066"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:12}}>
+            {[
+              {id:"week",      label:"This week"},
+              {id:"month",     label:"This month"},
+              {id:"lastmonth", label:"Last month"},
+              {id:"year",      label:"This year"},
+              {id:"all",       label:"All time"},
+            ].map(p=>(
+              <button key={p.id} onClick={()=>applyPreset(p.id)}
+                style={{padding:"7px 10px",borderRadius:7,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,
+                  background:dateRange.preset===p.id?C.accentDim:C.surface,
+                  border:`1px solid ${dateRange.preset===p.id?C.accent+"55":C.border}`,
+                  color:dateRange.preset===p.id?C.accent:C.textDim}}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <div style={{borderTop:`1px solid ${C.border}`,paddingTop:12}}>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",marginBottom:8}}>CUSTOM RANGE</div>
+            <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
+              <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}
+                style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 8px",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10,outline:"none"}}/>
+              <span style={{color:C.muted,fontSize:10}}>→</span>
+              <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}
+                style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 8px",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10,outline:"none"}}/>
+            </div>
+            <button onClick={applyCustom}
+              style={{width:"100%",padding:"8px",background:C.accentDim,border:`1px solid ${C.accent}55`,borderRadius:7,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700}}>
+              Apply
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
   const [selTrade,   setSelTrade  ] = useState(null);
   const [showRules,  setShowRules ] = useState(false);
   const [showAddTrade, setShowAddTrade] = useState(false);
@@ -3320,15 +3447,14 @@ export default function TradingPlatform({ session }) {
     setFirms(ff => ff.map(f => f.id===firmId ? {...f, activeType:typeId} : f));
   };
 
-  // ── Stats beräknade från riktiga trades ──────────────────────────────────────
-  const wins     = trades.filter(d=>d.pnl>0).length;
-  const losses   = trades.filter(d=>d.pnl<0).length;
-  const winRate  = trades.length ? Math.round((wins/trades.length)*100) : 0;
+  // ── Stats computed from ranged trades (respects date range picker) ───────────
+  const wins     = rangedTrades.filter(d=>d.pnl>0).length;
+  const losses   = rangedTrades.filter(d=>d.pnl<0).length;
+  const winRate  = rangedTrades.length ? Math.round((wins/rangedTrades.length)*100) : 0;
 
-  // Max Drawdown — beräknas från equity curve (peak-to-trough)
   const maxDD = (() => {
-    if (!trades.length) return 0;
-    const sorted = [...trades].sort((a,b) => a.trade_date?.localeCompare(b.trade_date));
+    if (!rangedTrades.length) return 0;
+    const sorted = [...rangedTrades].sort((a,b) => a.trade_date?.localeCompare(b.trade_date));
     let peak = 0, cumPnl = 0, maxDrop = 0;
     sorted.forEach(t => {
       cumPnl += t.pnl;
@@ -3338,23 +3464,22 @@ export default function TradingPlatform({ session }) {
     });
     return Math.round(maxDrop);
   })();
-  const totalPnl = trades.reduce((a,b)=>a+b.pnl,0);
-  const avgWin   = wins   ? Math.round(trades.filter(d=>d.pnl>0).reduce((a,b)=>a+b.pnl,0)/wins)   : 0;
-  const avgLoss  = losses ? Math.round(Math.abs(trades.filter(d=>d.pnl<0).reduce((a,b)=>a+b.pnl,0)/losses)) : 0;
+  const totalPnl = rangedTrades.reduce((a,b)=>a+b.pnl,0);
+  const avgWin   = wins   ? Math.round(rangedTrades.filter(d=>d.pnl>0).reduce((a,b)=>a+b.pnl,0)/wins)   : 0;
+  const avgLoss  = losses ? Math.round(Math.abs(rangedTrades.filter(d=>d.pnl<0).reduce((a,b)=>a+b.pnl,0)/losses)) : 0;
+  const avgRR    = rangedTrades.length ? (rangedTrades.reduce((a,b)=>a+(b.rr||0),0)/rangedTrades.length).toFixed(1) : null;
 
-  // Equity curve och daily PnL byggd från riktiga trades
   const pnlByDate = {};
-  trades.forEach(t => { pnlByDate[t.trade_date] = (pnlByDate[t.trade_date]||0) + t.pnl; });
+  rangedTrades.forEach(t => { pnlByDate[t.trade_date] = (pnlByDate[t.trade_date]||0) + t.pnl; });
   const LIVE_PNL_DATA = Object.entries(pnlByDate).sort(([a],[b])=>a.localeCompare(b)).map(([date,pnl])=>({date,pnl}));
   const LIVE_EQUITY   = LIVE_PNL_DATA.reduce((acc,d,i)=>{
     const prev = i===0 ? 50000 : acc[i-1].equity;
     return [...acc, {date:d.date, equity: Math.round(prev+d.pnl)}];
   }, []);
 
-  // ── Live hourly data computed from real trades ────────────────────────────
   const liveTimeData = (() => {
     const hourMap = {};
-    trades.forEach(t => {
+    rangedTrades.forEach(t => {
       const h = t.entry ? t.entry.slice(0,2)+":00" : null;
       if (!h) return;
       if (!hourMap[h]) hourMap[h] = {hour:h, pnl:0, trades:0, wins:0};
@@ -3365,9 +3490,9 @@ export default function TradingPlatform({ session }) {
     return Object.values(hourMap).sort((a,b)=>a.hour.localeCompare(b.hour));
   })();
 
-  const allTags = [...new Set(trades.flatMap(t=>t.tags||[]))];
+  const allTags = [...new Set(rangedTrades.flatMap(t=>t.tags||[]))];
   const tagStats= allTags.map(tag=>{
-    const tg=trades.filter(t=>(t.tags||[]).includes(tag));
+    const tg=rangedTrades.filter(t=>(t.tags||[]).includes(tag));
     const tw=tg.filter(t=>t.pnl>0);
     return {tag,count:tg.length,wins:tw.length,pnl:tg.reduce((a,b)=>a+b.pnl,0),winRate:Math.round((tw.length/tg.length)*100)};
   }).sort((a,b)=>b.pnl-a.pnl);
@@ -3380,7 +3505,7 @@ export default function TradingPlatform({ session }) {
     </div>
   ) : null;
 
-  const filteredTrades = tagFilter==="All"?trades:trades.filter(t=>(t.tags||[]).includes(tagFilter));
+  const filteredTrades = tagFilter==="All" ? rangedTrades : rangedTrades.filter(t=>(t.tags||[]).includes(tagFilter));
 
   const getPropStatus = rule => {
     if(rule.type==="loss")    { const u=Math.abs(Math.min(0,acct.todayPnl));    return {used:u,    pct:u/rule.value,                           status:u>=rule.value?"breach":u>=rule.value*.75?"warning":"ok"}; }
@@ -3400,6 +3525,14 @@ export default function TradingPlatform({ session }) {
 
   // Re-load trades when mode changes
   useEffect(() => { loadTrades(); }, [appMode, loadTrades]);
+
+  // Close date picker when clicking outside
+  useEffect(() => {
+    if (!showDatePicker) return;
+    const close = () => setShowDatePicker(false);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [showDatePicker]);
 
   return (
     <div className="fv-root" style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"'DM Sans',sans-serif",display:"flex",flexDirection:"column"}}>
@@ -3637,22 +3770,16 @@ export default function TradingPlatform({ session }) {
         {tab==="dashboard"&&(
           <div style={{display:"flex",flexDirection:"column",gap:22}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
-              <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Weekly Overview</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Performance <span style={{color:C.accent}}>↗</span></div></div>
-              {(()=>{
-                const now=new Date();
-                const firstDay=new Date(now.getFullYear(),now.getMonth(),1);
-                const lastDay=new Date(now.getFullYear(),now.getMonth()+1,0);
-                const fmt=d=>d.toLocaleDateString("en-US",{month:"short",day:"numeric"});
-                return <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim}}>{fmt(firstDay)} – {fmt(lastDay)}, {now.getFullYear()}</div>;
-              })()}
+              <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Overview</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Performance <span style={{color:C.accent}}>↗</span></div></div>
+              <DateRangeBar/>
             </div>
             <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-              <StatCard label="Net P&L"  value={trades.length ? `${totalPnl>=0?"+":""}$${Math.abs(totalPnl).toLocaleString()}` : "$0"} sub="This period"         color={C.green}/>
-              <StatCard label="Win Rate" value={trades.length ? `${winRate}%` : "–"}                   sub={`${wins}/${trades.length} trades`} color={C.accent}/>
-              <StatCard label="Avg Win"  value={`$${avgWin}`}                    sub="Per winning trade"   color={C.green}/>
-              <StatCard label="Avg Loss" value={`$${avgLoss}`}                   sub="Per losing trade"    color={C.red}/>
-              <StatCard label="Max DD"   value={maxDD ? `$${maxDD.toLocaleString()}` : "–"}  sub="Peak-to-trough"  color={C.red}/>
-              <StatCard label="Avg R:R"  value={trades.length ? `${(trades.reduce((a,b)=>a+(b.rr||0),0)/trades.length).toFixed(1)}R` : "–"} sub="Risk/reward ratio"   color={C.accent}/>
+              <StatCard label="Net P&L"  value={rangedTrades.length ? `${totalPnl>=0?"+":""}$${Math.abs(totalPnl).toLocaleString()}` : "$0"} sub={rangeLabel} color={C.green}/>
+              <StatCard label="Win Rate" value={rangedTrades.length ? `${winRate}%` : "–"} sub={`${wins}/${rangedTrades.length} trades`} color={C.accent}/>
+              <StatCard label="Avg Win"  value={`$${avgWin}`} sub="Per winning trade" color={C.green}/>
+              <StatCard label="Avg Loss" value={`$${avgLoss}`} sub="Per losing trade" color={C.red}/>
+              <StatCard label="Max DD"   value={maxDD ? `$${maxDD.toLocaleString()}` : "–"} sub="Peak-to-trough" color={C.red}/>
+              <StatCard label="Avg R:R"  value={avgRR ? `${avgRR}R` : "–"} sub="Risk/reward ratio" color={C.accent}/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
@@ -3687,7 +3814,7 @@ export default function TradingPlatform({ session }) {
               <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Recent Trades</div><button onClick={()=>setTab("trades")} style={{background:"transparent",border:"none",color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,cursor:"pointer"}}>View all →</button></div>
               <table style={{width:"100%",borderCollapse:"collapse"}}>
                 <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>{["Symbol","Side","Entry","Exit","Tags","R:R","P&L"].map(h=><th key={h} style={{padding:"9px 18px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:400}}>{h}</th>)}</tr></thead>
-                <tbody>{trades.slice(0,5).map((t,i)=>(
+                <tbody>{rangedTrades.slice(0,5).map((t,i)=>(
                   <tr key={t.id} style={{borderBottom:i<4?`1px solid ${C.border}`:"none"}} onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <td style={{padding:"11px 18px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14}}>{t.symbol}</td>
                     <td style={{padding:"11px 18px"}}><span style={{background:t.side==="Long"?"#00d08418":"#ff3d5a18",color:t.side==="Long"?C.green:C.red,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{t.side}</span></td>
@@ -3706,9 +3833,12 @@ export default function TradingPlatform({ session }) {
         {/* ── ANALYTICS ───────────────────────────────────────────────────────── */}
         {tab==="analytics"&&(
           <div style={{display:"flex",flexDirection:"column",gap:isMobile?14:22}}>
-            <div>
-              <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Deep Dive</div>
-              <div style={{fontFamily:"'Syne',sans-serif",fontSize:isMobile?22:28,fontWeight:800,marginTop:4}}>Analytics</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
+              <div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Deep Dive</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontSize:isMobile?22:28,fontWeight:800,marginTop:4}}>Analytics</div>
+              </div>
+              <DateRangeBar/>
             </div>
 
             {/* Tag performance */}
@@ -3804,15 +3934,13 @@ export default function TradingPlatform({ session }) {
 
         {/* ── CALENDAR ────────────────────────────────────────────────────────── */}
         {tab==="calendar"&&(()=>{
-          const now        = new Date();
-          const year       = now.getFullYear();
-          const month      = now.getMonth();
-          const monthLabel = now.toLocaleString("en-US",{month:"long",year:"numeric"});
+          const calDate    = new Date(dateRange.from+"T12:00");
+          const year       = calDate.getFullYear();
+          const month      = calDate.getMonth();
+          const monthLabel = calDate.toLocaleString("en-US",{month:"long",year:"numeric"});
           const daysInMonth= new Date(year,month+1,0).getDate();
-          // firstDay: 0=Sun → remap to Mon-first (0=Mon)
           const firstDay   = ((new Date(year,month,1).getDay()+6)%7);
 
-          // Build pnlByDay from real trades for this month
           const monthStr = `${year}-${String(month+1).padStart(2,"0")}`;
           const calPnl   = {};
           trades.forEach(t => {
@@ -3831,8 +3959,28 @@ export default function TradingPlatform({ session }) {
           const bestDayNum  = Object.entries(calPnl).find(([,v])=>v===bestDay)?.[0];
           const worstDayNum = Object.entries(calPnl).find(([,v])=>v===worstDay)?.[0];
 
+          const prevMonth = () => {
+            const d = new Date(year, month-1, 1);
+            applyPreset && setDateRange({ from: d.toISOString().slice(0,10), to: new Date(year,month,0).toISOString().slice(0,10), preset:"custom" });
+          };
+          const nextMonth = () => {
+            const d = new Date(year, month+1, 1);
+            const last = new Date(year,month+2,0);
+            setDateRange({ from: d.toISOString().slice(0,10), to: last.toISOString().slice(0,10), preset:"custom" });
+          };
+
           return <div style={{display:"flex",flexDirection:"column",gap:22}}>
-            <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Monthly View</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4,textTransform:"capitalize"}}>{monthLabel}</div></div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
+              <div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Monthly View</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4,textTransform:"capitalize"}}>{monthLabel}</div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <button onClick={prevMonth} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:13}}>←</button>
+                <DateRangeBar/>
+                <button onClick={nextMonth} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:13}}>→</button>
+              </div>
+            </div>
             <div style={{display:"flex",gap:12}}>
               <StatCard label="Month P&L"  value={`${monthPnl>=0?"+":""}$${Math.abs(Math.round(monthPnl))}`} sub="Total"                                 color={monthPnl>=0?C.green:C.red}/>
               <StatCard label="Green Days" value={String(greenDays)}   sub={`Out of ${tradingDays}`}          color={C.green}/>
@@ -3870,11 +4018,13 @@ export default function TradingPlatform({ session }) {
               </div>
               {isMobile ? (
                 <div style={{display:"flex",gap:7}}>
+                  <DateRangeBar/>
                   <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⬆ CSV</button>
                   <button onClick={()=>setShowRules(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⚙</button>
                 </div>
               ) : (
                 <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
+                  <DateRangeBar/>
                   <button onClick={()=>setShowAddTrade(true)} style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"7px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>+ Add Trade</button>
                   <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬆ Import CSV</button>
                   <button onClick={()=>setShowExport(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬇ Export PDF</button>
