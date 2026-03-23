@@ -2859,13 +2859,6 @@ export default function TradingPlatform({ session }) {
     }
   };
 
-  // Filter trades by date range
-  );
-
-  // Date range display label
-
-  // Shared DateRangePicker component (inline)
-
   const [selTrade,   setSelTrade  ] = useState(null);
   const [showRules,  setShowRules ] = useState(false);
   const [showAddTrade, setShowAddTrade] = useState(false);
