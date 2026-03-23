@@ -3840,7 +3840,7 @@ export default function TradingPlatform({ session }) {
   const activeDailyLimit = (() => {
     const acc = propAccounts.find(a=>a.id===activePropAccId) || propAccounts[0];
     if (!acc) return null;
-    const firm = PROP_FIRMS?.find(f=>f.id===acc.firmId);
+    const firm = firms?.find(f=>f.id===acc.firmId);
     if (!firm) return null;
     const plan = firm.plans?.find(p=>p.id===acc.planId);
     if (!plan) return null;
