@@ -1920,15 +1920,28 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
             <div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                 <label style={{...labelStyle,marginBottom:0}}>Rule Checklist</label>
+                <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:Object.values(form.checks||{}).filter(Boolean).length===globalRules.length?C.green:C.muted}}>
+                  {Object.values(form.checks||{}).filter(Boolean).length}/{globalRules.length}
+                </span>
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                {globalRules.map((rule,i)=>(
-                  <label key={i} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"6px 10px",borderRadius:7,background:C.surface,border:`1px solid ${C.border}`}}>
-                    <div style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${C.border}`,background:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                    </div>
-                    <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim}}>{rule}</span>
-                  </label>
-                ))}
+                {globalRules.map((rule,i)=>{
+                  const checked = (form.checks||{})[rule];
+                  return (
+                    <label key={i} onClick={()=>set("checks",{...(form.checks||{}),[rule]:!checked})}
+                      style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"6px 10px",borderRadius:7,
+                        background:checked?`${C.green}0a`:C.surface,
+                        border:`1px solid ${checked?C.green+"33":C.border}`,transition:"all 0.12s"}}>
+                      <div style={{width:16,height:16,borderRadius:4,flexShrink:0,
+                        border:`1.5px solid ${checked?C.green:C.border}`,
+                        background:checked?`${C.green}22`:"transparent",
+                        display:"flex",alignItems:"center",justifyContent:"center"}}>
+                        {checked&&<span style={{color:C.green,fontSize:10}}>✓</span>}
+                      </div>
+                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:checked?C.text:C.textDim}}>{rule}</span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 
