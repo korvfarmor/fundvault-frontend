@@ -1180,12 +1180,12 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
       const img=new Image();
       img.onload=()=>{
         const canvas=document.createElement("canvas");
-        const MAX=1200;
+        const MAX=800;
         const ratio=Math.min(MAX/img.width,MAX/img.height,1);
         canvas.width=Math.round(img.width*ratio);
         canvas.height=Math.round(img.height*ratio);
         canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
-        setScreenshot(canvas.toDataURL("image/jpeg",0.75));
+        setScreenshot(canvas.toDataURL("image/jpeg",0.6));
       };
       img.src=e.target.result;
     };
@@ -1697,12 +1697,12 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
       const img=new Image();
       img.onload=()=>{
         const canvas=document.createElement("canvas");
-        const MAX=1200;
+        const MAX=800;
         const ratio=Math.min(MAX/img.width,MAX/img.height,1);
         canvas.width=Math.round(img.width*ratio);
         canvas.height=Math.round(img.height*ratio);
         canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
-        set("screenshot", canvas.toDataURL("image/jpeg",0.75));
+        set("screenshot", canvas.toDataURL("image/jpeg",0.6));
       };
       img.src=e.target.result;
     };
@@ -3200,7 +3200,10 @@ export default function TradingPlatform({ session }) {
       rule_checks: updated.checks || {},
       trade_date:  updated.trade_date || new Date().toISOString().slice(0,10),
     };
-    const isRealId = typeof updated.id === "string" && updated.id.includes("-");
+    const isRealId = typeof updated.id === "string" 
+      && updated.id.includes("-") 
+      && !updated.id.startsWith("new-")
+      && !updated.id.startsWith("csv-");
     if (isRealId) { await tradesApi.update(updated.id, payload); }
     else          { await tradesApi.create(payload); }
     await loadTrades();
