@@ -1912,7 +1912,7 @@ const PropFirmWizardModal = ({
 };
 
 // ── Add Trade Modal ───────────────────────────────────────────────────────────
-const INSTRUMENTS = [
+const DEFAULT_INSTRUMENTS = [
   {value:"NQ",  label:"NQ (Nasdaq-100)",   pts:{standard:20,  micro:2}},
   {value:"ES",  label:"ES (S&P 500)",      pts:{standard:50,  micro:5}},
   {value:"YM",  label:"YM (Dow Jones)",    pts:{standard:5,   micro:0.5}},
@@ -1922,6 +1922,14 @@ const INSTRUMENTS = [
   {value:"SI",  label:"SI (Silver)",       pts:{standard:50,  micro:1000}},
   {value:"6E",  label:"6E (Euro FX)",      pts:{standard:125000,micro:12500}},
 ];
+// Merge with any custom tickers saved by the user
+const getInstruments = () => {
+  try {
+    const custom = JSON.parse(localStorage.getItem("fv_custom_tickers")||"[]");
+    return [...DEFAULT_INSTRUMENTS, ...custom];
+  } catch { return DEFAULT_INSTRUMENTS; }
+};
+const INSTRUMENTS = getInstruments();
 const ADD_TAGS = ["Kill Zone","Displacement","FVG","OB","BOS","CHoCH","Liquidity Sweep","FOMO","Revenge","Late entry","Oversize","News trade"];
 
 const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEvents}) => {
@@ -2079,9 +2087,25 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
             <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,alignItems:"end"}}>
               <div>
                 <label style={labelStyle}>Instrument</label>
-                <select value={form.symbol} onChange={e=>set("symbol",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
-                  {INSTRUMENTS.map(i=><option key={i.value} value={i.value}>{i.label}</option>)}
-                </select>
+                <div style={{display:"flex",gap:6}}>
+                  <select value={form.symbol} onChange={e=>set("symbol",e.target.value)} style={{...inputStyle,cursor:"pointer",flex:1}}>
+                    {INSTRUMENTS.map(i=><option key={i.value} value={i.value}>{i.label}</option>)}
+                  </select>
+                  <button onClick={()=>{
+                    const ticker = window.prompt("Enter custom ticker symbol (e.g. AAPL, BTC, NG):");
+                    if (!ticker?.trim()) return;
+                    const val = ticker.trim().toUpperCase();
+                    if (INSTRUMENTS.find(i=>i.value===val)) { set("symbol",val); return; }
+                    const newInstrument = {value:val, label:val, pts:{standard:1,micro:1}};
+                    const custom = JSON.parse(localStorage.getItem("fv_custom_tickers")||"[]");
+                    if (!custom.find(i=>i.value===val)) {
+                      custom.push(newInstrument);
+                      localStorage.setItem("fv_custom_tickers", JSON.stringify(custom));
+                      INSTRUMENTS.push(newInstrument);
+                    }
+                    set("symbol",val);
+                  }} title="Add custom ticker" style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",cursor:"pointer",color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:12,flexShrink:0}}>+ Custom</button>
+                </div>
               </div>
               <div>
                 <label style={labelStyle}>Contract Type <span style={{color:C.accent}}>${ptVal}/pt</span></label>
@@ -3177,26 +3201,34 @@ export default function TradingPlatform({ session }) {
 
   // Shared month navigation bar used on Dashboard, Analytics, Trades
   const renderMonthNav = () => (
-    <div style={{display:"flex",alignItems:"center",gap:6}}>
+    <div style={{display:"flex",alignItems:"center",gap:isMobile?4:6,flexWrap:"wrap",justifyContent:isMobile?"center":"flex-start"}}>
       <button onClick={()=>goToMonth(drYear, drMonth-1)}
-        style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:14,lineHeight:1}}>←</button>
-      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 16px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.text,minWidth:130,textAlign:"center"}}>
+        style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:isMobile?"5px 10px":"6px 14px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:14,lineHeight:1}}>←</button>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:isMobile?"5px 10px":"6px 16px",fontFamily:"'Space Mono',monospace",fontSize:isMobile?10:11,color:C.text,minWidth:isMobile?100:130,textAlign:"center"}}>
         {monthDisplayLabel}
       </div>
       <button onClick={()=>goToMonth(drYear, drMonth+1)}
-        style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:14,lineHeight:1}}>→</button>
-      <button onClick={goThisMonth}
-        style={{background:dateRange.preset==="month"&&drYear===new Date().getFullYear()&&drMonth===new Date().getMonth()+1?C.accentDim:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.textDim}}>
-        This month
-      </button>
-      <button onClick={goLastMonth}
-        style={{background:dateRange.preset==="lastmonth"?C.accentDim:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.textDim}}>
-        Last month
-      </button>
-      <button onClick={goAllTime}
-        style={{background:dateRange.preset==="all"?C.accentDim:C.card,border:`1px solid ${dateRange.preset==="all"?C.accent+"55":C.border}`,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:dateRange.preset==="all"?C.accent:C.textDim,fontWeight:dateRange.preset==="all"?700:400}}>
-        All time
-      </button>
+        style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:isMobile?"5px 10px":"6px 14px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:14,lineHeight:1}}>→</button>
+      {!isMobile && <>
+        <button onClick={goThisMonth}
+          style={{background:dateRange.preset==="month"&&drYear===new Date().getFullYear()&&drMonth===new Date().getMonth()+1?C.accentDim:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.textDim}}>
+          This month
+        </button>
+        <button onClick={goLastMonth}
+          style={{background:dateRange.preset==="lastmonth"?C.accentDim:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.textDim}}>
+          Last month
+        </button>
+        <button onClick={goAllTime}
+          style={{background:dateRange.preset==="all"?C.accentDim:C.card,border:`1px solid ${dateRange.preset==="all"?C.accent+"55":C.border}`,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:dateRange.preset==="all"?C.accent:C.textDim,fontWeight:dateRange.preset==="all"?700:400}}>
+          All time
+        </button>
+      </>}
+      {isMobile && (
+        <button onClick={goAllTime}
+          style={{background:dateRange.preset==="all"?C.accentDim:C.card,border:`1px solid ${dateRange.preset==="all"?C.accent+"55":C.border}`,borderRadius:8,padding:"5px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:dateRange.preset==="all"?C.accent:C.textDim,fontWeight:dateRange.preset==="all"?700:400}}>
+          All
+        </button>
+      )}
     </div>
   );
 
@@ -4270,8 +4302,8 @@ export default function TradingPlatform({ session }) {
                 <ResponsiveContainer width="100%" height={180}>
                   <AreaChart data={LIVE_EQUITY}><defs><linearGradient id="eg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={C.accent} stopOpacity={.25}/><stop offset="95%" stopColor={C.accent} stopOpacity={0}/></linearGradient></defs>
                     <CartesianGrid stroke={C.border} strokeDasharray="3 3" vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`$${(v/1000).toFixed(1)}k`}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={v=>v?.slice(5)}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`$${(v/1000).toFixed(1)}k`} width={48}/>
                     <Tooltip content={<PnlTip/>}/>
                     <Area type="monotone" dataKey="equity" stroke={C.accent} strokeWidth={2} fill="url(#eg)" dot={false}/>
                   </AreaChart>
@@ -4283,8 +4315,8 @@ export default function TradingPlatform({ session }) {
                 {LIVE_PNL_DATA.length ? (
                 <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={LIVE_PNL_DATA}><CartesianGrid stroke={C.border} strokeDasharray="3 3" vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false}/>
-                    <YAxis tick={{fill:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`$${v}`}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={v=>v?.slice(5)}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`$${v}`} width={48}/>
                     <Tooltip content={<PnlTip/>}/><ReferenceLine y={0} stroke={C.border}/>
                     <Bar dataKey="pnl" radius={[4,4,0,0]}>{LIVE_PNL_DATA.map((d,i)=><Cell key={i} fill={d.pnl>=0?C.green:C.red}/>)}</Bar>
                   </BarChart>
