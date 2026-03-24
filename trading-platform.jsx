@@ -4563,6 +4563,38 @@ export default function TradingPlatform({ session }) {
           const nextMonth = () => goToMonth(drYear, drMonth+1);
           const isAllTime = dateRange.preset === "all";
 
+          const shareCalendar = async () => {
+            // Dynamically load html2canvas
+            if (!window.html2canvas) {
+              await new Promise((res, rej) => {
+                const s = document.createElement("script");
+                s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+                s.onload = res; s.onerror = rej;
+                document.head.appendChild(s);
+              });
+            }
+            const el = document.getElementById("fv-share-card");
+            if (!el) return;
+            el.style.display = "block";
+            try {
+              const canvas = await window.html2canvas(el, {
+                backgroundColor: "#0d1420",
+                scale: 2,
+                useCORS: true,
+                logging: false,
+              });
+              el.style.display = "none";
+              const url = canvas.toDataURL("image/png");
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `FundVault-${monthLabel.replace(" ","-")}.png`;
+              a.click();
+            } catch(e) {
+              el.style.display = "none";
+              alert("Could not generate image: " + e.message);
+            }
+          };
+
           return <div style={{display:"flex",flexDirection:"column",gap:22}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
               <div>
@@ -4586,6 +4618,12 @@ export default function TradingPlatform({ session }) {
                   <span style={{fontFamily:"'Space Mono',monospace",fontSize:12,color:C.text,minWidth:120,textAlign:"center"}}>{monthLabel}</span>
                   <button onClick={nextMonth} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 16px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:15,lineHeight:1}}>→</button>
                 </>}
+                {!isAllTime && tradingDays > 0 && (
+                  <button onClick={shareCalendar}
+                    style={{background:`linear-gradient(135deg,${C.accent}22,${C.purple}22)`,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
+                    ↗ Share
+                  </button>
+                )}
               </div>
             </div>
             {/* Stats — all-time shows totals, monthly shows month data */}
@@ -4666,6 +4704,93 @@ export default function TradingPlatform({ session }) {
               </div>
             </div>
             )}
+
+            {/* ── Hidden Share Card — rendered off-screen by html2canvas ── */}
+            <div id="fv-share-card" style={{
+              display:"none", position:"fixed", left:-9999, top:-9999,
+              background:"#0d1420", borderRadius:16, padding:28, width:520,
+              fontFamily:"'Space Mono',monospace",
+            }}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
+                    <circle cx="20" cy="20" r="18.5" fill="#0d1420" stroke="#00e5ff" strokeWidth="2"/>
+                    <circle cx="20" cy="20" r="14.5" fill="#111827"/>
+                    <rect x="18.2" y="1" width="3.6" height="5" rx="1.8" fill="#00e5ff"/>
+                    <rect x="18.2" y="34" width="3.6" height="5" rx="1.8" fill="#00e5ff"/>
+                    <rect x="1" y="18.2" width="5" height="3.6" rx="1.8" fill="#00e5ff"/>
+                    <rect x="34" y="18.2" width="5" height="3.6" rx="1.8" fill="#00e5ff"/>
+                    <text x="9.5" y="25" fontFamily="Arial Black,sans-serif" fontWeight="900" fontSize="15" fill="#00e5ff" letterSpacing="1.5">F</text>
+                    <text x="21" y="25" fontFamily="Arial Black,sans-serif" fontWeight="900" fontSize="15" fill="#a78bfa" letterSpacing="1.5">V</text>
+                  </svg>
+                  <div>
+                    <div style={{color:"#c8d8e8",fontSize:12,fontWeight:700,letterSpacing:"0.1em"}}>FUNDVAULT</div>
+                    <div style={{color:"#00e5ff",fontSize:8,letterSpacing:"0.12em"}}>PROP TRADING JOURNAL</div>
+                  </div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{color:"#4a6080",fontSize:9,letterSpacing:"0.08em",textTransform:"uppercase"}}>{monthLabel}</div>
+                  <div style={{color:monthPnl>=0?"#00d084":"#ff3d5a",fontSize:20,fontWeight:700,marginTop:2}}>
+                    {monthPnl>=0?"+":""}${Math.round(Math.abs(monthPnl)).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:5,marginBottom:6}}>
+                {["MON","TUE","WED","THU","FRI","SAT","SUN"].map(d=>(
+                  <div key={d} style={{textAlign:"center",fontSize:9,color:"#4a6080",padding:"3px 0"}}>{d}</div>
+                ))}
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:5}}>
+                {Array.from({length:firstDay}).map((_,i)=>(
+                  <div key={`e${i}`} style={{minHeight:48}}/>
+                ))}
+                {Array.from({length:daysInMonth},(_,i)=>i+1).map(day=>{
+                  const pnl2 = calPnl[day];
+                  const dow = new Date(year,month,day).getDay();
+                  const isWknd2 = dow===0||dow===6;
+                  return (
+                    <div key={day} style={{
+                      background:pnl2!==undefined?pnl2>=0?"rgba(0,208,132,0.08)":"rgba(255,61,90,0.08)":isWknd2?"transparent":"#111827",
+                      border:`1px solid ${pnl2!==undefined?pnl2>=0?"rgba(0,208,132,0.3)":"rgba(255,61,90,0.3)":"#1e2d3d"}`,
+                      borderRadius:6,padding:"7px 5px",minHeight:48,
+                      opacity:isWknd2&&pnl2===undefined?0.3:1,
+                    }}>
+                      <div style={{fontSize:9,color:"#4a6080"}}>{day}</div>
+                      {pnl2!==undefined&&(
+                        <div style={{marginTop:4,fontSize:11,fontWeight:700,color:pnl2>=0?"#00d084":"#ff3d5a"}}>
+                          {pnl2>=0?"+":""}${Math.round(pnl2)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:18,paddingTop:14,borderTop:"1px solid #1e2d3d"}}>
+                <div style={{display:"flex",gap:20}}>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:8,color:"#4a6080",letterSpacing:"0.08em",textTransform:"uppercase"}}>Win days</div>
+                    <div style={{fontSize:16,color:"#00d084",fontWeight:700,marginTop:2}}>{greenDays}</div>
+                  </div>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:8,color:"#4a6080",letterSpacing:"0.08em",textTransform:"uppercase"}}>Loss days</div>
+                    <div style={{fontSize:16,color:"#ff3d5a",fontWeight:700,marginTop:2}}>{redDays}</div>
+                  </div>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:8,color:"#4a6080",letterSpacing:"0.08em",textTransform:"uppercase"}}>Win rate</div>
+                    <div style={{fontSize:16,color:"#00e5ff",fontWeight:700,marginTop:2}}>
+                      {tradingDays?Math.round(greenDays/tradingDays*100):0}%
+                    </div>
+                  </div>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:8,color:"#4a6080",letterSpacing:"0.08em",textTransform:"uppercase"}}>Best day</div>
+                    <div style={{fontSize:16,color:"#00d084",fontWeight:700,marginTop:2}}>
+                      {bestDay?`+$${Math.round(bestDay).toLocaleString()}`:"–"}
+                    </div>
+                  </div>
+                </div>
+                <div style={{fontSize:9,color:"#2a3d50",letterSpacing:"0.06em"}}>fundvault.app</div>
+              </div>
+            </div>
           </div>;
         })()}
 
