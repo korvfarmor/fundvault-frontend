@@ -98,278 +98,143 @@ const MOOD_OPTIONS = [
 const ALL_TAGS = ["Kill Zone","Displacement","FVG","OB","BOS","CHoCH","Liquidity Sweep","FOMO","Revenge","Late entry","Oversize","News trade"];
 
 // Each firm has accountTypes — selecting one loads that type's rules + payout config.
+// ── Prop firm data (last verified March 2026) ─────────────────────────────
+// Rules change frequently — always verify on the firm's official website.
 const DEFAULT_PROP_FIRMS = [
   {
     id:"mffu", name:"MyFundedFutures", color:"#00e5ff",
-    activeType:"standard",
+    activeType:"core",
+    lastVerified:"March 2026",
+    website:"https://myfundedfutures.com",
     accountTypes:[
       {
-        id:"standard", label:"Standard", badge:"$50K",
-        accountSize:50000, payoutSplit:90, payoutFreq:"Bi-weekly (every 14 days)", minPayout:500,
-        description:"Classic eval + funded. EOD trailing drawdown. 40% consistency rule.",
-        payout:{ cycleTarget:3000, minDays:5, minProfit:200, buffer:2100, consistency:40 },
-        rules:[
-          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:1600,description:"3% of $50K = $1,500 + $100 buffer. Stops trailing at starting balance."},
-          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"Must reach $3,000 profit to pass evaluation"},
-          {id:"md",label:"Min Profitable Days",    type:"days",    value:5,   description:"5 days with $200+ profit per payout cycle"},
-          {id:"cs",label:"Consistency Rule (40%)", type:"consist", value:40,  description:"No single day can exceed 40% of total cycle profits"},
-          {id:"mh",label:"Min Hold Time",          type:"hold",    value:1,   description:"No scalping under 4 ticks (effectively ~1 min)"},
-        ]
-      },
-      {
-        id:"plus", label:"Standard+", badge:"$50K+",
-        accountSize:50000, payoutSplit:90, payoutFreq:"Bi-weekly", minPayout:500,
-        description:"Same as Standard but with Express pass option. 1-step eval.",
-        payout:{ cycleTarget:3000, minDays:5, minProfit:200, buffer:2100, consistency:40 },
-        rules:[
-          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:1600,description:"3% trailing — same as Standard"},
-          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"6% target — 1-step evaluation"},
-          {id:"md",label:"Min Profitable Days",    type:"days",    value:5,   description:"5 qualifying days per payout cycle"},
-          {id:"cs",label:"Consistency Rule (40%)", type:"consist", value:40,  description:"Max 40% of cycle profits from one day"},
-          {id:"mh",label:"Min Hold Time",          type:"hold",    value:1,   description:"No sub-minute scalping"},
-        ]
-      },
-      {
-        id:"instant", label:"Instant Funding", badge:"Instant",
+        id:"core", label:"Core", badge:"Core",
         accountSize:50000, payoutSplit:80, payoutFreq:"Bi-weekly", minPayout:500,
-        description:"Skip the eval — go straight to funded. Lower 80% split.",
-        payout:{ cycleTarget:2500, minDays:5, minProfit:200, buffer:2100, consistency:40 },
+        description:"EOD trailing drawdown. 40% consistency rule. $77/month. (July 2025 plan overhaul — old Starter/Expert plans discontinued.)",
+        payout:{ cycleTarget:3000, minDays:5, minProfit:200, buffer:1600, consistency:40 },
         rules:[
-          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:1600,description:"3% trailing drawdown — no eval required"},
-          {id:"md",label:"Min Profitable Days",    type:"days",    value:5,   description:"5 days $200+ per payout cycle"},
-          {id:"cs",label:"Consistency Rule (40%)", type:"consist", value:40,  description:"No single day exceeds 40% of cycle profits"},
-          {id:"mh",label:"Min Hold Time",          type:"hold",    value:1,   description:"Min ~1 min hold time"},
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:1500,description:"3% EOD trailing on $50K = $1,500. Trails at end of day. Locks when MLL reaches starting balance."},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"$3,000 (6%) to pass evaluation and move to funded"},
+          {id:"md",label:"Min Profitable Days",    type:"days",    value:5,   description:"5 days with $200+ profit per payout cycle"},
+          {id:"cs",label:"Consistency Rule (40%)", type:"consist", value:40,  description:"No single day can exceed 40% of total payout cycle profits"},
+          {id:"nd",label:"No Daily Loss Limit",    type:"info",    value:0,   description:"MFFU removed daily loss limits — no DLL on any plan"},
+        ]
+      },
+      {
+        id:"rapid", label:"Rapid", badge:"Rapid ★",
+        accountSize:50000, payoutSplit:90, payoutFreq:"Daily eligible", minPayout:500,
+        description:"Intraday trailing drawdown (stricter). 90/10 split (upgraded Jan 12, 2026). $129/month. Best split but harder drawdown.",
+        payout:{ cycleTarget:3000, minDays:5, minProfit:200, buffer:1600, consistency:40 },
+        rules:[
+          {id:"dd",label:"Intraday Trailing Drawdown", type:"drawdown",value:1500,description:"⚠ Intraday trailing — trails unrealized equity in real-time, not just EOD. More difficult than Core/Pro."},
+          {id:"pt",label:"Profit Target (Eval)",       type:"target",  value:3000,description:"$3,000 to pass evaluation"},
+          {id:"md",label:"Min Profitable Days",        type:"days",    value:5,   description:"5 profitable days ($200+) per payout cycle"},
+          {id:"cs",label:"Consistency Rule (40%)",     type:"consist", value:40,  description:"No single day > 40% of total cycle profits"},
+          {id:"nd",label:"No Daily Loss Limit",        type:"info",    value:0,   description:"No DLL on Rapid — intraday trailing drawdown is the only limit"},
+        ]
+      },
+      {
+        id:"pro", label:"Pro", badge:"Pro",
+        accountSize:50000, payoutSplit:80, payoutFreq:"Bi-weekly", minPayout:500,
+        description:"EOD drawdown like Core but no consistency rule on funded stage. $229/month. Best for inconsistent P&L patterns.",
+        payout:{ cycleTarget:3000, minDays:5, minProfit:200, buffer:1600, consistency:999 },
+        rules:[
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:1500,description:"3% EOD trailing — same as Core. Locks at starting balance."},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"$3,000 to pass evaluation"},
+          {id:"md",label:"Min Profitable Days",    type:"days",    value:5,   description:"5 profitable days per payout cycle"},
+          {id:"nd",label:"No Consistency Rule",    type:"info",    value:0,   description:"No consistency rule on funded stage — best day can be any % of cycle"},
+          {id:"na",label:"No Daily Loss Limit",    type:"info",    value:0,   description:"No DLL on any MFFU plan"},
         ]
       },
     ]
   },
   {
     id:"lucid", name:"Lucid Trading", color:"#a78bfa",
-    activeType:"pro",
+    activeType:"flex",
+    lastVerified:"March 2026",
+    website:"https://lucidtrading.com",
     accountTypes:[
+      {
+        id:"flex", label:"LucidFlex", badge:"Flex ★",
+        accountSize:50000, payoutSplit:90, payoutFreq:"Daily eligible (5 days/cycle)", minPayout:500,
+        description:"No DLL. No consistency rule. EOD trailing. One-time fee. Best Lucid plan for aggressive traders. (LucidBlack discontinued Feb 2026.)",
+        payout:{ cycleTarget:3000, minDays:5, minProfit:0, buffer:100, consistency:999 },
+        rules:[
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:2000,description:"$2,000 EOD trailing on $50K. Locks permanently at starting balance once reached."},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"$3,000 (6%) profit target on $50K. Min 5 trading days."},
+          {id:"md",label:"Min Trading Days",       type:"days",    value:5,   description:"5 trading days minimum during evaluation"},
+          {id:"nc",label:"No Consistency Rule",    type:"info",    value:0,   description:"Zero consistency rule on funded stage — one big day is fine"},
+          {id:"nd",label:"No Daily Loss Limit",    type:"info",    value:0,   description:"No DLL on LucidFlex — only the EOD trailing drawdown"},
+        ]
+      },
       {
         id:"pro", label:"LucidPro", badge:"Pro",
         accountSize:50000, payoutSplit:90, payoutFreq:"Daily eligible (5 days/cycle)", minPayout:500,
-        description:"Standard funded plan. 35% consistency rule applies. Best for disciplined traders.",
-        payout:{ cycleTarget:2000, minDays:5, minProfit:0, buffer:100, consistency:35 },
+        description:"40% consistency rule. 100% of first $10K then 90/10. One-time fee. EOD trailing.",
+        payout:{ cycleTarget:3000, minDays:5, minProfit:0, buffer:100, consistency:40 },
         rules:[
-          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:2000,description:"4% trailing from starting balance. EOD only — intraday moves don't update MLL."},
-          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:2000,description:"Pass by hitting 4% profit target"},
-          {id:"md",label:"Min Profitable Days",    type:"days",    value:5,   description:"5 profitable days per payout cycle"},
-          {id:"cs",label:"Consistency Rule (35%)", type:"consist", value:35,  description:"Largest single day ≤ 35% of total cycle profit"},
-          {id:"cl",label:"Close by 4:45 PM EST",   type:"hold",    value:1,   description:"All positions must be flat by 4:45 PM EST"},
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:2000,description:"$2,000 EOD trailing on $50K. Never adjusts intraday."},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"$3,000 profit target to pass"},
+          {id:"md",label:"Min Trading Days",       type:"days",    value:5,   description:"5 trading days minimum in eval"},
+          {id:"cs",label:"Consistency Rule (40%)", type:"consist", value:40,  description:"No single day > 40% of total payout cycle profits"},
+          {id:"dl",label:"Daily Loss Limit",       type:"loss",    value:600, description:"20% of profit target = ~$600 DLL on $50K account"},
         ]
       },
       {
-        id:"flex", label:"LucidFlex", badge:"Flex",
-        accountSize:50000, payoutSplit:90, payoutFreq:"Daily eligible (5 days/cycle)", minPayout:500,
-        description:"More flexible — no consistency rule once funded. Great for aggressive scalpers.",
-        payout:{ cycleTarget:2000, minDays:5, minProfit:0, buffer:100, consistency:999 },
+        id:"direct", label:"LucidDirect", badge:"Direct",
+        accountSize:50000, payoutSplit:90, payoutFreq:"Daily eligible", minPayout:500,
+        description:"Skip eval entirely — instant funded. Soft DLL (account paused, not failed). 100% of first $10K then 90/10.",
+        payout:{ cycleTarget:3000, minDays:5, minProfit:0, buffer:100, consistency:40 },
         rules:[
-          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:2000,description:"4% trailing from starting balance. EOD only."},
-          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:2000,description:"Pass by hitting 4% profit target"},
-          {id:"md",label:"Min Profitable Days",    type:"days",    value:5,   description:"5 profitable days per payout cycle"},
-          {id:"cl",label:"Close by 4:45 PM EST",   type:"hold",    value:1,   description:"All positions must be flat by 4:45 PM EST"},
-          // No consistency rule in Flex
-        ]
-      },
-      {
-        id:"black", label:"LucidBlack", badge:"Black ★",
-        accountSize:100000, payoutSplit:95, payoutFreq:"Daily eligible (3 days/cycle)", minPayout:1000,
-        description:"Elite tier. $100K account, 95% split, only 3 qualifying days needed.",
-        payout:{ cycleTarget:4000, minDays:3, minProfit:0, buffer:100, consistency:999 },
-        rules:[
-          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:4000,description:"4% trailing on $100K = $4,000 MLL"},
-          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:4000,description:"4% profit target on $100K account"},
-          {id:"md",label:"Min Profitable Days",    type:"days",    value:3,   description:"Only 3 qualifying days per payout cycle"},
-          {id:"cl",label:"Close by 4:45 PM EST",   type:"hold",    value:1,   description:"All positions flat by 4:45 PM EST"},
-        ]
-      },
-      {
-        id:"zero", label:"LucidZero", badge:"Zero",
-        accountSize:50000, payoutSplit:90, payoutFreq:"Bi-weekly", minPayout:500,
-        description:"No evaluation needed — skip straight to funded. 90% split.",
-        payout:{ cycleTarget:2000, minDays:5, minProfit:0, buffer:100, consistency:999 },
-        rules:[
-          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:2000,description:"4% trailing drawdown — no eval step"},
-          {id:"md",label:"Min Profitable Days",    type:"days",    value:5,   description:"5 profitable days per payout cycle"},
-          {id:"cl",label:"Close by 4:45 PM EST",   type:"hold",    value:1,   description:"Positions flat by 4:45 PM EST"},
-        ]
-      },
-    ]
-  },
-  {
-    id:"alpha", name:"Alpha Futures", color:"#f59e0b",
-    activeType:"standard",
-    accountTypes:[
-      {
-        id:"standard", label:"Standard", badge:"Standard",
-        accountSize:50000, payoutSplit:90, payoutFreq:"Bi-weekly", minPayout:200,
-        description:"Classic plan. 40% consistency rule. Bi-weekly payouts.",
-        payout:{ cycleTarget:3000, minDays:5, minProfit:200, buffer:0, consistency:40 },
-        rules:[
-          {id:"dd", label:"EOD Trailing Drawdown",  type:"drawdown",value:2000,description:"4% trailing from daily balance. EOD — not intraday."},
-          {id:"dlg",label:"Daily Loss Guard (2%)",  type:"loss",    value:1000,description:"Soft lock at 2% loss ($1,000). Account paused for the day — not a full breach."},
-          {id:"pt", label:"Profit Target (Eval)",   type:"target",  value:3000,description:"6% target on Standard ($3,000 on $50K)"},
-          {id:"md", label:"Min Winning Days",       type:"days",    value:5,   description:"5 winning days of $200+ per payout cycle"},
-          {id:"cs", label:"Consistency Rule (40%)", type:"consist", value:40,  description:"No single day > 40% of total cycle profit"},
-        ]
-      },
-      {
-        id:"zero", label:"Zero", badge:"Zero",
-        accountSize:50000, payoutSplit:90, payoutFreq:"Bi-weekly", minPayout:200,
-        description:"No evaluation step — instant funded. 40% consistency rule applies.",
-        payout:{ cycleTarget:3000, minDays:5, minProfit:200, buffer:0, consistency:40 },
-        rules:[
-          {id:"dd", label:"EOD Trailing Drawdown",  type:"drawdown",value:2000,description:"4% trailing drawdown — instant funded"},
-          {id:"dlg",label:"Daily Loss Guard (2%)",  type:"loss",    value:1000,description:"2% soft lock — account paused not breached"},
-          {id:"md", label:"Min Winning Days",       type:"days",    value:5,   description:"5 winning days of $200+ per payout cycle"},
-          {id:"cs", label:"Consistency Rule (40%)", type:"consist", value:40,  description:"Max 40% of cycle profit from one day"},
-        ]
-      },
-      {
-        id:"advanced", label:"Advanced", badge:"Advanced ★",
-        accountSize:50000, payoutSplit:90, payoutFreq:"Weekly", minPayout:200,
-        description:"No consistency rule. Weekly payouts. Best for high-variance traders.",
-        payout:{ cycleTarget:3000, minDays:5, minProfit:200, buffer:0, consistency:999 },
-        rules:[
-          {id:"dd", label:"EOD Trailing Drawdown",  type:"drawdown",value:2000,description:"4% trailing — same as Standard"},
-          {id:"dlg",label:"Daily Loss Guard (2%)",  type:"loss",    value:1000,description:"2% soft daily lock — not a hard breach"},
-          {id:"pt", label:"Profit Target (Eval)",   type:"target",  value:3000,description:"6% profit target to pass eval"},
-          {id:"md", label:"Min Winning Days",       type:"days",    value:5,   description:"5 winning days of $200+ per cycle"},
-          // No consistency rule in Advanced
-        ]
-      },
-    ]
-  },
-  {
-    id:"tpt", name:"TakeProfitTrader", color:"#22d3ee",
-    activeType:"pro",
-    accountTypes:[
-      {
-        id:"test", label:"Test (Eval)", badge:"Eval",
-        accountSize:50000, payoutSplit:0, payoutFreq:"N/A — evaluation phase", minPayout:0,
-        description:"One-step evaluation. EOD trailing drawdown. No daily loss limit. 50% consistency rule. Monthly subscription.",
-        payout:{ cycleTarget:3000, minDays:5, minProfit:0, buffer:0, consistency:50 },
-        rules:[
-          {id:"dd", label:"EOD Trailing Drawdown", type:"drawdown", value:2000, description:"$2,000 max drawdown on $50K. Calculated at EOD — intraday dips don't count. Stops trailing at starting balance."},
-          {id:"pt", label:"Profit Target (6%)",    type:"target",   value:3000, description:"Hit $3,000 profit (6%) to pass and move to PRO account"},
-          {id:"md", label:"Min Trading Days",       type:"days",     value:5,   description:"Must trade minimum 5 days before passing"},
-          {id:"cs", label:"Consistency Rule (50%)", type:"consist",  value:50,  description:"No single day can be > 50% of total profits. E.g. targeting $3K — no day over $1,500."},
-          {id:"ps", label:"Max Position Size",      type:"hold",     value:1,   description:"$50K account: max 6 mini contracts or 60 micro contracts"},
-          {id:"cl", label:"Close by 4:10 PM EST",   type:"hold",     value:1,   description:"All positions must be closed by 4:10 PM EST. No overnight holds."},
-        ]
-      },
-      {
-        id:"pro", label:"PRO", badge:"PRO",
-        accountSize:50000, payoutSplit:80, payoutFreq:"Daily (once above buffer)", minPayout:0,
-        description:"Funded account. Intraday trailing drawdown (more strict than eval). 80% split. Buffer zone = max drawdown. No consistency rule.",
-        payout:{ cycleTarget:2000, minDays:1, minProfit:0, buffer:2000, consistency:999 },
-        rules:[
-          {id:"dd", label:"Intraday Trailing Drawdown", type:"drawdown", value:2000, description:"⚠ Intraday — trails unrealized profit in real-time. Buffer zone = $2,000. Need $52,000 balance before first withdrawal."},
-          {id:"bf", label:"Buffer Zone ($2,000)",       type:"target",   value:2000, description:"Must reach balance + drawdown ($52,000 on $50K) before any payout. Buffer releases 50–80% at account close."},
-          {id:"ps", label:"Max Position Size",          type:"hold",     value:1,   description:"$50K: max 6 minis / 60 micros. Same as eval."},
-          {id:"cl", label:"Close by 4:10 PM EST",       type:"hold",     value:1,   description:"All positions flat by 4:10 PM EST. No overnight."},
-          // No daily loss limit (removed Jan 2025)
-          // No consistency rule in PRO
-        ]
-      },
-      {
-        id:"proplus", label:"PRO+", badge:"PRO+ ★",
-        accountSize:50000, payoutSplit:90, payoutFreq:"Daily (no buffer required)", minPayout:0,
-        description:"Live-market elite tier. EOD drawdown (back to eval rules). 90% split. No buffer. Upgrade requires $10K profit in a single PRO day.",
-        payout:{ cycleTarget:0, minDays:1, minProfit:0, buffer:0, consistency:999 },
-        rules:[
-          {id:"dd", label:"EOD Trailing Drawdown", type:"drawdown", value:2000, description:"Back to EOD calculation — much more forgiving than PRO intraday. Stops trailing at starting balance."},
-          {id:"ps", label:"Max Position Size",      type:"hold",     value:1,   description:"$50K: max 6 minis / 60 micros"},
-          {id:"cl", label:"Close by 4:10 PM EST",   type:"hold",     value:1,   description:"Positions flat by 4:10 PM EST"},
-          // No daily loss limit, no buffer, no consistency rule
-        ]
-      },
-    ]
-  },
-  {
-    id:"tradeify", name:"Tradeify", color:"#34d399",
-    activeType:"selectflex",
-    accountTypes:[
-      {
-        id:"selectflex", label:"Select Flex", badge:"Best ★",
-        accountSize:50000, payoutSplit:90, payoutFreq:"Every 5 winning days", minPayout:500,
-        description:"Best Tradeify option. No DLL, no consistency rule once funded. Drawdown locks at $50,100 after first payout — account can never fail from drawdown again.",
-        payout:{ cycleTarget:2000, minDays:5, minProfit:0, buffer:0, consistency:999 },
-        rules:[
-          {id:"dd", label:"EOD Trailing Drawdown",  type:"drawdown", value:2000, description:"$2,000 trailing on $50K. Locks at $50,100 permanently after first payout — you can't fail from drawdown after that."},
-          {id:"pt", label:"Profit Target (Eval)",   type:"target",   value:2000, description:"Pass 3-day minimum eval with $2,000 profit target on $50K"},
-          {id:"md", label:"5 Winning Days",         type:"days",     value:5,   description:"5 profitable days required per payout cycle (any $ amount)"},
-          {id:"np", label:"Net Positive Between",   type:"consist",  value:999, description:"Must have net positive profit between payout cycles (even $1). Not a hard rule but required for payout approval."},
-          // No DLL, no consistency rule
-        ]
-      },
-      {
-        id:"selectdaily", label:"Select Daily", badge:"Daily",
-        accountSize:50000, payoutSplit:90, payoutFreq:"Daily (once conditions met)", minPayout:150,
-        description:"Daily payouts but with Daily Loss Limit and stricter consistency. Good for scalpers who want fast access but can manage the tighter rules.",
-        payout:{ cycleTarget:1500, minDays:5, minProfit:150, buffer:0, consistency:35 },
-        rules:[
-          {id:"dd", label:"EOD Trailing Drawdown",  type:"drawdown", value:2000, description:"$2,000 EOD trailing. Same locking mechanism as Flex after first payout."},
-          {id:"dl", label:"Daily Loss Limit",       type:"loss",     value:1000, description:"Hard daily loss limit of $1,000 on $50K. Pauses trading for the day if hit."},
-          {id:"pt", label:"Profit Target (Eval)",   type:"target",   value:2000, description:"$2,000 profit target on $50K eval"},
-          {id:"md", label:"5 Winning Days",         type:"days",     value:5,   description:"5 profitable days ($150+) per payout cycle"},
-          {id:"cs", label:"Consistency Rule (35%)", type:"consist",  value:35,  description:"No single day > 35% of total cycle profits. Starts at 20% first payout, scales to 35%."},
-        ]
-      },
-      {
-        id:"lightning", label:"Lightning Funded", badge:"Instant",
-        accountSize:50000, payoutSplit:90, payoutFreq:"Bi-weekly", minPayout:1000,
-        description:"Skip the eval entirely — instant sim-funded account. One-time fee. Progressive consistency rule (20–35%). Cannot be reset if failed.",
-        payout:{ cycleTarget:3000, minDays:7, minProfit:150, buffer:100, consistency:20 },
-        rules:[
-          {id:"dd", label:"EOD Trailing Drawdown",  type:"drawdown", value:2000, description:"$2,000 EOD trailing. Locks at $50,100 once you build sufficient profit buffer."},
-          {id:"md", label:"Min 7 Trading Days",     type:"days",     value:7,   description:"7 trading days min, with 5 profitable days ($150+) per payout cycle"},
-          {id:"cs", label:"Consistency (20–35%)",   type:"consist",  value:20,  description:"Progressive: starts at 20% for first payout, gradually increases. No single day can dominate."},
-          {id:"np", label:"Net Positive Balance",   type:"consist",  value:999, description:"Account must be $100 above drawdown floor at time of payout request"},
-        ]
-      },
-      {
-        id:"growth", label:"Growth", badge:"Eval",
-        accountSize:50000, payoutSplit:90, payoutFreq:"Bi-weekly", minPayout:1000,
-        description:"Monthly eval subscription with EOD drawdown. Good for traders who want a lower-cost way in. Large buffer before first payout.",
-        payout:{ cycleTarget:3000, minDays:7, minProfit:150, buffer:2100, consistency:35 },
-        rules:[
-          {id:"dd", label:"EOD Trailing Drawdown",  type:"drawdown", value:2000, description:"EOD trailing — same as Select. Locks at $50,100 once funded."},
-          {id:"pt", label:"Profit Target (Eval)",   type:"target",   value:2000, description:"Pass $2,000 profit target to unlock funded status"},
-          {id:"md", label:"Min 7 Trading Days",     type:"days",     value:7,   description:"7 days min with 5 profitable ($150+) to qualify for payout"},
-          {id:"cs", label:"Consistency Rule (35%)", type:"consist",  value:35,  description:"Max 35% of total cycle profits from one day"},
-          {id:"bf", label:"Buffer Before Payout",   type:"target",   value:2100, description:"Must reach $52,100 balance (= starting + drawdown + $100) before any payout is eligible"},
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:2000,description:"$2,000 EOD trailing. No eval required."},
+          {id:"md",label:"Min Trading Days",       type:"days",    value:5,   description:"5 trading days per payout cycle"},
+          {id:"cs",label:"Consistency Rule (40%)", type:"consist", value:40,  description:"Max 40% of cycle profit from one day"},
+          {id:"dl",label:"Soft Daily Loss Limit",  type:"loss",    value:600, description:"Soft DLL — account paused for the day if breached, not permanently failed"},
         ]
       },
     ]
   },
   {
     id:"apex", name:"Apex Trader Funding", color:"#f97316",
-    activeType:"full",
+    activeType:"eod50",
+    lastVerified:"March 2026",
+    website:"https://apextraderfunding.com",
     accountTypes:[
       {
-        id:"full", label:"Full", badge:"$50K",
-        accountSize:50000, payoutSplit:90, payoutFreq:"Every 14 days", minPayout:500,
-        description:"No daily loss limit. No consistency rule. No minimum days. Simple and flexible.",
-        payout:{ cycleTarget:3000, minDays:0, minProfit:0, buffer:0, consistency:999 },
+        id:"eod50", label:"EOD $50K", badge:"EOD",
+        accountSize:50000, payoutSplit:100, payoutFreq:"Twice/month (8 trading days min)", minPayout:500,
+        description:"100% of first $25K, then 90/10. EOD trailing. DLL only on EOD accounts. March 2026 overhaul: no min trading days in eval. 30-day eval time limit.",
+        payout:{ cycleTarget:3000, minDays:5, minProfit:0, buffer:2600, consistency:50 },
         rules:[
-          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:2500,description:"5% trailing drawdown on $50K = $2,500. Trails at EOD, stops at starting balance."},
-          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"Must hit $3,000 (6%) to pass evaluation and go funded"},
-          {id:"mh",label:"Min Hold Time",          type:"hold",    value:1,   description:"Trades must be held at least 30 seconds (no tick-scalping)"},
-          // No daily loss, no consistency rule, no min days
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:2500,description:"$2,500 trailing on $50K. EOD — doesn't trail intraday. Stops at starting balance."},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"$3,000 to pass. No minimum trading days (removed March 2026). 30-day calendar limit."},
+          {id:"dl",label:"Daily Loss Limit (EOD)", type:"loss",    value:1000,description:"$1,000 DLL on EOD accounts only. Pauses trading for the day — does not fail account."},
+          {id:"cs",label:"Consistency Rule (50%)", type:"consist", value:50,  description:"No single day > 50% of total profits since last payout (funded phase only)"},
+          {id:"bf",label:"Safety Net Buffer",      type:"target",  value:2600,description:"Balance must be $52,600 ($50K + $2,500 + $100) to submit payout request"},
         ]
       },
       {
-        id:"static", label:"Static", badge:"Static",
-        accountSize:50000, payoutSplit:90, payoutFreq:"Every 14 days", minPayout:500,
-        description:"Static (non-trailing) max loss instead of trailing drawdown. Easier to manage.",
-        payout:{ cycleTarget:3000, minDays:0, minProfit:0, buffer:0, consistency:999 },
+        id:"intraday50", label:"Intraday $50K", badge:"Intraday",
+        accountSize:50000, payoutSplit:100, payoutFreq:"Twice/month (8 trading days min)", minPayout:500,
+        description:"Same as EOD but with intraday trailing drawdown (harder). No DLL. 100% of first $25K.",
+        payout:{ cycleTarget:3000, minDays:5, minProfit:0, buffer:2600, consistency:50 },
         rules:[
-          {id:"dd",label:"Static Max Loss",        type:"drawdown",value:2500,description:"$2,500 static max loss — does NOT trail. Balance can never drop below $47,500."},
-          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"$3,000 profit target to pass evaluation"},
-          {id:"mh",label:"Min Hold Time",          type:"hold",    value:1,   description:"Min 30-second hold time"},
+          {id:"dd",label:"Intraday Trailing Drawdown", type:"drawdown",value:2500,description:"⚠ Trails unrealized equity tick-by-tick. Hardest drawdown type — even intraday highs move the floor."},
+          {id:"pt",label:"Profit Target (Eval)",       type:"target",  value:3000,description:"$3,000 profit target. 30-day calendar limit."},
+          {id:"nd",label:"No Daily Loss Limit",        type:"info",    value:0,   description:"No DLL on intraday accounts — trailing drawdown is the only limit"},
+          {id:"cs",label:"Consistency Rule (50%)",     type:"consist", value:50,  description:"No single day > 50% of profits since last payout"},
+        ]
+      },
+      {
+        id:"eod100", label:"EOD $100K", badge:"$100K EOD",
+        accountSize:100000, payoutSplit:100, payoutFreq:"Twice/month", minPayout:500,
+        description:"$100K account. $6,000 profit target. 100% of first $25K per account.",
+        payout:{ cycleTarget:6000, minDays:5, minProfit:0, buffer:3100, consistency:50 },
+        rules:[
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:3000,description:"$3,000 trailing on $100K. EOD calculation."},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:6000,description:"$6,000 to pass. No minimum days."},
+          {id:"dl",label:"Daily Loss Limit",       type:"loss",    value:1500,description:"$1,500 DLL on $100K EOD — pauses day, doesn't fail account"},
+          {id:"cs",label:"Consistency Rule (50%)", type:"consist", value:50,  description:"No single day > 50% of profits since last payout"},
         ]
       },
     ]
@@ -377,29 +242,94 @@ const DEFAULT_PROP_FIRMS = [
   {
     id:"topstep", name:"Topstep", color:"#3b82f6",
     activeType:"50k",
+    lastVerified:"March 2026",
+    website:"https://topstep.com",
     accountTypes:[
       {
-        id:"50k", label:"$50K", badge:"$50K",
-        accountSize:50000, payoutSplit:90, payoutFreq:"Every 7 days", minPayout:100,
-        description:"First $10K earned at 100% split. Then 90%. Daily loss limit applies. No consistency rule.",
-        payout:{ cycleTarget:2000, minDays:1, minProfit:100, buffer:0, consistency:999 },
+        id:"50k", label:"$50K Combine", badge:"$50K",
+        accountSize:50000, payoutSplit:90, payoutFreq:"Weekly (5 winning days)", minPayout:100,
+        description:"Since Jan 2026: flat 90/10 from first payout (no longer 100% first $10K for new accounts). EOD trailing. 10 profitable days min to pass eval — highest in industry. TopstepX platform mandatory for new accounts.",
+        payout:{ cycleTarget:3000, minDays:5, minProfit:150, buffer:0, consistency:40 },
         rules:[
-          {id:"dd",label:"Max Loss (Trailing)",    type:"drawdown",value:2000,description:"$2,000 trailing drawdown. Trails intraday on $50K account."},
-          {id:"dl",label:"Daily Loss Limit",       type:"loss",    value:1000,description:"Max $1,000 loss per day. Account locked for the day if breached."},
-          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"$3,000 to pass the Trading Combine and go funded"},
-          {id:"mh",label:"Min Hold Time",          type:"hold",    value:1,   description:"No scalping under 10 seconds"},
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:2000,description:"$2,000 MLL on $50K. EOD — intraday dips don't count. Trails upward with profits."},
+          {id:"dl",label:"Daily Loss Limit",       type:"loss",    value:1000,description:"$1,000 DLL. Breach = account failed (not just paused). Intraday — includes unrealized losses."},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"$3,000 to pass Trading Combine. Min 10 profitable days required (highest in industry)."},
+          {id:"md",label:"Min 10 Profitable Days", type:"days",    value:10,  description:"Must have 10 profitable trading days to pass eval — stricter than most firms"},
+          {id:"cs",label:"Consistency Rule (40%)", type:"consist", value:40,  description:"No single day > 40% of total payout cycle profits"},
+          {id:"wk",label:"Weekend Close Required", type:"hold",    value:1,   description:"All positions must be flat by 4 PM ET Friday. No weekend holds."},
         ]
       },
       {
-        id:"100k", label:"$100K", badge:"$100K",
-        accountSize:100000, payoutSplit:90, payoutFreq:"Every 7 days", minPayout:100,
-        description:"Larger account. Same rules scaled to $100K.",
-        payout:{ cycleTarget:5000, minDays:1, minProfit:100, buffer:0, consistency:999 },
+        id:"100k", label:"$100K Combine", badge:"$100K",
+        accountSize:100000, payoutSplit:90, payoutFreq:"Weekly (5 winning days)", minPayout:100,
+        description:"$100K account. Same rules scaled. $99/month.",
+        payout:{ cycleTarget:6000, minDays:5, minProfit:150, buffer:0, consistency:40 },
         rules:[
-          {id:"dd",label:"Max Loss (Trailing)",    type:"drawdown",value:3000,description:"$3,000 trailing drawdown on $100K account."},
-          {id:"dl",label:"Daily Loss Limit",       type:"loss",    value:2000,description:"Max $2,000 loss per day on $100K account."},
-          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:5000,description:"$5,000 profit target to pass the Combine"},
-          {id:"mh",label:"Min Hold Time",          type:"hold",    value:1,   description:"No scalping under 10 seconds"},
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:3000,description:"$3,000 MLL on $100K. EOD calculation."},
+          {id:"dl",label:"Daily Loss Limit",       type:"loss",    value:2000,description:"$2,000 DLL — breach fails account immediately"},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:6000,description:"$6,000 profit target. Min 10 profitable days."},
+          {id:"md",label:"Min 10 Profitable Days", type:"days",    value:10,  description:"10 profitable days minimum to pass eval"},
+          {id:"cs",label:"Consistency Rule (40%)", type:"consist", value:40,  description:"No single day > 40% of cycle profits"},
+          {id:"wk",label:"Weekend Close Required", type:"hold",    value:1,   description:"All positions flat by 4 PM ET Friday"},
+        ]
+      },
+      {
+        id:"150k", label:"$150K Combine", badge:"$150K",
+        accountSize:150000, payoutSplit:90, payoutFreq:"Weekly", minPayout:100,
+        description:"Largest Topstep account. $149/month.",
+        payout:{ cycleTarget:9000, minDays:5, minProfit:150, buffer:0, consistency:40 },
+        rules:[
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:4500,description:"$4,500 MLL on $150K. EOD calculation."},
+          {id:"dl",label:"Daily Loss Limit",       type:"loss",    value:3000,description:"$3,000 DLL — breach fails account"},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:9000,description:"$9,000 profit target. Min 10 profitable days."},
+          {id:"md",label:"Min 10 Profitable Days", type:"days",    value:10,  description:"10 profitable days minimum"},
+          {id:"cs",label:"Consistency Rule (40%)", type:"consist", value:40,  description:"No single day > 40% of cycle profits"},
+          {id:"wk",label:"Weekend Close Required", type:"hold",    value:1,   description:"All positions flat by 4 PM ET Friday"},
+        ]
+      },
+    ]
+  },
+  {
+    id:"tradeify", name:"Tradeify", color:"#34d399",
+    activeType:"selectflex",
+    lastVerified:"March 2026",
+    website:"https://tradeify.co",
+    accountTypes:[
+      {
+        id:"selectflex", label:"Select Flex", badge:"Best ★",
+        accountSize:50000, payoutSplit:90, payoutFreq:"Every 5 winning days", minPayout:500,
+        description:"No DLL, no consistency rule funded. Drawdown locks permanently at $50,100 after first payout — can never fail from drawdown after that. Best Tradeify plan.",
+        payout:{ cycleTarget:2000, minDays:5, minProfit:0, buffer:0, consistency:999 },
+        rules:[
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:2000,description:"$2,000 trailing on $50K. Locks permanently at $50,100 after first payout — drawdown failure impossible afterwards."},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:2000,description:"$2,000 to pass. Min 3 trading days in eval."},
+          {id:"md",label:"5 Winning Days",         type:"days",    value:5,   description:"5 profitable days per payout cycle (any $ amount counts)"},
+          {id:"nc",label:"No Consistency Rule",    type:"info",    value:0,   description:"No consistency rule on funded stage"},
+          {id:"nd",label:"No Daily Loss Limit",    type:"info",    value:0,   description:"No DLL on Select Flex"},
+        ]
+      },
+      {
+        id:"selectdaily", label:"Select Daily", badge:"Daily",
+        accountSize:50000, payoutSplit:90, payoutFreq:"Daily (once conditions met)", minPayout:150,
+        description:"Daily payouts but with DLL and 35% consistency rule. Good for high-frequency traders.",
+        payout:{ cycleTarget:1500, minDays:5, minProfit:150, buffer:0, consistency:35 },
+        rules:[
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:2000,description:"$2,000 EOD trailing. Same locking mechanism as Flex after first payout."},
+          {id:"dl",label:"Daily Loss Limit",       type:"loss",    value:1000,description:"$1,000 hard DLL on $50K — pauses trading for the day"},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:2000,description:"$2,000 profit target in eval"},
+          {id:"md",label:"5 Winning Days",         type:"days",    value:5,   description:"5 profitable days ($150+) per payout cycle"},
+          {id:"cs",label:"Consistency Rule (35%)", type:"consist", value:35,  description:"No single day > 35% of total cycle profits"},
+        ]
+      },
+      {
+        id:"lightning", label:"Lightning Funded", badge:"Instant",
+        accountSize:50000, payoutSplit:90, payoutFreq:"Bi-weekly", minPayout:1000,
+        description:"Skip eval entirely. One-time fee. Progressive consistency rule. Cannot be reset if failed.",
+        payout:{ cycleTarget:3000, minDays:7, minProfit:150, buffer:100, consistency:20 },
+        rules:[
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:2000,description:"$2,000 EOD trailing. Locks at $50,100 once sufficient buffer built."},
+          {id:"md",label:"Min 7 Trading Days",     type:"days",    value:7,   description:"7 trading days min with 5 profitable ($150+) per payout cycle"},
+          {id:"cs",label:"Consistency (20–35%)",   type:"consist", value:20,  description:"Progressive: starts 20% first payout, increases over time. No single day can dominate."},
         ]
       },
     ]
@@ -5563,12 +5493,30 @@ export default function TradingPlatform({ session }) {
         {/* ── PROP FIRM ───────────────────────────────────────────────────────── */}
         {tab==="propfirm"&&(()=>{
 
-          // ── Wizard modal ─────────────────────────────────────────────────────
+          // ── Disclaimer banner ─────────────────────────────────────────────────
+          const RuleDisclaimer = () => (
+            <div style={{background:`${C.amber}0d`,border:`1px solid ${C.amber}44`,borderRadius:10,padding:"12px 16px",display:"flex",gap:10,alignItems:"flex-start"}}>
+              <span style={{fontSize:16,flexShrink:0}}>⚠️</span>
+              <div>
+                <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.amber,fontWeight:700}}>RULES VERIFIED MARCH 2026 — </span>
+                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim}}>Prop firm rules change frequently without notice. Always verify current rules on your firm's official website before trading. FundVault is not responsible for rule inaccuracies.</span>
+                <div style={{display:"flex",gap:12,marginTop:6,flexWrap:"wrap"}}>
+                  {DEFAULT_PROP_FIRMS.map(f=>(
+                    <a key={f.id} href={f.website} target="_blank" rel="noreferrer"
+                      style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.accent,letterSpacing:"0.04em"}}>
+                      {f.name} ↗
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
 
 
           // ── Empty state ───────────────────────────────────────────────────────
           if (propAccounts.length === 0) return (
             <div style={{display:"flex",flexDirection:"column",gap:22}}>
+              <RuleDisclaimer />
               {showPropWizard && <PropFirmWizardModal
             C={C}
             wizardStep={wizardStep} setWizardStep={setWizardStep}
@@ -5627,6 +5575,7 @@ export default function TradingPlatform({ session }) {
           const ptRule = curType?.rules?.find(r=>r.type==="target");
 
           return <div style={{display:"flex",flexDirection:"column",gap:22}}>
+            <RuleDisclaimer />
             {showPropWizard && <PropFirmWizardModal
             C={C}
             wizardStep={wizardStep} setWizardStep={setWizardStep}
