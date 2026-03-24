@@ -3337,7 +3337,12 @@ export default function TradingPlatform({ session }) {
       ? propAccounts.map(a => a.id===editingPropAcc ? {...newAcc, id:editingPropAcc} : a)
       : [...propAccounts, newAcc];
     savePropAccounts(updated);
-    if (!activePropAccId || editingPropAcc === activePropAccId) setActivePropAccount(newAcc.id);
+    // Set active account directly — don't rely on setActivePropAccount which reads stale propAccounts
+    const targetId = editingPropAcc || newAcc.id;
+    setActivePropAccId(targetId);
+    localStorage.setItem("fv_active_prop_acc", targetId);
+    setActiveFirm(wizardFirmId);
+    setFirmAccountType(wizardFirmId, wizardTypeId);
     setShowPropWizard(false);
     setWizardStep(1); setWizardFirmId(null); setWizardTypeId(null);
     setWizardBalance(""); setWizardNickname(""); setEditingPropAcc(null);
@@ -3923,7 +3928,7 @@ export default function TradingPlatform({ session }) {
     if (!acc) return null;
     const firm = firms?.find(f=>f.id===acc.firmId);
     if (!firm) return null;
-    const plan = firm.plans?.find(p=>p.id===acc.planId);
+    const plan = firm.accountTypes?.find(p=>p.id===acc.typeId);
     if (!plan) return null;
     const dlRule = plan.rules?.find(r=>r.id==="dl");
     return dlRule ? { limit: dlRule.value, nickname: acc.nickname } : null;
