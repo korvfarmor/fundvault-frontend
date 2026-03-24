@@ -3716,7 +3716,20 @@ export default function TradingPlatform({ session }) {
     const today = (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })();
     psychApi.checkins({from:today,to:today}).then(data => {
       if (data?.[0]) { setMood(data[0].mood||0); setHChecks(data[0].habits||{}); setNote(data[0].note||""); }
-    }).catch(()=>{});
+      else {
+        // Fallback: load from localStorage
+        try {
+          const saved = JSON.parse(localStorage.getItem("fv_checkins")||"{}")[today];
+          if (saved) { setMood(saved.mood||0); setHChecks(saved.habits||{}); setNote(saved.note||""); }
+        } catch {}
+      }
+    }).catch(()=>{
+      // API failed — load from localStorage
+      try {
+        const saved = JSON.parse(localStorage.getItem("fv_checkins")||"{}")[today];
+        if (saved) { setMood(saved.mood||0); setHChecks(saved.habits||{}); setNote(saved.note||""); }
+      } catch {}
+    });
     // Hämta sparade Tradovate-konton
     (async () => {
       try {
@@ -3835,8 +3848,17 @@ export default function TradingPlatform({ session }) {
   };
 
   // ── Save check-in ──────────────────────────────────────────────────────────
+  const [checkinSaved, setCheckinSaved] = useState(false);
   const saveCheckin = () => {
-    psychApi.saveCheckin({ check_date: (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })(), mood, note, habits: hChecks }).catch(()=>{});
+    const today = (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })();
+    // Always save to localStorage first — reliable regardless of API
+    const checkins = JSON.parse(localStorage.getItem("fv_checkins")||"{}");
+    checkins[today] = { mood, note, habits: hChecks, savedAt: new Date().toISOString() };
+    localStorage.setItem("fv_checkins", JSON.stringify(checkins));
+    // Also try API in background
+    psychApi.saveCheckin({ check_date: today, mood, note, habits: hChecks }).catch(()=>{});
+    setCheckinSaved(true);
+    setTimeout(() => setCheckinSaved(false), 3000);
   };
 
   // Get active firm object and its currently selected account type
@@ -5408,7 +5430,9 @@ export default function TradingPlatform({ session }) {
                   ))}
                 </div>
                 {!isMobile && <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="How's your mindset today?" style={{width:"100%",minHeight:60,boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:10,resize:"vertical",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none",marginBottom:10}}/>}
-                <button onClick={saveCheckin} style={{width:"100%",background:"#a78bfa22",border:"1px solid #a78bfa66",color:C.purple,borderRadius:8,padding:"12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:12,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:700}}>💾 Save Check-In</button>
+                <button onClick={saveCheckin} style={{width:"100%",background:checkinSaved?"#00d08422":"#a78bfa22",border:`1px solid ${checkinSaved?"#00d08466":"#a78bfa66"}`,color:checkinSaved?C.green:C.purple,borderRadius:8,padding:"12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:12,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:700,transition:"all 0.2s"}}>
+                  {checkinSaved ? "✓ Saved!" : "💾 Save Check-In"}
+                </button>
               </div>
 
               {/* Manage habits */}
@@ -5530,7 +5554,7 @@ export default function TradingPlatform({ session }) {
                     {currentSession.score===5?"Perfect execution":currentSession.score>=4?"Strong session":currentSession.score>=3?"Solid but room to improve":currentSession.score>=2?"Difficult session":"Tough day — keep going"}
                   </span>
                 )}
-                <span style={{marginLeft:"auto",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>Auto-saved</span>
+                <span style={{marginLeft:"auto",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.green}}>✓ Auto-saved</span>
               </div>
             </div>
           </div>;
