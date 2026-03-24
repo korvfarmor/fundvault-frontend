@@ -4335,6 +4335,27 @@ export default function TradingPlatform({ session }) {
                 <button onClick={handleSignOut} style={{width:"100%",textAlign:"left",background:"transparent",border:"none",padding:"9px 12px",cursor:"pointer",borderRadius:8,fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red,display:"flex",alignItems:"center",gap:8}} onMouseEnter={e=>e.currentTarget.style.background=`${C.red}11`} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                   🚪 Sign out
                 </button>
+                <div style={{height:1,background:C.border,margin:"6px 0"}}/>
+                {/* Legal links */}
+                <div style={{display:"flex",gap:4,padding:"6px 12px",flexWrap:"wrap"}}>
+                  <a href="https://fundvault.app/terms.html" target="_blank" rel="noreferrer"
+                    style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,textDecoration:"none",letterSpacing:"0.04em"}}
+                    onMouseEnter={e=>e.currentTarget.style.color=C.accent} onMouseLeave={e=>e.currentTarget.style.color=C.muted}>
+                    Terms
+                  </a>
+                  <span style={{color:C.border,fontSize:9}}>·</span>
+                  <a href="https://fundvault.app/privacy.html" target="_blank" rel="noreferrer"
+                    style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,textDecoration:"none",letterSpacing:"0.04em"}}
+                    onMouseEnter={e=>e.currentTarget.style.color=C.accent} onMouseLeave={e=>e.currentTarget.style.color=C.muted}>
+                    Privacy
+                  </a>
+                  <span style={{color:C.border,fontSize:9}}>·</span>
+                  <a href="mailto:support@fundvault.app"
+                    style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,textDecoration:"none",letterSpacing:"0.04em"}}
+                    onMouseEnter={e=>e.currentTarget.style.color=C.accent} onMouseLeave={e=>e.currentTarget.style.color=C.muted}>
+                    Support
+                  </a>
+                </div>
               </div>
             )}
           </div>
