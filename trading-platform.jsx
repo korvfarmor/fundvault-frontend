@@ -2552,10 +2552,13 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
       const PW = 210, M = 16;
       let y = 0;
 
-      const cyan   = [0,229,255], purple=[167,139,250];
-      const muted  = [74,96,128],  light =[200,216,232];
-      const green  = [0,208,132],  red   =[255,61,90];
-      const amber  = [245,158,11], dark  =[13,20,32];
+      const cyan   = [0,229,255],   purple  = [167,139,250];
+      const green  = [0,208,132],   red     = [255,61,90];
+      const amber  = [245,158,11],  dark    = [13,20,32];
+      const muted  = [74,96,128],   light   = [200,216,232];
+      const white  = [255,255,255], bodyBg  = [248,250,252];
+      const border = [226,232,240], textDark= [15,23,42];
+      const textMid= [100,116,139], textLight=[148,163,184];
 
       // Safe number format - always en-US, no locale issues
       const fmt  = (n) => Math.abs(n).toLocaleString('en-US');
@@ -2621,22 +2624,28 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
         doc.text("PERFORMANCE SUMMARY", M, y); y += 4;
 
         const stats = [
-          ["NET P&L",     pnlStr(totalPnl),                    totalPnl>=0?green:red],
-          ["WIN RATE",    `${winRate}%`,                        winRate>=50?green:red],
-          ["AVG R:R",     `${avgRR}R`,                          cyan],
-          ["AVG RATING",  `${avgRating} / 5`,                   amber],
-          ["TRADES",      String(selectedTrades.length),         light],
-          ["WINNERS",     `${wins} of ${selectedTrades.length}`, green],
+          ["NET P&L",     pnlStr(totalPnl),                    totalPnl>=0?green:red,   totalPnl>=0?green:red],
+          ["WIN RATE",    `${winRate}%`,                        winRate>=50?green:red,   winRate>=50?green:red],
+          ["AVG R:R",     `${avgRR}R`,                          cyan,                    cyan],
+          ["AVG RATING",  `${avgRating} / 5`,                   amber,                   amber],
+          ["TRADES",      String(selectedTrades.length),         textMid,                 border],
+          ["WINNERS",     `${wins} of ${selectedTrades.length}`, green,                   green],
         ];
         const cw = (PW - M*2 - 10) / 3;
         stats.forEach((s, i) => {
           const col = i % 3, row = Math.floor(i / 3);
           const cx = M + col*(cw+5), cy = y + row*15;
-          doc.setFillColor(17,24,39); doc.roundedRect(cx, cy, cw, 12, 1, 1, "F");
-          doc.setFontSize(6); doc.setFont("helvetica","normal"); doc.setTextColor(...muted);
-          doc.text(s[0], cx+3, cy+4.5);
-          doc.setFontSize(10); doc.setFont("helvetica","bold"); doc.setTextColor(...s[2]);
-          doc.text(s[1], cx+3, cy+10);
+          // White card with subtle border
+          doc.setFillColor(...white); doc.roundedRect(cx, cy, cw, 12, 1, 1, "F");
+          doc.setDrawColor(...border); doc.setLineWidth(0.3); doc.roundedRect(cx, cy, cw, 12, 1, 1, "S");
+          // Colored top accent bar
+          doc.setFillColor(...s[3]); doc.roundedRect(cx, cy, cw, 1.5, 0.5, 0.5, "F");
+          // Label
+          doc.setFontSize(6); doc.setFont("helvetica","normal"); doc.setTextColor(...textMid);
+          doc.text(s[0], cx+3, cy+5.5);
+          // Value
+          doc.setFontSize(9.5); doc.setFont("helvetica","bold"); doc.setTextColor(...s[2]);
+          doc.text(s[1], cx+3, cy+10.5);
         });
         y += 36;
       }
@@ -2658,13 +2667,15 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
           doc.autoTable({
             startY: y, head:[["Setup","Trades","Win %","P&L"]], body: tagData,
             margin:{left:M,right:M},
-            headStyles:{fillColor:[13,20,32],textColor:[100,120,150],fontSize:6.5,fontStyle:"bold"},
-            bodyStyles:{fillColor:[17,24,39],textColor:[200,216,232],fontSize:8,cellPadding:2.5},
-            alternateRowStyles:{fillColor:[22,31,48]},
+            headStyles:{fillColor:[13,20,32],textColor:[0,229,255],fontSize:6.5,fontStyle:"bold"},
+            bodyStyles:{fillColor:[255,255,255],textColor:[15,23,42],fontSize:8,cellPadding:2.5},
+            alternateRowStyles:{fillColor:[248,250,252]},
+            tableLineColor:[226,232,240], tableLineWidth:0.2,
             columnStyles:{0:{cellWidth:72},1:{cellWidth:20,halign:"center"},2:{cellWidth:22,halign:"center"},3:{halign:"right"}},
             didParseCell:(d) => {
               if (d.section==="body" && d.column.index===3) {
-                d.cell.styles.textColor = String(d.cell.raw).startsWith("+") ? [0,208,132] : [255,61,90];
+                d.cell.styles.textColor = String(d.cell.raw).startsWith("+") ? [0,168,107] : [220,50,70];
+                d.cell.styles.fontStyle = "bold";
               }
             },
           });
@@ -2693,9 +2704,10 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
         head:[["Symbol","Side","Date","Entry","Tags","Rtg","R:R","P&L"]],
         body: tableRows,
         margin:{left:M,right:M},
-        headStyles:{fillColor:[13,20,32],textColor:[100,120,150],fontSize:6.5,fontStyle:"bold"},
-        bodyStyles:{fillColor:[17,24,39],textColor:[200,216,232],fontSize:8,cellPadding:2.5},
-        alternateRowStyles:{fillColor:[22,31,48]},
+        headStyles:{fillColor:[13,20,32],textColor:[0,229,255],fontSize:6.5,fontStyle:"bold"},
+        bodyStyles:{fillColor:[255,255,255],textColor:[15,23,42],fontSize:8,cellPadding:2.5},
+        alternateRowStyles:{fillColor:[248,250,252]},
+        tableLineColor:[226,232,240], tableLineWidth:0.2,
         columnStyles:{
           0:{cellWidth:16},1:{cellWidth:14},2:{cellWidth:22},
           3:{cellWidth:16},4:{cellWidth:52},
@@ -2703,13 +2715,15 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
         },
         didParseCell:(d) => {
           if (d.section==="body") {
-            if (d.column.index===7)
-              d.cell.styles.textColor = String(d.cell.raw).startsWith("+") ? [0,208,132] : [255,61,90];
+            if (d.column.index===7) {
+              d.cell.styles.textColor = String(d.cell.raw).startsWith("+") ? [0,168,107] : [220,50,70];
+              d.cell.styles.fontStyle = "bold";
+            }
             if (d.column.index===1)
-              d.cell.styles.textColor = d.cell.raw==="Long" ? [0,208,132] : [255,61,90];
+              d.cell.styles.textColor = d.cell.raw==="Long" ? [0,168,107] : [220,50,70];
             if (d.column.index===5 && d.cell.raw !== "-") {
               const r = parseInt(d.cell.raw);
-              d.cell.styles.textColor = r>=4?[0,208,132]:r>=3?[245,158,11]:[255,61,90];
+              d.cell.styles.textColor = r>=4?[0,168,107]:r>=3?[180,115,0]:[220,50,70];
             }
           }
         },
@@ -2735,9 +2749,11 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
 
             if (y + totalH > 270) { doc.addPage(); y = 18; }
 
-            // Card background
-            doc.setFillColor(17,24,39);
+            // White card with subtle border
+            doc.setFillColor(...white);
             doc.roundedRect(M, y, PW-M*2, totalH + 6, 1.5, 1.5, "F");
+            doc.setDrawColor(...border); doc.setLineWidth(0.3);
+            doc.roundedRect(M, y, PW-M*2, totalH + 6, 1.5, 1.5, "S");
 
             // Coloured left accent bar
             doc.setFillColor(...(t.pnl>=0 ? green : red));
@@ -2745,13 +2761,13 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
 
             // Header row: symbol + side + P&L + date + rating + tags
             doc.setFontSize(10); doc.setFont("helvetica","bold");
-            doc.setTextColor(...(t.pnl>=0 ? green : red));
+            doc.setTextColor(...(t.pnl>=0 ? [0,168,107] : [220,50,70]));
             doc.text(pnlStr(t.pnl), PW-M-2, y+8, {align:"right"});
 
-            doc.setTextColor(...light);
+            doc.setTextColor(...textDark);
             doc.text(`${t.symbol}  ${t.side}`, M+7, y+8);
 
-            doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.setTextColor(...muted);
+            doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.setTextColor(...textMid);
             const tagStr = (t.tags||[]).slice(0,3).join(", ") || "";
             const meta   = [
               t.trade_date||"",
@@ -2766,7 +2782,7 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
 
             // Review notes
             if (hasReview) {
-              doc.setFontSize(7.5); doc.setFont("helvetica","normal"); doc.setTextColor(180,200,220);
+              doc.setFontSize(7.5); doc.setFont("helvetica","normal"); doc.setTextColor(...textMid);
               doc.text(reviewLines.slice(0,4), M+7, cardY + 4);
               cardY += reviewH + 4;
             }
@@ -2788,12 +2804,14 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
       if (y > 240) { doc.addPage(); y = 18; }
       doc.setFontSize(7); doc.setFont("helvetica","bold"); doc.setTextColor(...purple);
       doc.text("AI ANALYSIS PROMPT", M, y); y += 4;
-      doc.setFillColor(22,16,40);
+      doc.setFillColor(245,243,255);
       const prompt = `Analyse the ${selectedTrades.length} trade${selectedTrades.length!==1?"s":""} in this report. Please identify: 1) My strongest setup patterns and what they have in common. 2) My weakest areas and recurring mistakes. 3) Time-of-day patterns - when am I most and least profitable? 4) Any prop firm rule risks based on my trading behaviour. 5) One specific, measurable thing I should focus on to improve my edge. Be direct and data-driven.`;
       const pLines = doc.splitTextToSize(prompt, PW-M*2-6);
       const pH = Math.min(pLines.length,8)*4.5+10;
       doc.roundedRect(M, y, PW-M*2, pH, 1.5, 1.5, "F");
-      doc.setFontSize(7.5); doc.setFont("helvetica","normal"); doc.setTextColor(200,185,255);
+      doc.setDrawColor(167,139,250); doc.setLineWidth(0.4);
+      doc.roundedRect(M, y, PW-M*2, pH, 1.5, 1.5, "S");
+      doc.setFontSize(7.5); doc.setFont("helvetica","normal"); doc.setTextColor(100,80,180);
       doc.text(pLines.slice(0,8), M+4, y+6);
 
       // ── Footer ───────────────────────────────────────────────────────────────
