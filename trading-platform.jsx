@@ -1680,7 +1680,7 @@ const RuleManager = ({rules,onChange,onClose}) => {
 };
 
 // ── AI Feedback ───────────────────────────────────────────────────────────────
-const AIFeedback = ({trades}) => {
+const AIFeedback = ({trades, supabase}) => {
   const [loading,setLoading]=useState(false);
   const [feedback,setFeedback]=useState(null);
   const [error,setError]=useState(null);
@@ -1707,17 +1707,21 @@ STATS:
 BY SETUP TAG:
 ${Object.entries(tagStats).map(([tag,s])=>`- ${tag}: ${s.wins}W/${s.losses}L, P&L $${s.totalPnl}`).join("\n")}
 
-BY TIME OF DAY:
-${liveTimeData.map(t=>`- ${t.hour}: P&L $${t.pnl}, Win rate ${t.trades?Math.round((t.wins/t.trades)*100):0}%`).join("\n")}
-
 Respond ONLY with this JSON (no markdown, no preamble):
-{"headline":"one punchy sentence","strengths":["s1","s2"],"weaknesses":["w1","w2"],"patterns":["p1 with numbers","p2 with numbers"],"propFirmWarnings":["pf1","pf2"],"weekFocus":"one very specific thing to focus on with a concrete metric","verdict":8}`;
+{"headline":"one punchy sentence","strengths":["s1","s2"],"weaknesses":["w1","w2"],"patterns":["p1 with numbers","p2 with numbers"],"propFirmWarnings":["pf1"],"weekFocus":"one very specific thing to focus on with a concrete metric","verdict":8}`;
 
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:prompt}]})});
-      const data=await res.json();
-      const text=data.content.map(i=>i.text||"").join("");
+      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${API}/ai/coach`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session?.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      const text = data.text || "";
       setFeedback(JSON.parse(text.replace(/```json|```/g,"").trim()));
-    } catch(e){setError("Analysis failed — please try again.");}
+    } catch(e){setError("Analysis failed — " + e.message);}
     setLoading(false);
   };
 
@@ -3082,6 +3086,86 @@ const EdgeModal = ({onClose, onSave, existing, C}) => {
   );
 };
 
+// ── Lightweight Charts components ─────────────────────────────────────────────
+const loadLW = () => new Promise((res,rej) => {
+  if (window.LightweightCharts) { res(window.LightweightCharts); return; }
+  const s = document.createElement("script");
+  s.src = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js";
+  s.onload = () => res(window.LightweightCharts);
+  s.onerror = rej;
+  document.head.appendChild(s);
+});
+
+const LWEquityChart = ({ data, darkMode, accentColor }) => {
+  const ref = useRef();
+  useEffect(() => {
+    if (!ref.current || !data?.length) return;
+    let chart;
+    loadLW().then(LW => {
+      ref.current.innerHTML = "";
+      chart = LW.createChart(ref.current, {
+        width: ref.current.clientWidth,
+        height: 180,
+        layout: { background: { color: "transparent" }, textColor: darkMode ? "#4a6080" : "#94a3b8" },
+        grid: { vertLines: { color: "transparent" }, horzLines: { color: darkMode ? "#1e2d3d" : "#f1f5f9" } },
+        crosshair: { mode: 1 },
+        rightPriceScale: { borderColor: "transparent", scaleMargins: { top: 0.1, bottom: 0.1 } },
+        timeScale: { borderColor: "transparent", tickMarkFormatter: (t) => { const d = new Date(t*1000); return `${d.getMonth()+1}/${d.getDate()}`; } },
+        handleScroll: true,
+        handleScale: true,
+      });
+      const series = chart.addAreaSeries({
+        lineColor: accentColor,
+        topColor: accentColor + "40",
+        bottomColor: accentColor + "00",
+        lineWidth: 2,
+        priceLineVisible: false,
+        crosshairMarkerVisible: true,
+        crosshairMarkerRadius: 4,
+        crosshairMarkerBorderColor: accentColor,
+        crosshairMarkerBackgroundColor: accentColor,
+        priceFormat: { type: "custom", formatter: v => `$${Math.round(v).toLocaleString()}` },
+      });
+      const sorted = [...data].sort((a,b)=>a.date.localeCompare(b.date));
+      series.setData(sorted.map(d => ({ time: d.date, value: d.equity })));
+      chart.timeScale().fitContent();
+    }).catch(() => {});
+    return () => { try { chart?.remove(); } catch {} };
+  }, [data, darkMode, accentColor]);
+  return <div ref={ref} style={{ width: "100%", height: 180 }}/>;
+};
+
+const LWPnlChart = ({ data, darkMode, green, red }) => {
+  const ref = useRef();
+  useEffect(() => {
+    if (!ref.current || !data?.length) return;
+    let chart;
+    loadLW().then(LW => {
+      ref.current.innerHTML = "";
+      chart = LW.createChart(ref.current, {
+        width: ref.current.clientWidth,
+        height: 180,
+        layout: { background: { color: "transparent" }, textColor: darkMode ? "#4a6080" : "#94a3b8" },
+        grid: { vertLines: { color: "transparent" }, horzLines: { color: darkMode ? "#1e2d3d" : "#f1f5f9" } },
+        crosshair: { mode: 1 },
+        rightPriceScale: { borderColor: "transparent", scaleMargins: { top: 0.1, bottom: 0.1 } },
+        timeScale: { borderColor: "transparent", tickMarkFormatter: (t) => { const d = new Date(t*1000); return `${d.getMonth()+1}/${d.getDate()}`; } },
+        handleScroll: true,
+        handleScale: true,
+      });
+      const series = chart.addHistogramSeries({
+        priceLineVisible: false,
+        priceFormat: { type: "custom", formatter: v => `$${Math.round(v).toLocaleString()}` },
+      });
+      const sorted = [...data].sort((a,b)=>a.date.localeCompare(b.date));
+      series.setData(sorted.map(d => ({ time: d.date, value: d.pnl, color: d.pnl >= 0 ? green : red })));
+      chart.timeScale().fitContent();
+    }).catch(() => {});
+    return () => { try { chart?.remove(); } catch {} };
+  }, [data, darkMode, green, red]);
+  return <div ref={ref} style={{ width: "100%", height: 180 }}/>;
+};
+
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function TradingPlatform({ session }) {
   const user = session?.user;
@@ -4400,32 +4484,19 @@ export default function TradingPlatform({ session }) {
                 </div>
               </div>
             )}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:14}}>
+              {/* Equity Curve — Lightweight Charts */}
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Equity Curve</div>
                 {LIVE_EQUITY.length ? (
-                <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={LIVE_EQUITY}><defs><linearGradient id="eg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={C.accent} stopOpacity={.25}/><stop offset="95%" stopColor={C.accent} stopOpacity={0}/></linearGradient></defs>
-                    <CartesianGrid stroke={C.border} strokeDasharray="3 3" vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={v=>v?.slice(5)}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`$${(v/1000).toFixed(1)}k`} width={48}/>
-                    <Tooltip content={<PnlTip/>}/>
-                    <Area type="monotone" dataKey="equity" stroke={C.accent} strokeWidth={2} fill="url(#eg)" dot={false}/>
-                  </AreaChart>
-                </ResponsiveContainer>
+                  <LWEquityChart data={LIVE_EQUITY} darkMode={darkMode} accentColor={C.accent}/>
                 ) : <div style={{height:180,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:C.muted,gap:8}}><div style={{fontSize:28}}>📈</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11}}>No trades yet</div></div>}
               </div>
+              {/* Daily P&L — Lightweight Charts */}
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Daily P&L</div>
                 {LIVE_PNL_DATA.length ? (
-                <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={LIVE_PNL_DATA}><CartesianGrid stroke={C.border} strokeDasharray="3 3" vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} interval="preserveStartEnd" tickFormatter={v=>v?.slice(5)}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9,fontFamily:"'Space Mono',monospace"}} axisLine={false} tickLine={false} tickFormatter={v=>`$${v}`} width={48}/>
-                    <Tooltip content={<PnlTip/>}/><ReferenceLine y={0} stroke={C.border}/>
-                    <Bar dataKey="pnl" radius={[4,4,0,0]}>{LIVE_PNL_DATA.map((d,i)=><Cell key={i} fill={d.pnl>=0?C.green:C.red}/>)}</Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                  <LWPnlChart data={LIVE_PNL_DATA} darkMode={darkMode} green={C.green} red={C.red}/>
                 ) : <div style={{height:180,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:C.muted,gap:8}}><div style={{fontSize:28}}>📊</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11}}>No trades yet</div></div>}
               </div>
             </div>
@@ -4547,7 +4618,7 @@ export default function TradingPlatform({ session }) {
               </div>
             )}
 
-            {false && <AIFeedback trades={trades}/>}
+            {trades.length >= 5 && <AIFeedback trades={rangedTrades.length ? rangedTrades : trades} supabase={supabase}/>}
 
             {/* ── Advanced risk metrics ── */}
             <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:isMobile?14:22}}>
@@ -4910,9 +4981,11 @@ export default function TradingPlatform({ session }) {
                 <div style={{fontFamily:"'Syne',sans-serif",fontSize:isMobile?22:28,fontWeight:800,marginTop:4}}>All Trades</div>
               </div>
               {isMobile ? (
-                <div style={{display:"flex",gap:7}}>
+                <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
                   {renderMonthNav()}
+                  <button onClick={()=>setShowAddTrade(true)} style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700}}>+ Add</button>
                   <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⬆ CSV</button>
+                  <button onClick={()=>setShowExport(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⬇ PDF</button>
                   <button onClick={()=>setShowRules(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⚙</button>
                 </div>
               ) : (
