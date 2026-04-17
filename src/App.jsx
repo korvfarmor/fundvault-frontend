@@ -46,38 +46,14 @@ export default function App() {
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
 
-    // Handle Tradovate OAuth callback — Tradovate redirects here with ?code=
+    // Handle Tradovate OAuth callback params
     const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    if (code && window.location.pathname === "/oauth/callback") {
-      document.title = "Connecting to Tradovate...";
-      supabase.auth.getSession().then(async ({ data: { session } }) => {
-        try {
-          const res = await fetch(`${API}/tradovate/callback?code=${encodeURIComponent(code)}`, {
-            headers: { Authorization: `Bearer ${session?.access_token}` }
-          });
-          if (res.ok) {
-            document.title = "✓ Connected!";
-            // Reload the parent window and close popup
-            if (window.opener && !window.opener.closed) {
-              window.opener.location.reload();
-            }
-            // Try to close popup — works in most browsers
-            window.close();
-            // Fallback: if close fails, redirect popup to main app
-            setTimeout(() => {
-              if (!window.closed) window.location.href = "/";
-            }, 500);
-          } else {
-            document.title = "Connection failed";
-            setTimeout(() => {
-              window.location.href = "/";
-            }, 2000);
-          }
-        } catch {
-          setTimeout(() => { window.location.href = "/"; }, 2000);
-        }
-      });
+    if (params.get("tradovate") === "connected") {
+      setMsg("✓ Tradovate connected successfully!");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("tradovate") === "error") {
+      setMsg("⚠ Tradovate connection failed: " + (params.get("msg") || "Unknown error"));
+      window.history.replaceState({}, "", window.location.pathname);
     }
 
     return () => subscription.unsubscribe();

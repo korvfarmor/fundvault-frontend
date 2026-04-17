@@ -5957,18 +5957,7 @@ export default function TradingPlatform({ session }) {
                   });
                   const { url, error } = await res.json();
                   if (error) { alert(error); return; }
-
-                  const popup = window.open(url, "tradovate-oauth",
-                    "width=600,height=700,left=" + (window.screen.width/2 - 300) + ",top=" + (window.screen.height/2 - 350));
-
-                  // Poll every 500ms — when popup closes, reload to pick up new connection
-                  const timer = setInterval(() => {
-                    if (!popup || popup.closed) {
-                      clearInterval(timer);
-                      window.location.reload();
-                    }
-                  }, 500);
-
+                  window.location.href = url;
                 } catch(e) { alert("Could not start Tradovate connection: " + e.message); }
               }}
                 style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"8px 18px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.accent,fontWeight:700}}>
