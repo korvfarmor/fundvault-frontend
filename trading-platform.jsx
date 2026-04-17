@@ -5957,7 +5957,29 @@ export default function TradingPlatform({ session }) {
                   });
                   const { url, error } = await res.json();
                   if (error) { alert(error); return; }
-                  window.location.href = url;
+
+                  // Open OAuth in popup instead of leaving FundVault
+                  const popup = window.open(url, "tradovate-oauth",
+                    "width=600,height=700,left=" + (window.screen.width/2 - 300) + ",top=" + (window.screen.height/2 - 350));
+
+                  // Poll for popup close or success message
+                  const timer = setInterval(() => {
+                    if (popup?.closed) {
+                      clearInterval(timer);
+                      // Reload to pick up new connection status
+                      window.location.reload();
+                    }
+                  }, 500);
+
+                  // Listen for postMessage from callback page
+                  window.addEventListener("message", (e) => {
+                    if (e.data?.tradovate === "connected") {
+                      clearInterval(timer);
+                      popup?.close();
+                      window.location.reload();
+                    }
+                  }, { once: true });
+
                 } catch(e) { alert("Could not start Tradovate connection: " + e.message); }
               }}
                 style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"8px 18px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.accent,fontWeight:700}}>
