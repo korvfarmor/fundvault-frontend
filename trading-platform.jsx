@@ -1062,9 +1062,9 @@ function NewsTab({ econFilter, setEconFilter, C, newsBlocker, saveNewsBlocker, o
 // ── My Account Tab ───────────────────────────────────────────────────────────
 const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase, setTab }) => {
   const PLANS = {
-    basic:    { label:"Basic",    color:"#6b859e", features:["Manual trade logging","Psychology tracking","Edge Library","Prop firm tracker","PDF export"] },
-    advanced: { label:"Advanced", color:C.accent,  features:["Everything in Basic","Tradovate / NinjaTrader sync","Auto-import trades","Live P&L tracking"] },
-    pro:      { label:"Pro",      color:"#a78bfa",  features:["Everything in Advanced","Trade Copier (multi-account)","Priority support"] },
+    basic:    { label:"Basic",    color:"#6b859e", price:"$30/mo", features:["Trade logging + CSV import","Dashboard & Analytics","Calendar view","Prop firm tracker","Edge Library","Psychology check-in"] },
+    advanced: { label:"Advanced", color:C.accent,  price:"$50/mo", features:["Everything in Basic","AI Coach (trade analysis)","Multi-account tracking","Discord daily reports","PDF export"] },
+    pro:      { label:"Pro",      color:"#a78bfa",  price:"$90/mo", features:["Everything in Advanced","Trade Copier","NinjaTrader sync (coming)","Unlimited accounts","Priority support"] },
   };
   const currentPlan = PLANS[plan] || PLANS.basic;
 
@@ -1167,14 +1167,20 @@ const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase,
         <div style={{display:"grid",gridTemplateColumns:plan==="basic"?"1fr 1fr":"1fr",gap:10,marginTop:4}}>
           {plan==="basic" && (
             <div style={{background:C.surface,border:`1px solid ${C.accent}44`,borderRadius:10,padding:16}}>
-              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:C.accent,marginBottom:4}}>Advanced</div>
-              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:12}}>Tradovate sync + auto-import</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:4}}>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:C.accent}}>Advanced</div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:12,color:C.accent,fontWeight:700}}>$50/mo</div>
+              </div>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:8,lineHeight:1.5}}>AI Coach · Multi-account · Discord · PDF export</div>
               <button onClick={()=>startCheckout("advanced")} style={btnS(C.accent)}>Upgrade to Advanced →</button>
             </div>
           )}
           <div style={{background:C.surface,border:`1px solid #a78bfa44`,borderRadius:10,padding:16}}>
-            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:"#a78bfa",marginBottom:4}}>Pro</div>
-            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:12}}>All features incl. Trade Copier</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:4}}>
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:"#a78bfa"}}>Pro</div>
+              <div style={{fontFamily:"'Space Mono',monospace",fontSize:12,color:"#a78bfa",fontWeight:700}}>$90/mo</div>
+            </div>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:8,lineHeight:1.5}}>Trade Copier · NinjaTrader sync · Unlimited accounts · Priority support</div>
             <button onClick={()=>startCheckout("pro")} style={btnS("#a78bfa")}>Upgrade to Pro →</button>
           </div>
         </div>
@@ -4432,7 +4438,8 @@ export default function TradingPlatform({ session }) {
               <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Overview</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Performance <span style={{color:C.accent}}>↗</span></div></div>
               <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                 {renderMonthNav()}
-                {/* Discord daily report button */}
+                {/* Discord daily report button — Advanced+ only */}
+                {canAccess("advanced") && (
                 <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
                   <button onClick={()=>postDailyReportToDiscord(todayStr)} disabled={discordPosting}
                     title={profile?.discord_webhook?"Post today's trades to Discord":"Connect Discord in My Account first"}
@@ -4442,6 +4449,7 @@ export default function TradingPlatform({ session }) {
                   </button>
                   {discordMsg && <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:discordMsg.startsWith("✓")?C.green:C.red}}>{discordMsg}</span>}
                 </div>
+                )}
               </div>
             </div>
             <div style={{display:"flex",gap:12,flexWrap:"wrap"}} className="fv-stat-cards">
@@ -4618,7 +4626,10 @@ export default function TradingPlatform({ session }) {
               </div>
             )}
 
-            {trades.length >= 5 && <AIFeedback trades={rangedTrades.length ? rangedTrades : trades} supabase={supabase}/>}
+            {trades.length >= 5 && canAccess("advanced") && <AIFeedback trades={rangedTrades.length ? rangedTrades : trades} supabase={supabase}/>}
+            {trades.length >= 5 && !canAccess("advanced") && (
+              <UpgradeGate plan="advanced" C={C} onUpgrade={()=>setTab("myaccount")} feature="AI Coach" desc="Get AI-powered trade analysis and actionable feedback on your patterns. Available on Advanced and Pro."/>
+            )}
 
             {/* ── Advanced risk metrics ── */}
             <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:isMobile?14:22}}>
@@ -4985,7 +4996,7 @@ export default function TradingPlatform({ session }) {
                   {renderMonthNav()}
                   <button onClick={()=>setShowAddTrade(true)} style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700}}>+ Add</button>
                   <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⬆ CSV</button>
-                  <button onClick={()=>setShowExport(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⬇ PDF</button>
+                  <button onClick={()=>canAccess("advanced")?setShowExport(true):setTab("myaccount")} style={{background:C.surface,border:`1px solid ${C.border}`,color:canAccess("advanced")?C.textDim:C.muted,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,opacity:canAccess("advanced")?1:0.5}}>⬇ PDF {!canAccess("advanced")&&"🔒"}</button>
                   <button onClick={()=>setShowRules(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⚙</button>
                 </div>
               ) : (
@@ -4993,7 +5004,7 @@ export default function TradingPlatform({ session }) {
                   {renderMonthNav()}
                   <button onClick={()=>setShowAddTrade(true)} style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"7px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>+ Add Trade</button>
                   <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬆ Import CSV</button>
-                  <button onClick={()=>setShowExport(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬇ Export PDF</button>
+                  <button onClick={()=>canAccess("advanced")?setShowExport(true):setTab("myaccount")} style={{background:C.surface,border:`1px solid ${C.border}`,color:canAccess("advanced")?C.textDim:C.muted,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5,opacity:canAccess("advanced")?1:0.5}} title={canAccess("advanced")?"":" Advanced plan required"}>⬇ Export PDF {!canAccess("advanced")&&"🔒"}</button>
                   {/* Filter dropdown */}
                   <div style={{position:"relative"}} className="fv-filter-menu">
                     <button onClick={()=>setShowFilterMenu(m=>!m)}
@@ -5937,7 +5948,18 @@ export default function TradingPlatform({ session }) {
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Connected Accounts</div>
                 <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Accounts</div>
               </div>
-              <button onClick={()=>{setShowTvLogin(true);setTvLoginStep("credentials");setTvLoginError("");}}
+              <button onClick={async () => {
+                try {
+                  const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+                  const { data: { session } } = await supabase.auth.getSession();
+                  const res = await fetch(`${API}/tradovate/connect`, {
+                    headers: { Authorization: `Bearer ${session?.access_token}` }
+                  });
+                  const { url, error } = await res.json();
+                  if (error) { alert(error); return; }
+                  window.location.href = url;
+                } catch(e) { alert("Could not start Tradovate connection: " + e.message); }
+              }}
                 style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"8px 18px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.accent,fontWeight:700}}>
                 + Connect Tradovate Account
               </button>
