@@ -50,23 +50,32 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     if (code && window.location.pathname === "/oauth/callback") {
-      // Show loading state in popup
-      document.title = "Connecting Tradovate...";
+      document.title = "Connecting to Tradovate...";
       supabase.auth.getSession().then(async ({ data: { session } }) => {
         try {
           const res = await fetch(`${API}/tradovate/callback?code=${encodeURIComponent(code)}`, {
             headers: { Authorization: `Bearer ${session?.access_token}` }
           });
           if (res.ok) {
-            document.title = "Connected!";
-            // Close popup — main window will reload via poll timer
-            setTimeout(() => window.close(), 800);
+            document.title = "✓ Connected!";
+            // Reload the parent window and close popup
+            if (window.opener && !window.opener.closed) {
+              window.opener.location.reload();
+            }
+            // Try to close popup — works in most browsers
+            window.close();
+            // Fallback: if close fails, redirect popup to main app
+            setTimeout(() => {
+              if (!window.closed) window.location.href = "/";
+            }, 500);
           } else {
             document.title = "Connection failed";
-            setTimeout(() => window.close(), 2000);
+            setTimeout(() => {
+              window.location.href = "/";
+            }, 2000);
           }
         } catch {
-          setTimeout(() => window.close(), 2000);
+          setTimeout(() => { window.location.href = "/"; }, 2000);
         }
       });
     }
