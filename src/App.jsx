@@ -50,29 +50,25 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     if (code && window.location.pathname === "/oauth/callback") {
-      // Forward code to backend which exchanges it for a token
+      // Show loading state in popup
+      document.title = "Connecting Tradovate...";
       supabase.auth.getSession().then(async ({ data: { session } }) => {
         try {
           const res = await fetch(`${API}/tradovate/callback?code=${encodeURIComponent(code)}`, {
             headers: { Authorization: `Bearer ${session?.access_token}` }
           });
           if (res.ok) {
-            setMsg("✓ Tradovate connected successfully!");
+            document.title = "Connected!";
+            // Close popup — main window will reload via poll timer
+            setTimeout(() => window.close(), 800);
           } else {
-            const d = await res.json();
-            setMsg("⚠ Tradovate connection failed: " + (d.error || "Unknown error"));
+            document.title = "Connection failed";
+            setTimeout(() => window.close(), 2000);
           }
-        } catch(e) {
-          setMsg("⚠ Tradovate connection failed: " + e.message);
+        } catch {
+          setTimeout(() => window.close(), 2000);
         }
-        window.history.replaceState({}, "", "/");
       });
-    } else if (params.get("tradovate") === "connected") {
-      setMsg("✓ Tradovate connected successfully!");
-      window.history.replaceState({}, "", window.location.pathname);
-    } else if (params.get("tradovate") === "error") {
-      setMsg("⚠ Tradovate connection failed: " + (params.get("msg") || "Unknown error"));
-      window.history.replaceState({}, "", window.location.pathname);
     }
 
     return () => subscription.unsubscribe();
