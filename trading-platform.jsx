@@ -5903,29 +5903,20 @@ export default function TradingPlatform({ session }) {
             try {
               const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
               const token = (await supabase.auth.getSession()).data.session?.access_token;
-              const res = await fetch(`${API}/tradovate/auth`, {
+              const res = await fetch(`${API}/tradovate/login`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
                 body: JSON.stringify(tvLoginForm),
               });
               const data = await res.json();
               if (!res.ok) throw new Error(data.error || "Login failed");
-              // Om flera konton — låt användaren välja vilket
-              if (data.accounts?.length > 1) {
-                setTvLoginAccounts(data.accounts);
-                setTvLoginStep("select_account");
-              } else {
-                // Spara direkt om bara ett konto
-                setTvAccounts(a => [...a.filter(x=>x.tradovate_account_id!==data.accounts[0].id), {
-                  tradovate_account_id: String(data.accounts[0].id),
-                  account_spec: data.accounts[0].name,
-                  display_name: data.accounts[0].name,
-                  balance: data.accounts[0].cashBalance,
-                  active: true,
-                }]);
-                setShowTvLogin(false); setTvLoginStep("credentials");
-                setTvLoginForm({username:"",password:"",cid:"",secret:""});
-              }
+              // Reload accounts from backend
+              const accRes = await fetch(`${API}/tradovate/connected-accounts`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              if (accRes.ok) setTvAccounts(await accRes.json());
+              setShowTvLogin(false); setTvLoginStep("credentials");
+              setTvLoginForm({username:"",password:"",cid:"",secret:""});
             } catch (err) { setTvLoginError(err.message); }
             setTvLoginLoading(false);
           };
@@ -5948,18 +5939,7 @@ export default function TradingPlatform({ session }) {
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Connected Accounts</div>
                 <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Accounts</div>
               </div>
-              <button onClick={async () => {
-                try {
-                  const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
-                  const { data: { session } } = await supabase.auth.getSession();
-                  const res = await fetch(`${API}/tradovate/connect`, {
-                    headers: { Authorization: `Bearer ${session?.access_token}` }
-                  });
-                  const { url, error } = await res.json();
-                  if (error) { alert(error); return; }
-                  window.location.href = url;
-                } catch(e) { alert("Could not start Tradovate connection: " + e.message); }
-              }}
+              <button onClick={()=>{setShowTvLogin(true);setTvLoginStep("credentials");setTvLoginError("");}}
                 style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"8px 18px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.accent,fontWeight:700}}>
                 + Connect Tradovate Account
               </button>
