@@ -5939,10 +5939,27 @@ export default function TradingPlatform({ session }) {
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Connected Accounts</div>
                 <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Accounts</div>
               </div>
-              <button onClick={()=>{setShowTvLogin(true);setTvLoginStep("credentials");setTvLoginError("");}}
-                style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"8px 18px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.accent,fontWeight:700}}>
-                + Connect Tradovate Account
-              </button>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={async () => {
+                  try {
+                    const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const res = await fetch(`${API}/tradovate/connect`, {
+                      headers: { Authorization: `Bearer ${session?.access_token}` }
+                    });
+                    const { url, error } = await res.json();
+                    if (error) { alert(error); return; }
+                    window.location.href = url;
+                  } catch(e) { alert("Could not start Tradovate connection: " + e.message); }
+                }}
+                  style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"8px 18px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.accent,fontWeight:700}}>
+                  + Connect via OAuth
+                </button>
+                <button onClick={()=>{setShowTvLogin(true);setTvLoginStep("credentials");setTvLoginError("");}}
+                  style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 18px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>
+                  + Connect via Password
+                </button>
+              </div>
             </div>
 
             {/* Info-banner */}
@@ -6007,6 +6024,7 @@ export default function TradingPlatform({ session }) {
                             onChange={e=>setTvLoginForm(x=>({...x,[f.key]:e.target.value}))}
                             onKeyDown={e=>e.key==="Enter"&&doTvLogin()}
                             placeholder={f.placeholder}
+                            autoComplete="new-password"
                             style={{width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"11px 14px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"}}/>
                         </div>
                       ))}
