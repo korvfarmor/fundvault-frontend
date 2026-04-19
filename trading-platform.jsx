@@ -1548,10 +1548,123 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
   // Detect dark mode from C colors
   const darkMode = C.bg === "#080c14";
 
-  // TradingView widget via official embed
+  // Replay chart state
+  const [replayBars,    setReplayBars   ] = useState(null);  // null=loading, []=no data, [...]= bars
+  const [replayError,   setReplayError  ] = useState(null);
+  const chartContainerRef = useRef();
+  const lwChartRef        = useRef();
+
+  // Fetch replay chart data from backend when chart tab is active
+  useEffect(() => {
+    if (chartTab !== "replay") return;
+    if (!trade.entry_time && !trade.trade_date) return;
+
+    const load = async () => {
+      setReplayBars(null);
+      setReplayError(null);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+        const from = trade.entry_time || `${trade.trade_date}T09:30:00Z`;
+        const to   = trade.exit_time  || `${trade.trade_date}T16:00:00Z`;
+        const sym  = trade.symbol || "NQ";
+        const r = await fetch(
+          `${API}/tradovate/replay-chart?symbol=${sym}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&resolution=1`,
+          { headers: { Authorization: `Bearer ${session?.access_token}` } }
+        );
+        const data = await r.json();
+        if (data.fallback || !data.bars?.length) {
+          setReplayBars([]);  // signal: fall back to TradingView
+        } else {
+          setReplayBars(data.bars);
+        }
+      } catch(e) {
+        setReplayBars([]);
+        setReplayError(e.message);
+      }
+    };
+    load();
+  }, [chartTab, trade.entry_time, trade.exit_time, trade.symbol, trade.trade_date]);
+
+  // Render Lightweight Chart when bars arrive
+  useEffect(() => {
+    if (!chartContainerRef.current || !Array.isArray(replayBars) || !replayBars.length) return;
+    chartContainerRef.current.innerHTML = "";
+
+    // Dynamically import Lightweight Charts
+    const renderChart = async () => {
+      const { createChart } = await import("https://cdn.jsdelivr.net/npm/lightweight-charts/dist/lightweight-charts.standalone.production.mjs");
+      const chart = createChart(chartContainerRef.current, {
+        width:  chartContainerRef.current.clientWidth,
+        height: chartContainerRef.current.clientHeight || 360,
+        layout:  { background: { color: darkMode ? "#0d1420" : "#fff" }, textColor: darkMode ? "#c8d8e8" : "#333" },
+        grid:    { vertLines: { color: darkMode ? "#1e2d40" : "#eee" }, horzLines: { color: darkMode ? "#1e2d40" : "#eee" } },
+        crosshair: { mode: 1 },
+        rightPriceScale: { borderColor: darkMode ? "#1e2d40" : "#ccc" },
+        timeScale: { borderColor: darkMode ? "#1e2d40" : "#ccc", timeVisible: true, secondsVisible: false },
+      });
+
+      const candles = chart.addCandlestickSeries({
+        upColor: "#00d084", downColor: "#ff3d5a",
+        borderUpColor: "#00d084", borderDownColor: "#ff3d5a",
+        wickUpColor: "#00d084", wickDownColor: "#ff3d5a",
+      });
+
+      // Convert Tradovate bars to Lightweight Charts format
+      const lwBars = replayBars
+        .map(b => ({
+          time:  Math.floor(new Date(b.timestamp).getTime() / 1000),
+          open:  b.open, high: b.high, low: b.low, close: b.close,
+        }))
+        .filter(b => b.open && b.high && b.low && b.close)
+        .sort((a, b) => a.time - b.time);
+
+      candles.setData(lwBars);
+
+      // Entry price line
+      if (trade.entry_price) {
+        const entryLine = candles.createPriceLine({
+          price: parseFloat(trade.entry_price),
+          color: "#00d084", lineWidth: 2, lineStyle: 2,
+          axisLabelVisible: true,
+          title: `▲ Entry ${trade.entry_price}`,
+        });
+      }
+      // Exit price line
+      if (trade.exit_price) {
+        const exitLine = candles.createPriceLine({
+          price: parseFloat(trade.exit_price),
+          color: "#ff3d5a", lineWidth: 2, lineStyle: 2,
+          axisLabelVisible: true,
+          title: `▼ Exit ${trade.exit_price}`,
+        });
+      }
+
+      // Scroll to trade entry time
+      if (trade.entry_time) {
+        const entryTs = Math.floor(new Date(trade.entry_time).getTime() / 1000);
+        chart.timeScale().scrollToPosition(0, false);
+        chart.timeScale().setVisibleRange({
+          from: entryTs - 900,  // 15min before
+          to:   entryTs + 3600, // 60min after
+        });
+      }
+
+      lwChartRef.current = chart;
+    };
+
+    renderChart();
+    return () => { lwChartRef.current?.remove(); };
+  }, [replayBars, darkMode]);
+
+  // TradingView fallback widget (when replay data not available)
   const tvContainerRef = useRef();
   useEffect(() => {
-    if (chartTab !== "replay" || !tvContainerRef.current) return;
+    if (chartTab !== "replay") return;
+    if (replayBars === null) return;  // still loading
+    if (replayBars.length > 0) return; // have real data, skip TV
+    // Fallback to TradingView
+    if (!tvContainerRef.current) return;
     tvContainerRef.current.innerHTML = "";
     const container = document.createElement("div");
     container.id = "tv-widget-" + Date.now();
@@ -1564,13 +1677,12 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
     script.innerHTML = JSON.stringify({
       autosize: true,
       symbol: tvSymbol,
-      interval: "5",
+      interval: "1",
       timezone: "America/New_York",
       theme: darkMode ? "dark" : "light",
       style: "1",
       locale: "en",
       allow_symbol_change: false,
-      calendar: false,
       hide_side_toolbar: false,
       withdateranges: true,
       save_image: false,
@@ -1578,7 +1690,7 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
     });
     container.appendChild(script);
     return () => { if (tvContainerRef.current) tvContainerRef.current.innerHTML = ""; };
-  }, [chartTab, tvSymbol, darkMode]);
+  }, [chartTab, tvSymbol, darkMode, replayBars]);
 
   const mob = typeof window !== "undefined" && window.innerWidth <= 768;
 
@@ -1620,14 +1732,42 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
               ))}
             </div>
 
-            {/* TradingView chart */}
+            {/* Replay/TradingView chart */}
             {chartTab==="replay" && (
               <div style={{borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`,position:"relative",background:C.surface,height:mob?220:380}}>
-                <div ref={tvContainerRef} style={{width:"100%",height:"100%"}} className="tradingview-widget-container"/>
+
+                {/* Loading state */}
+                {replayBars === null && (
+                  <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,zIndex:5}}>
+                    <div style={{width:28,height:28,border:`3px solid ${C.accent}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+                    <span style={{color:C.muted,fontSize:11,fontFamily:"'Space Mono',monospace"}}>Loading trade replay...</span>
+                  </div>
+                )}
+
+                {/* Tradovate Lightweight Chart (replay data) */}
+                {replayBars?.length > 0 && (
+                  <div ref={chartContainerRef} style={{width:"100%",height:"100%"}}/>
+                )}
+
+                {/* TradingView fallback */}
+                {Array.isArray(replayBars) && replayBars.length === 0 && (
+                  <>
+                    <div ref={tvContainerRef} style={{width:"100%",height:"100%"}} className="tradingview-widget-container"/>
+                    <div style={{position:"absolute",top:8,right:8,background:`${C.surface}cc`,borderRadius:4,padding:"2px 8px",fontSize:9,color:C.muted,fontFamily:"'Space Mono',monospace",pointerEvents:"none"}}>
+                      TradingView (live chart)
+                    </div>
+                  </>
+                )}
+
+                {/* Entry/Exit labels */}
                 <div style={{position:"absolute",top:8,left:8,display:"flex",gap:6,pointerEvents:"none",zIndex:10}}>
                   {trade.entry && <span style={{background:`${C.green}ee`,color:"#000",borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>▲ {trade.entry}</span>}
                   {trade.exit  && <span style={{background:`${C.red}ee`,color:"#fff",borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>▼ {trade.exit}</span>}
+                  {replayBars?.length > 0 && <span style={{background:`${C.accent}22`,color:C.accent,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:9,border:`1px solid ${C.accent}44`}}>⚡ Tradovate Replay</span>}
                 </div>
+
+                {/* Error */}
+                {replayError && <div style={{position:"absolute",bottom:8,left:8,color:C.red,fontSize:10,fontFamily:"'Space Mono',monospace"}}>{replayError}</div>}
               </div>
             )}
 
