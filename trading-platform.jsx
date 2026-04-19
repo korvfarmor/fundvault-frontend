@@ -3831,23 +3831,69 @@ export default function TradingPlatform({ session }) {
     }
     try {
       const data = await tradesApi.list();
-      setTrades(data.map(t => ({
-        id:         t.id,
-        symbol:     t.symbol,
-        side:       t.side,
-        entry:      t.entry_time,
-        exit:       t.exit_time,
-        pnl:        t.pnl,
-        rr:         t.rr,
-        holdMin:    t.hold_min,
-        status:     t.pnl >= 0 ? "win" : "loss",
-        tags:       t.tags || [],
-        rating:     t.rating || 0,
-        review:     t.review || "",
-        screenshot: t.screenshot || null,
-        checks:     t.rule_checks || {},
-        trade_date: t.trade_date,
-      })));
+      setTrades(data.map(t => {
+        // Format ISO timestamp → "HH:MM" for display
+        const fmtTime = (iso) => {
+          if (!iso) return null;
+          try {
+            // Parse as UTC, display in local time
+            const d = new Date(iso);
+            if (isNaN(d)) return iso; // already "HH:MM" format
+            return d.toLocaleTimeString("en-US", { hour:"2-digit", minute:"2-digit", hour12:false });
+          } catch { return iso; }
+        };
+
+        // Auto-calculate RR from entry/exit/stop if rr is 0 or missing
+        // RR = pnl / (entry - stop) * contracts — but we don't store stop
+        // Best estimate: RR = pnl / (avg_loss_for_symbol) — fallback: pnl / tickValue
+        // Simple approach: if pnl & entry_price & exit_price exist, calc risk from move
+        const calcRR = (t) => {
+          if (t.rr && t.rr !== 0) return t.rr; // already set manually
+          if (!t.entry_price || !t.exit_price || !t.pnl) return 0;
+          const move = Math.abs(t.exit_price - t.entry_price);
+          if (!move) return 0;
+          // RR needs a stop — we can't know stop from fills alone
+          // Store 0, let user fill it in manually in the review modal
+          return 0;
+        };
+
+        const entryTime = fmtTime(t.entry_time);
+        const exitTime  = fmtTime(t.exit_time);
+
+        // Hold time from timestamps if hold_min is 0
+        const holdMin = (() => {
+          if (t.hold_min && t.hold_min > 0) return t.hold_min;
+          if (t.entry_time && t.exit_time) {
+            const diff = Math.abs(new Date(t.exit_time) - new Date(t.entry_time)) / 60000;
+            return Math.round(diff);
+          }
+          return 0;
+        })();
+
+        return {
+          id:           t.id,
+          symbol:       t.symbol,
+          side:         t.side,
+          entry:        entryTime,
+          exit:         exitTime,
+          entry_time:   t.entry_time,   // keep raw ISO for chart/replay
+          exit_time:    t.exit_time,
+          entry_price:  t.entry_price,
+          exit_price:   t.exit_price,
+          pnl:          t.pnl,
+          rr:           calcRR(t),
+          holdMin,
+          status:       t.pnl >= 0 ? "win" : "loss",
+          tags:         t.tags || [],
+          rating:       t.rating || 0,
+          review:       t.review || "",
+          screenshot:   t.screenshot || null,
+          checks:       t.rule_checks || {},
+          trade_date:   t.trade_date,
+          source:       t.source,
+          external_id:  t.external_id,
+        };
+      }));
     } catch (err) {
       console.error("Failed to load trades:", err);
       setTrades([]);
