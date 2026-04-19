@@ -1593,12 +1593,22 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
 
     // Dynamically import Lightweight Charts
     const renderChart = async () => {
-      const { createChart } = await import("https://cdn.jsdelivr.net/npm/lightweight-charts/dist/lightweight-charts.standalone.production.mjs");
+      // Load Lightweight Charts from CDN (already available in the app bundle)
+      let createChart;
+      try {
+        const mod = await import("https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.mjs");
+        createChart = mod.createChart;
+      } catch {
+        // Fallback: use global if bundled
+        createChart = window.LightweightCharts?.createChart;
+      }
+      if (!createChart) { console.warn("[Chart] LightweightCharts not available"); return; }
+
       const chart = createChart(chartContainerRef.current, {
         width:  chartContainerRef.current.clientWidth,
         height: chartContainerRef.current.clientHeight || 360,
-        layout:  { background: { color: darkMode ? "#0d1420" : "#fff" }, textColor: darkMode ? "#c8d8e8" : "#333" },
-        grid:    { vertLines: { color: darkMode ? "#1e2d40" : "#eee" }, horzLines: { color: darkMode ? "#1e2d40" : "#eee" } },
+        layout:  { background: { color: darkMode ? "#0d1420" : "#ffffff" }, textColor: darkMode ? "#c8d8e8" : "#333" },
+        grid:    { vertLines: { color: darkMode ? "#1e2d4044" : "#eee" }, horzLines: { color: darkMode ? "#1e2d4044" : "#eee" } },
         crosshair: { mode: 1 },
         rightPriceScale: { borderColor: darkMode ? "#1e2d40" : "#ccc" },
         timeScale: { borderColor: darkMode ? "#1e2d40" : "#ccc", timeVisible: true, secondsVisible: false },
@@ -1610,51 +1620,58 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
         wickUpColor: "#00d084", wickDownColor: "#ff3d5a",
       });
 
-      // Convert Tradovate bars to Lightweight Charts format
+      // Tradovate bar format: { timestamp, open, high, low, close }
       const lwBars = replayBars
-        .map(b => ({
-          time:  Math.floor(new Date(b.timestamp).getTime() / 1000),
-          open:  b.open, high: b.high, low: b.low, close: b.close,
-        }))
-        .filter(b => b.open && b.high && b.low && b.close)
-        .sort((a, b) => a.time - b.time);
+        .map(b => {
+          const ts = b.timestamp
+            ? Math.floor(new Date(b.timestamp).getTime() / 1000)
+            : null;
+          return ts ? { time: ts, open: b.open, high: b.high, low: b.low, close: b.close } : null;
+        })
+        .filter(b => b && b.open && b.high && b.low && b.close)
+        .sort((a, b) => a.time - b.time)
+        // Remove duplicate timestamps
+        .filter((b, i, arr) => i === 0 || b.time !== arr[i-1].time);
 
+      if (!lwBars.length) return;
       candles.setData(lwBars);
 
-      // Entry price line
+      // Entry price horizontal line
       if (trade.entry_price) {
-        const entryLine = candles.createPriceLine({
+        candles.createPriceLine({
           price: parseFloat(trade.entry_price),
           color: "#00d084", lineWidth: 2, lineStyle: 2,
           axisLabelVisible: true,
-          title: `▲ Entry ${trade.entry_price}`,
+          title: `Entry ${trade.entry_price}`,
         });
       }
-      // Exit price line
+      // Exit price horizontal line
       if (trade.exit_price) {
-        const exitLine = candles.createPriceLine({
+        candles.createPriceLine({
           price: parseFloat(trade.exit_price),
           color: "#ff3d5a", lineWidth: 2, lineStyle: 2,
           axisLabelVisible: true,
-          title: `▼ Exit ${trade.exit_price}`,
+          title: `Exit ${trade.exit_price}`,
         });
       }
 
-      // Scroll to trade entry time
-      if (trade.entry_time) {
-        const entryTs = Math.floor(new Date(trade.entry_time).getTime() / 1000);
-        chart.timeScale().scrollToPosition(0, false);
-        chart.timeScale().setVisibleRange({
-          from: entryTs - 900,  // 15min before
-          to:   entryTs + 3600, // 60min after
-        });
-      }
+      // Zoom to trade window: 15min before entry → 30min after exit
+      const entryTs = trade.entry_time ? Math.floor(new Date(trade.entry_time).getTime() / 1000) : lwBars[Math.floor(lwBars.length * 0.3)].time;
+      const exitTs  = trade.exit_time  ? Math.floor(new Date(trade.exit_time).getTime() / 1000)  : entryTs + 3600;
+      chart.timeScale().setVisibleRange({
+        from: entryTs - 15 * 60,
+        to:   exitTs  + 30 * 60,
+      });
 
-      lwChartRef.current = chart;
+      // Resize observer
+      const ro = new ResizeObserver(() => chart.applyOptions({ width: chartContainerRef.current?.clientWidth }));
+      if (chartContainerRef.current) ro.observe(chartContainerRef.current);
+
+      lwChartRef.current = { chart, ro };
     };
 
     renderChart();
-    return () => { lwChartRef.current?.remove(); };
+    return () => { lwChartRef.current?.chart?.remove(); lwChartRef.current?.ro?.disconnect(); };
   }, [replayBars, darkMode]);
 
   // TradingView fallback widget (when replay data not available)
