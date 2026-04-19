@@ -439,11 +439,66 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false, C: the
   // Hämta öppna positioner (demo-läge om Tradovate ej anslutet)
   const fetchPositions = async () => fetchPositionsWithMode(demoModeRef.current);
 
-  // Uppdatera var 5:e sekund (eller i demo: var 3:e sekund med prisrörelse)
+  // SSE stream — real-time fills from Tradovate WebSocket
+  // Falls back to polling in demo mode
   useEffect(() => {
-    fetchPositions();
-    const interval = setInterval(fetchPositions, demoMode ? 3000 : 5000);
-    return () => clearInterval(interval);
+    if (demoMode) {
+      fetchPositions();
+      const interval = setInterval(fetchPositions, 3000);
+      return () => clearInterval(interval);
+    }
+    if (!tvStatus?.connected) return;
+
+    let es;
+    const connectStream = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        es = new EventSource(`${API}/tradovate/stream?token=${session.access_token}`);
+        // Also poll positions every 5s (stream only pushes on change)
+        fetchPositions();
+        const interval = setInterval(fetchPositions, 5000);
+
+        es.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            // Real-time positions pushed from backend position tracker
+            if (msg.type === "positions") {
+              setPositions(msg.positions.map(p => ({
+                id:           p.id,
+                symbol:       p.symbol,
+                side:         p.side,
+                size:         p.size,
+                avgPrice:     p.avg_price?.toFixed(2),
+                currentPrice: p.avg_price?.toFixed(2), // updated below via market data
+                unrealized:   p.unrealized_pnl || 0,
+                openedAt:     p.opened_at,
+              })));
+              setLastUpdate(new Date());
+            }
+            // Individual fill — backend will push positions update shortly
+            if (msg.type === "fill") {
+              fetchPositions(); // fallback fetch
+            }
+            // Round trip completed
+            if (msg.type === "trade_saved") {
+              window.dispatchEvent(new CustomEvent("fv:trade_saved", {
+                detail: { pnl: msg.pnl, symbol: msg.symbol }
+              }));
+            }
+          } catch {}
+        };
+        es.onerror = () => {
+          es?.close();
+          // Reconnect after 5s
+          setTimeout(connectStream, 5000);
+        };
+        return () => { es?.close(); clearInterval(interval); };
+      } catch {}
+    };
+
+    const cleanup = connectStream();
+    return () => { es?.close(); cleanup?.then?.(fn => fn?.()); };
   }, [tvStatus?.connected, demoMode]);
 
   const toggleSelect = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
@@ -3889,6 +3944,32 @@ export default function TradingPlatform({ session }) {
     } catch (err) { alert("Sync failed: " + err.message); }
     setSyncingTV(false);
   };
+
+  // Listen for real-time trade_saved events from Tradovate stream
+  useEffect(() => {
+    const handler = (e) => {
+      loadTrades();
+      // Brief toast notification
+      const pnl    = e.detail?.pnl;
+      const symbol = e.detail?.symbol || "trade";
+      const msg    = pnl != null
+        ? `⚡ Live trade saved: ${symbol} ${pnl >= 0 ? "+" : ""}$${pnl}`
+        : "⚡ New live trade saved";
+      const toast = document.createElement("div");
+      toast.textContent = msg;
+      Object.assign(toast.style, {
+        position:"fixed", bottom:"24px", left:"50%", transform:"translateX(-50%)",
+        background: pnl >= 0 ? "#00d084" : "#ff3d5a", color:"#fff",
+        padding:"10px 20px", borderRadius:"8px", fontSize:"14px",
+        fontWeight:"600", zIndex:"99999", boxShadow:"0 4px 20px #0006",
+        transition:"opacity .4s",
+      });
+      document.body.appendChild(toast);
+      setTimeout(() => { toast.style.opacity = "0"; setTimeout(() => toast.remove(), 400); }, 3000);
+    };
+    window.addEventListener("fv:trade_saved", handler);
+    return () => window.removeEventListener("fv:trade_saved", handler);
+  }, [loadTrades]);
 
   // ── Save check-in ──────────────────────────────────────────────────────────
   const [checkinSaved, setCheckinSaved] = useState(false);
