@@ -4119,8 +4119,13 @@ export default function TradingPlatform({ session }) {
     setSyncingTV(true);
     try {
       const result = await tradovateApi.sync();
-      if (result?.synced > 0) { await loadTrades(); alert(`✅ Synced ${result.synced} new trades!`); }
-      else alert("No new trades found in Tradovate.");
+      if (result?.synced > 0) {
+        await loadTrades();
+        alert(`✅ Synced ${result.synced} new trade${result.synced===1?"":"s"}!`);
+      } else {
+        await loadTrades(); // reload anyway in case data changed
+        // Silent — no popup if nothing new
+      }
     } catch (err) { alert("Sync failed: " + err.message); }
     setSyncingTV(false);
   };
@@ -6256,12 +6261,9 @@ export default function TradingPlatform({ session }) {
                   } catch(e) { alert("Could not start Tradovate connection: " + e.message); }
                 }}
                   style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"8px 18px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.accent,fontWeight:700}}>
-                  + Connect via OAuth
+                  + Connect to Tradovate
                 </button>
-                <button onClick={()=>{setShowTvLogin(true);setTvLoginStep("credentials");setTvLoginError("");}}
-                  style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 18px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>
-                  + Connect via Password
-                </button>
+
               </div>
             </div>
 
