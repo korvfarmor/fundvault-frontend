@@ -1549,60 +1549,88 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
   const darkMode = C.bg === "#080c14";
 
   // Replay chart state
-  const [replayBars,    setReplayBars   ] = useState(null);  // null=loading, []=no data, [...]= bars
-  const [replayError,   setReplayError  ] = useState(null);
+  const [chartBars,  setChartBars ] = useState(null); // null=loading, []=error, [...]= bars
+  const [chartError, setChartError] = useState(null);
   const chartContainerRef = useRef();
   const lwChartRef        = useRef();
 
-  // Fetch replay chart data from backend when chart tab is active
+  // Yahoo Finance symbol map: FundVault symbol → Yahoo ticker
+  const yahooSymbol = (() => {
+    const s = (trade.symbol || "NQ").toUpperCase();
+    const map = {
+      "NQ":"NQ=F", "MNQ":"MNQ=F",
+      "ES":"ES=F", "MES":"MES=F",
+      "YM":"YM=F", "MYM":"MYM=F",
+      "RTY":"RTY=F","M2K":"M2K=F",
+      "CL":"CL=F", "GC":"GC=F",
+      "SI":"SI=F", "ZB":"ZB=F",
+    };
+    return map[s] || (s + "=F");
+  })();
+
+  // Fetch historical 1-min bars from Yahoo Finance (free, no auth)
   useEffect(() => {
     if (chartTab !== "replay") return;
-    if (!trade.entry_time && !trade.trade_date) return;
+    if (!trade.trade_date) return;
 
     const load = async () => {
-      setReplayBars(null);
-      setReplayError(null);
+      setChartBars(null);
+      setChartError(null);
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
-        const from = trade.entry_time || `${trade.trade_date}T09:30:00Z`;
-        const to   = trade.exit_time  || `${trade.trade_date}T16:00:00Z`;
-        const sym  = trade.symbol || "NQ";
-        const r = await fetch(
-          `${API}/tradovate/replay-chart?symbol=${sym}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&resolution=1`,
-          { headers: { Authorization: `Bearer ${session?.access_token}` } }
-        );
-        const data = await r.json();
-        if (data.fallback || !data.bars?.length) {
-          setReplayBars([]);  // signal: fall back to TradingView
-        } else {
-          setReplayBars(data.bars);
-        }
+        const tradeDay   = new Date(trade.trade_date);
+        // Yahoo needs period1/period2 as Unix seconds — fetch full trade day + buffer
+        const period1 = Math.floor(tradeDay.getTime() / 1000) - 3600;
+        const period2 = Math.floor(tradeDay.getTime() / 1000) + 86400 + 3600;
+
+        // Use a CORS proxy since Yahoo Finance doesn't have CORS headers
+        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1m&period1=${period1}&period2=${period2}`;
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+
+        const r = await fetch(proxyUrl);
+        const wrapper = await r.json();
+        const data = JSON.parse(wrapper.contents);
+
+        const result = data?.chart?.result?.[0];
+        if (!result?.timestamp?.length) { setChartBars([]); return; }
+
+        const ts    = result.timestamp;
+        const ohlcv = result.indicators?.quote?.[0];
+        const bars  = ts
+          .map((t, i) => ({
+            time:  t,
+            open:  ohlcv.open[i],
+            high:  ohlcv.high[i],
+            low:   ohlcv.low[i],
+            close: ohlcv.close[i],
+          }))
+          .filter(b => b.open && b.high && b.low && b.close)
+          .sort((a, b) => a.time - b.time);
+
+        console.log(`[Chart] Yahoo Finance: ${bars.length} bars for ${yahooSymbol}`);
+        setChartBars(bars);
       } catch(e) {
-        setReplayBars([]);
-        setReplayError(e.message);
+        console.error("[Chart] Yahoo fetch error:", e.message);
+        setChartBars([]);
+        setChartError(e.message);
       }
     };
     load();
-  }, [chartTab, trade.entry_time, trade.exit_time, trade.symbol, trade.trade_date]);
+  }, [chartTab, trade.trade_date, trade.symbol]);
 
   // Render Lightweight Chart when bars arrive
   useEffect(() => {
-    if (!chartContainerRef.current || !Array.isArray(replayBars) || !replayBars.length) return;
+    if (!chartContainerRef.current || !Array.isArray(chartBars) || !chartBars.length) return;
     chartContainerRef.current.innerHTML = "";
 
-    // Dynamically import Lightweight Charts
     const renderChart = async () => {
-      // Load Lightweight Charts from CDN (already available in the app bundle)
       let createChart;
       try {
         const mod = await import("https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.mjs");
         createChart = mod.createChart;
       } catch {
-        // Fallback: use global if bundled
         createChart = window.LightweightCharts?.createChart;
       }
-      if (!createChart) { console.warn("[Chart] LightweightCharts not available"); return; }
+      if (!createChart) return;
 
       const chart = createChart(chartContainerRef.current, {
         width:  chartContainerRef.current.clientWidth,
@@ -1620,105 +1648,45 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
         wickUpColor: "#00d084", wickDownColor: "#ff3d5a",
       });
 
-      // Tradovate bar format: { timestamp, open, high, low, close }
-      const lwBars = replayBars
-        .map(b => {
-          const ts = b.timestamp
-            ? Math.floor(new Date(b.timestamp).getTime() / 1000)
-            : null;
-          return ts ? { time: ts, open: b.open, high: b.high, low: b.low, close: b.close } : null;
-        })
-        .filter(b => b && b.open && b.high && b.low && b.close)
-        .sort((a, b) => a.time - b.time)
-        // Remove duplicate timestamps
-        .filter((b, i, arr) => i === 0 || b.time !== arr[i-1].time);
+      candles.setData(chartBars);
 
-      if (!lwBars.length) return;
-      candles.setData(lwBars);
-
-      // Entry price horizontal line
+      // Entry price line
       if (trade.entry_price) {
         candles.createPriceLine({
-          price: parseFloat(trade.entry_price),
-          color: "#00d084", lineWidth: 2, lineStyle: 2,
-          axisLabelVisible: true,
-          title: `Entry ${trade.entry_price}`,
+          price: parseFloat(trade.entry_price), color: "#00d084",
+          lineWidth: 2, lineStyle: 2, axisLabelVisible: true,
+          title: `▲ Entry ${trade.entry_price}`,
         });
       }
-      // Exit price horizontal line
+      // Exit price line
       if (trade.exit_price) {
         candles.createPriceLine({
-          price: parseFloat(trade.exit_price),
-          color: "#ff3d5a", lineWidth: 2, lineStyle: 2,
-          axisLabelVisible: true,
-          title: `Exit ${trade.exit_price}`,
+          price: parseFloat(trade.exit_price), color: "#ff3d5a",
+          lineWidth: 2, lineStyle: 2, axisLabelVisible: true,
+          title: `▼ Exit ${trade.exit_price}`,
         });
       }
 
-      // Zoom to trade window: 15min before entry → 30min after exit
-      const entryTs = trade.entry_time ? Math.floor(new Date(trade.entry_time).getTime() / 1000) : lwBars[Math.floor(lwBars.length * 0.3)].time;
-      const exitTs  = trade.exit_time  ? Math.floor(new Date(trade.exit_time).getTime() / 1000)  : entryTs + 3600;
-      chart.timeScale().setVisibleRange({
-        from: entryTs - 15 * 60,
-        to:   exitTs  + 30 * 60,
+      // Zoom to trade window
+      const entryTs = trade.entry_time
+        ? Math.floor(new Date(trade.entry_time).getTime() / 1000)
+        : chartBars[Math.floor(chartBars.length * 0.3)].time;
+      const exitTs = trade.exit_time
+        ? Math.floor(new Date(trade.exit_time).getTime() / 1000)
+        : entryTs + 3600;
+      chart.timeScale().setVisibleRange({ from: entryTs - 15*60, to: exitTs + 30*60 });
+
+      const ro = new ResizeObserver(() => {
+        if (chartContainerRef.current)
+          chart.applyOptions({ width: chartContainerRef.current.clientWidth });
       });
-
-      // Resize observer
-      const ro = new ResizeObserver(() => chart.applyOptions({ width: chartContainerRef.current?.clientWidth }));
       if (chartContainerRef.current) ro.observe(chartContainerRef.current);
-
       lwChartRef.current = { chart, ro };
     };
 
     renderChart();
     return () => { lwChartRef.current?.chart?.remove(); lwChartRef.current?.ro?.disconnect(); };
-  }, [replayBars, darkMode]);
-
-  // TradingView fallback widget (when replay data not available)
-  const tvContainerRef = useRef();
-  useEffect(() => {
-    if (chartTab !== "replay") return;
-    if (replayBars === null) return;  // still loading
-    if (replayBars.length > 0) return; // have real data, skip TV
-    // Fallback to TradingView with correct date range
-    if (!tvContainerRef.current) return;
-    tvContainerRef.current.innerHTML = "";
-
-    // Build TradingView URL with date range — use iframe embed with range param
-    // Format: from/to as Unix timestamps
-    const fromTs = trade.entry_time
-      ? Math.floor(new Date(trade.entry_time).getTime() / 1000) - 1800  // 30min before
-      : Math.floor(new Date(`${trade.trade_date}T13:00:00Z`).getTime() / 1000);
-    const toTs = trade.exit_time
-      ? Math.floor(new Date(trade.exit_time).getTime() / 1000) + 1800   // 30min after
-      : fromTs + 7200;
-
-    const container = document.createElement("div");
-    container.id = "tv-widget-" + Date.now();
-    container.style.height = "100%";
-    container.style.width = "100%";
-    tvContainerRef.current.appendChild(container);
-    const script = document.createElement("script");
-    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      autosize: true,
-      symbol: tvSymbol,
-      interval: "1",
-      timezone: "America/New_York",
-      theme: darkMode ? "dark" : "light",
-      style: "1",
-      locale: "en",
-      allow_symbol_change: false,
-      hide_side_toolbar: false,
-      withdateranges: true,
-      range: "1D",
-      save_image: false,
-      container_id: container.id,
-    });
-    container.appendChild(script);
-    return () => { if (tvContainerRef.current) tvContainerRef.current.innerHTML = ""; };
-  }, [chartTab, tvSymbol, darkMode, replayBars]);
+  }, [chartBars, darkMode]);
 
   const mob = typeof window !== "undefined" && window.innerWidth <= 768;
 
@@ -1765,37 +1733,33 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
               <div style={{borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`,position:"relative",background:C.surface,height:mob?220:380}}>
 
                 {/* Loading state */}
-                {replayBars === null && (
+                {chartBars === null && (
                   <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,zIndex:5}}>
                     <div style={{width:28,height:28,border:`3px solid ${C.accent}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
-                    <span style={{color:C.muted,fontSize:11,fontFamily:"'Space Mono',monospace"}}>Loading trade replay...</span>
+                    <span style={{color:C.muted,fontSize:11,fontFamily:"'Space Mono',monospace"}}>Loading chart...</span>
                   </div>
                 )}
 
-                {/* Tradovate Lightweight Chart (replay data) */}
-                {replayBars?.length > 0 && (
+                {/* Lightweight Chart with Yahoo Finance data */}
+                {chartBars?.length > 0 && (
                   <div ref={chartContainerRef} style={{width:"100%",height:"100%"}}/>
                 )}
 
-                {/* TradingView fallback */}
-                {Array.isArray(replayBars) && replayBars.length === 0 && (
-                  <>
-                    <div ref={tvContainerRef} style={{width:"100%",height:"100%"}} className="tradingview-widget-container"/>
-                    <div style={{position:"absolute",top:8,right:8,background:`${C.surface}cc`,borderRadius:4,padding:"2px 8px",fontSize:9,color:C.muted,fontFamily:"'Space Mono',monospace",pointerEvents:"none"}}>
-                      TradingView (live chart)
-                    </div>
-                  </>
+                {/* No data fallback */}
+                {Array.isArray(chartBars) && chartBars.length === 0 && (
+                  <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8}}>
+                    <span style={{fontSize:28}}>📉</span>
+                    <span style={{color:C.muted,fontSize:12,fontFamily:"'Space Mono',monospace"}}>Chart data unavailable for this date</span>
+                    {chartError && <span style={{color:C.red,fontSize:10}}>{chartError}</span>}
+                  </div>
                 )}
 
-                {/* Entry/Exit labels */}
+                {/* Entry/Exit time labels */}
                 <div style={{position:"absolute",top:8,left:8,display:"flex",gap:6,pointerEvents:"none",zIndex:10}}>
                   {trade.entry && <span style={{background:`${C.green}ee`,color:"#000",borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>▲ {trade.entry}</span>}
                   {trade.exit  && <span style={{background:`${C.red}ee`,color:"#fff",borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>▼ {trade.exit}</span>}
-                  {replayBars?.length > 0 && <span style={{background:`${C.accent}22`,color:C.accent,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:9,border:`1px solid ${C.accent}44`}}>⚡ Tradovate Replay</span>}
+                  {chartBars?.length > 0 && <span style={{background:`${C.accent}22`,color:C.accent,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:9,border:`1px solid ${C.accent}44`}}>📊 Historical Chart</span>}
                 </div>
-
-                {/* Error */}
-                {replayError && <div style={{position:"absolute",bottom:8,left:8,color:C.red,fontSize:10,fontFamily:"'Space Mono',monospace"}}>{replayError}</div>}
               </div>
             )}
 
