@@ -1549,8 +1549,9 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+        // Pass asset_type so backend knows whether to add =F suffix
         const r = await fetch(
-          `${API}/tradovate/chart?symbol=${encodeURIComponent(trade.symbol || "NQ")}&date=${trade.trade_date}`,
+          `${API}/tradovate/chart?symbol=${encodeURIComponent(trade.symbol || "NQ")}&date=${trade.trade_date}&asset_type=${encodeURIComponent(trade.asset_type || "Futures")}`,
           { headers: { Authorization: `Bearer ${session?.access_token}` } }
         );
         const data = await r.json();
@@ -2079,6 +2080,7 @@ const ADD_TAGS = ["Kill Zone","Displacement","FVG","OB","BOS","CHoCH","Liquidity
 const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEvents}) => {
   const [form, setForm] = useState({
     symbol:"NQ", contractType:"standard", side:"Long",
+    asset_type:"Futures",
     trade_date: (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })(),
     contracts:"1", entry:"", exit:"",
     entryPrice:"", exitPrice:"",
@@ -2092,13 +2094,17 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
   const inst = INSTRUMENTS.find(i=>i.value===form.symbol) || INSTRUMENTS[0];
   const ptVal = inst.pts[form.contractType] || inst.pts.standard;
 
-  // Auto-calc P&L from prices if entered
+  // Auto-calc P&L based on asset type
   const autoPnl = (() => {
     const ep = parseFloat(form.entryPrice), xp = parseFloat(form.exitPrice);
-    const ct = parseInt(form.contracts)||1;
+    const ct = parseInt(form.contracts) || 1;
     if (!ep || !xp) return null;
-    const diff = form.side==="Long" ? xp-ep : ep-xp;
-    return Math.round(diff * ptVal * ct);
+    const diff = form.side === "Long" ? xp - ep : ep - xp;
+    if (form.asset_type === "Futures") return Math.round(diff * ptVal * ct);
+    if (form.asset_type === "Options") return Math.round(diff * 100 * ct);  // 1 contract = 100 shares
+    if (form.asset_type === "Stocks")  return Math.round(diff * ct * 100) / 100;  // ct = shares/100
+    if (form.asset_type === "Crypto")  return Math.round(diff * ct * 100) / 100;
+    return Math.round(diff * ct * 100) / 100; // generic
   })();
 
   // Hold time
@@ -2170,6 +2176,7 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
     try {
       await onSave({
         symbol:     form.symbol,
+        asset_type: form.asset_type || "Futures",
         side:       form.side,
         entry:      form.entry,
         exit:       form.exit,
@@ -2227,42 +2234,79 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
           {/* Left column */}
           <div style={{padding:"20px",borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:14}}>
 
-            {/* Instrument + Contract Type */}
-            <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,alignItems:"end"}}>
-              <div>
-                <label style={labelStyle}>Instrument</label>
-                <div style={{display:"flex",gap:6}}>
-                  <select value={form.symbol} onChange={e=>set("symbol",e.target.value)} style={{...inputStyle,cursor:"pointer",flex:1}}>
-                    {INSTRUMENTS.map(i=><option key={i.value} value={i.value}>{i.label}</option>)}
-                  </select>
-                  <button onClick={()=>{
-                    const ticker = window.prompt("Enter custom ticker symbol (e.g. AAPL, BTC, NG):");
-                    if (!ticker?.trim()) return;
-                    const val = ticker.trim().toUpperCase();
-                    if (INSTRUMENTS.find(i=>i.value===val)) { set("symbol",val); return; }
-                    const newInstrument = {value:val, label:val, pts:{standard:1,micro:1}};
-                    const custom = JSON.parse(localStorage.getItem("fv_custom_tickers")||"[]");
-                    if (!custom.find(i=>i.value===val)) {
-                      custom.push(newInstrument);
-                      localStorage.setItem("fv_custom_tickers", JSON.stringify(custom));
-                      INSTRUMENTS.push(newInstrument);
-                    }
-                    set("symbol",val);
-                  }} title="Add custom ticker" style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",cursor:"pointer",color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:12,flexShrink:0}}>+ Custom</button>
-                </div>
-              </div>
-              <div>
-                <label style={labelStyle}>Contract Type <span style={{color:C.accent}}>${ptVal}/pt</span></label>
-                <div style={{display:"flex",gap:6}}>
-                  {[{id:"standard",label:"Standard"},{id:"micro",label:"Micro"}].map(ct=>(
-                    <button key={ct.id} onClick={()=>set("contractType",ct.id)}
-                      style={{padding:"10px 16px",borderRadius:8,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,background:form.contractType===ct.id?C.accentDim:C.surface,border:`1px solid ${form.contractType===ct.id?C.accent+"66":C.border}`,color:form.contractType===ct.id?C.accent:C.textDim}}>
-                      {ct.label}
-                    </button>
-                  ))}
-                </div>
+            {/* Asset Type selector */}
+            <div>
+              <label style={labelStyle}>Asset Type</label>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {["Futures","Stocks","Options","Crypto","Forex","Other"].map(at=>(
+                  <button key={at} onClick={()=>set("asset_type",at)}
+                    style={{padding:"8px 14px",borderRadius:8,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700,
+                      background:form.asset_type===at?C.accentDim:C.surface,
+                      border:`1px solid ${form.asset_type===at?C.accent+"66":C.border}`,
+                      color:form.asset_type===at?C.accent:C.textDim}}>
+                    {at}
+                  </button>
+                ))}
               </div>
             </div>
+
+            {/* Instrument / Symbol */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,alignItems:"end"}}>
+              <div>
+                <label style={labelStyle}>
+                  {form.asset_type==="Futures" ? "Instrument" : "Ticker Symbol"}
+                </label>
+                {form.asset_type === "Futures" ? (
+                  <div style={{display:"flex",gap:6}}>
+                    <select value={form.symbol} onChange={e=>set("symbol",e.target.value)} style={{...inputStyle,cursor:"pointer",flex:1}}>
+                      {INSTRUMENTS.map(i=><option key={i.value} value={i.value}>{i.label}</option>)}
+                    </select>
+                    <button onClick={()=>{
+                      const ticker = window.prompt("Custom futures symbol (e.g. NG, ZN):");
+                      if (!ticker?.trim()) return;
+                      const val = ticker.trim().toUpperCase();
+                      if (!INSTRUMENTS.find(i=>i.value===val)) {
+                        const n = {value:val,label:val,pts:{standard:1,micro:1}};
+                        const custom = JSON.parse(localStorage.getItem("fv_custom_tickers")||"[]");
+                        custom.push(n); localStorage.setItem("fv_custom_tickers",JSON.stringify(custom));
+                        INSTRUMENTS.push(n);
+                      }
+                      set("symbol",val);
+                    }} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",cursor:"pointer",color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,flexShrink:0}}>+ Custom</button>
+                  </div>
+                ) : (
+                  <input
+                    value={form.symbol}
+                    onChange={e=>set("symbol",e.target.value.toUpperCase())}
+                    placeholder={
+                      form.asset_type==="Stocks"  ? "e.g. AAPL, TSLA, SPY" :
+                      form.asset_type==="Options" ? "e.g. AAPL 180C, SPY 480P" :
+                      form.asset_type==="Crypto"  ? "e.g. BTC, ETH, SOL" :
+                      form.asset_type==="Forex"   ? "e.g. EURUSD, GBPJPY" : "Ticker symbol"
+                    }
+                    style={inputStyle}
+                  />
+                )}
+              </div>
+              {form.asset_type === "Futures" && (
+                <div>
+                  <label style={labelStyle}>Type <span style={{color:C.accent}}>${ptVal}/pt</span></label>
+                  <div style={{display:"flex",gap:6}}>
+                    {[{id:"standard",label:"Std"},{id:"micro",label:"Micro"}].map(ct=>(
+                      <button key={ct.id} onClick={()=>set("contractType",ct.id)}
+                        style={{padding:"10px 14px",borderRadius:8,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,
+                          background:form.contractType===ct.id?C.accentDim:C.surface,
+                          border:`1px solid ${form.contractType===ct.id?C.accent+"66":C.border}`,
+                          color:form.contractType===ct.id?C.accent:C.textDim}}>
+                        {ct.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+
 
             {/* Direction */}
             <div>
@@ -2309,7 +2353,7 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
               {[
                 ["Hold", holdMin!=null ? `${holdMin}m` : "–"],
                 ["P&L",  form.pnl ? `$${form.pnl}` : autoPnl!=null ? `$${autoPnl}` : "–"],
-                ["Contracts", `${form.contracts||1}× ${form.symbol}`],
+                [form.asset_type==="Stocks"?"Shares":form.asset_type==="Options"?"Contracts":form.asset_type==="Crypto"?"Units":"Contracts", `${form.contracts||1}× ${form.symbol}`],
                 ["Value/pt", `$${ptVal}/pt`],
               ].map(([l,v])=>(
                 <div key={l}><div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,textTransform:"uppercase"}}>{l}</div><div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,marginTop:2}}>{v}</div></div>
@@ -3820,6 +3864,7 @@ export default function TradingPlatform({ session }) {
           trade_date:   t.trade_date,
           source:       t.source,
           external_id:  t.external_id,
+          asset_type:   t.asset_type || "Futures",
         };
       }));
     } catch (err) {
@@ -4034,6 +4079,7 @@ export default function TradingPlatform({ session }) {
       screenshot:  updated.screenshot || null,
       rule_checks: updated.checks || {},
       trade_date:  updated.trade_date || new Date().toISOString().slice(0,10),
+      asset_type:  updated.asset_type || "Futures",
     };
     const isRealId = typeof updated.id === "string"
       && updated.id.includes("-")
