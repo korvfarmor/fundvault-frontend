@@ -1568,7 +1568,7 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
     return map[s] || (s + "=F");
   })();
 
-  // Fetch historical 1-min bars from Yahoo Finance (free, no auth)
+  // Fetch historical 1-min bars via backend (Yahoo Finance, no CORS issues)
   useEffect(() => {
     if (chartTab !== "replay") return;
     if (!trade.trade_date) return;
@@ -1577,39 +1577,22 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
       setChartBars(null);
       setChartError(null);
       try {
-        const tradeDay   = new Date(trade.trade_date);
-        // Yahoo needs period1/period2 as Unix seconds — fetch full trade day + buffer
-        const period1 = Math.floor(tradeDay.getTime() / 1000) - 3600;
-        const period2 = Math.floor(tradeDay.getTime() / 1000) + 86400 + 3600;
-
-        // Use a CORS proxy since Yahoo Finance doesn't have CORS headers
-        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1m&period1=${period1}&period2=${period2}`;
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
-
-        const r = await fetch(proxyUrl);
-        const wrapper = await r.json();
-        const data = JSON.parse(wrapper.contents);
-
-        const result = data?.chart?.result?.[0];
-        if (!result?.timestamp?.length) { setChartBars([]); return; }
-
-        const ts    = result.timestamp;
-        const ohlcv = result.indicators?.quote?.[0];
-        const bars  = ts
-          .map((t, i) => ({
-            time:  t,
-            open:  ohlcv.open[i],
-            high:  ohlcv.high[i],
-            low:   ohlcv.low[i],
-            close: ohlcv.close[i],
-          }))
-          .filter(b => b.open && b.high && b.low && b.close)
-          .sort((a, b) => a.time - b.time);
-
-        console.log(`[Chart] Yahoo Finance: ${bars.length} bars for ${yahooSymbol}`);
-        setChartBars(bars);
+        const { data: { session } } = await supabase.auth.getSession();
+        const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+        const r = await fetch(
+          `${API}/tradovate/chart?symbol=${encodeURIComponent(trade.symbol || "NQ")}&date=${trade.trade_date}`,
+          { headers: { Authorization: `Bearer ${session?.access_token}` } }
+        );
+        const data = await r.json();
+        if (!data.bars?.length) {
+          console.log("[Chart] no bars returned:", data.error || "empty");
+          setChartBars([]);
+          return;
+        }
+        console.log(`[Chart] got ${data.bars.length} bars for ${data.ticker}`);
+        setChartBars(data.bars);
       } catch(e) {
-        console.error("[Chart] Yahoo fetch error:", e.message);
+        console.error("[Chart] fetch error:", e.message);
         setChartBars([]);
         setChartError(e.message);
       }
