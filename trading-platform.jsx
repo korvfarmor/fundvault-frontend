@@ -4050,17 +4050,20 @@ export default function TradingPlatform({ session }) {
       user_id:     userId,
       symbol:      updated.symbol,
       side:        updated.side,
-      entry_time:  updated.entry,
-      exit_time:   updated.exit,
+      // Use raw ISO timestamps — not the formatted HH:MM display strings
+      entry_time:  updated.entry_time || null,
+      exit_time:   updated.exit_time  || null,
+      entry_price: updated.entry_price || null,
+      exit_price:  updated.exit_price  || null,
       pnl:         updated.pnl,
-      rr:          updated.rr,
+      rr:          updated.rr || 0,
       hold_min:    updated.holdMin || 0,
       tags:        updated.tags || [],
       rating:      updated.rating || 0,
       review:      updated.review || "",
       screenshot:  updated.screenshot || null,
       rule_checks: updated.checks || {},
-      trade_date:  updated.trade_date || (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })(),
+      trade_date:  updated.trade_date || new Date().toISOString().slice(0,10),
     };
     const isRealId = typeof updated.id === "string"
       && updated.id.includes("-")
