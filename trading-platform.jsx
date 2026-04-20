@@ -1680,9 +1680,19 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
     if (chartTab !== "replay") return;
     if (replayBars === null) return;  // still loading
     if (replayBars.length > 0) return; // have real data, skip TV
-    // Fallback to TradingView
+    // Fallback to TradingView with correct date range
     if (!tvContainerRef.current) return;
     tvContainerRef.current.innerHTML = "";
+
+    // Build TradingView URL with date range — use iframe embed with range param
+    // Format: from/to as Unix timestamps
+    const fromTs = trade.entry_time
+      ? Math.floor(new Date(trade.entry_time).getTime() / 1000) - 1800  // 30min before
+      : Math.floor(new Date(`${trade.trade_date}T13:00:00Z`).getTime() / 1000);
+    const toTs = trade.exit_time
+      ? Math.floor(new Date(trade.exit_time).getTime() / 1000) + 1800   // 30min after
+      : fromTs + 7200;
+
     const container = document.createElement("div");
     container.id = "tv-widget-" + Date.now();
     container.style.height = "100%";
@@ -1702,6 +1712,7 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
       allow_symbol_change: false,
       hide_side_toolbar: false,
       withdateranges: true,
+      range: "1D",
       save_image: false,
       container_id: container.id,
     });
