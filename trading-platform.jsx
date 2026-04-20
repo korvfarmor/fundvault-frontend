@@ -427,11 +427,21 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false, C: the
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      setPositions(data);
+      // Map DB format to display format
+      setPositions(Array.isArray(data) ? data.map(p => ({
+        id:           p.id,
+        symbol:       p.symbol,
+        side:         p.side,
+        size:         p.size,
+        avgPrice:     p.avg_price?.toFixed(2) || "—",
+        currentPrice: p.avg_price?.toFixed(2) || "—",
+        unrealized:   p.unrealized_pnl || 0,
+        openedAt:     p.opened_at,
+      })) : []);
       setLastUpdate(new Date());
     } catch (err) {
-      setError("Could not fetch positions");
-      console.error(err);
+      console.error("[Positions]", err.message);
+      setPositions([]);
     }
     setLoading(false);
   };
@@ -439,8 +449,8 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false, C: the
   // Hämta öppna positioner (demo-läge om Tradovate ej anslutet)
   const fetchPositions = async () => fetchPositionsWithMode(demoModeRef.current);
 
-  // SSE stream — real-time fills from Tradovate WebSocket
-  // Falls back to polling in demo mode
+  // Poll positions every 10s — positions come from open_positions table
+  // which is populated by real-time fill events from the stream
   useEffect(() => {
     if (demoMode) {
       fetchPositions();
@@ -449,57 +459,17 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false, C: the
     }
     if (!tvStatus?.connected) return;
 
-    let es;
-    const connectStream = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        es = new EventSource(`${API}/tradovate/stream?token=${session.access_token}`);
-        // Also poll positions every 5s (stream only pushes on change)
-        fetchPositions();
-        const interval = setInterval(fetchPositions, 5000);
-
-        es.onmessage = (evt) => {
-          try {
-            const msg = JSON.parse(evt.data);
-            // Real-time positions pushed from backend position tracker
-            if (msg.type === "positions") {
-              setPositions(msg.positions.map(p => ({
-                id:           p.id,
-                symbol:       p.symbol,
-                side:         p.side,
-                size:         p.size,
-                avgPrice:     p.avg_price?.toFixed(2),
-                currentPrice: p.avg_price?.toFixed(2), // updated below via market data
-                unrealized:   p.unrealized_pnl || 0,
-                openedAt:     p.opened_at,
-              })));
-              setLastUpdate(new Date());
-            }
-            // Individual fill — backend will push positions update shortly
-            if (msg.type === "fill") {
-              fetchPositions(); // fallback fetch
-            }
-            // Round trip completed
-            if (msg.type === "trade_saved") {
-              window.dispatchEvent(new CustomEvent("fv:trade_saved", {
-                detail: { pnl: msg.pnl, symbol: msg.symbol }
-              }));
-            }
-          } catch {}
-        };
-        es.onerror = () => {
-          es?.close();
-          // Reconnect after 5s
-          setTimeout(connectStream, 5000);
-        };
-        return () => { es?.close(); clearInterval(interval); };
-      } catch {}
-    };
-
-    const cleanup = connectStream();
-    return () => { es?.close(); cleanup?.then?.(fn => fn?.()); };
+    fetchPositions();
+    const interval = setInterval(fetchPositions, 10000);
+    return () => clearInterval(interval);
   }, [tvStatus?.connected, demoMode]);
+
+  // Listen for real-time position updates from SSE stream (via window event)
+  useEffect(() => {
+    const handler = () => fetchPositions();
+    window.addEventListener("fv:positions_updated", handler);
+    return () => window.removeEventListener("fv:positions_updated", handler);
+  }, []);
 
   const toggleSelect = (id) => setSelected(s => ({ ...s, [id]: !s[id] }));
   const selectedIds  = positions.filter(p => selected[p.id]).map(p => p.id);
@@ -4108,6 +4078,48 @@ export default function TradingPlatform({ session }) {
     } catch (err) { alert("Sync failed: " + err.message); }
     setSyncingTV(false);
   };
+
+  // Global SSE stream listener — forwards events to components via window events
+  useEffect(() => {
+    if (isDemo || !tvStatus?.connected) return;
+    let es;
+    let retryDelay = 5000;
+    let retryTimer;
+
+    const connect = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+        es = new EventSource(`${API}/tradovate/stream?token=${session.access_token}`);
+        retryDelay = 5000; // reset backoff on success
+
+        es.onmessage = (evt) => {
+          try {
+            const msg = JSON.parse(evt.data);
+            if (msg.type === "positions" || msg.type === "fill") {
+              window.dispatchEvent(new CustomEvent("fv:positions_updated"));
+            }
+            if (msg.type === "trade_saved") {
+              loadTrades();
+              window.dispatchEvent(new CustomEvent("fv:trade_saved", {
+                detail: { pnl: msg.pnl, symbol: msg.symbol }
+              }));
+            }
+          } catch {}
+        };
+        es.onerror = () => {
+          es?.close();
+          // Exponential backoff: 5s → 10s → 20s → max 60s
+          retryDelay = Math.min(retryDelay * 2, 60000);
+          retryTimer = setTimeout(connect, retryDelay);
+        };
+      } catch {}
+    };
+
+    connect();
+    return () => { es?.close(); clearTimeout(retryTimer); };
+  }, [isDemo, tvStatus?.connected]);
 
   // Listen for real-time trade_saved events from Tradovate stream
   useEffect(() => {
