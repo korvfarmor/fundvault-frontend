@@ -3359,7 +3359,7 @@ const LWPnlChart = ({ data, darkMode, green, red }) => {
 // ── App ───────────────────────────────────────────────────────────────────────
 // ── CopierOnboarding ──────────────────────────────────────────────────────────
 const CopierOnboarding = ({ onDismiss, onGoToAccounts, C }) => {
-  const [step, setStep] = React.useState(0);
+  const [step, setStep] = useState(0);
 
   const steps = [
     {
@@ -3488,15 +3488,15 @@ const CopierOnboarding = ({ onDismiss, onGoToAccounts, C }) => {
 
 // ── CreateCopierGroupPanel ────────────────────────────────────────────────────
 const CreateCopierGroupPanel = ({ tvAccounts, onCreate, C }) => {
-  const [name,     setName   ] = React.useState("My Copy Group");
-  const [masterId, setMasterId] = React.useState("");
-  const [slaveIds, setSlaveIds] = React.useState([]);
-  const [sizeMode, setSizeMode] = React.useState("mirror");
-  const [fixedQty, setFixedQty] = React.useState(1);
-  const [ratio,    setRatio   ] = React.useState(1.0);
-  const [dryRun,   setDryRun  ] = React.useState(true);  // Default: safe test mode
-  const [creating, setCreating] = React.useState(false);
-  const [open,     setOpen    ] = React.useState(false);
+  const [name,     setName   ] = useState("My Copy Group");
+  const [masterId, setMasterId] = useState("");
+  const [slaveIds, setSlaveIds] = useState([]);
+  const [sizeMode, setSizeMode] = useState("mirror");
+  const [fixedQty, setFixedQty] = useState(1);
+  const [ratio,    setRatio   ] = useState(1.0);
+  const [dryRun,   setDryRun  ] = useState(true);  // Default: safe test mode
+  const [creating, setCreating] = useState(false);
+  const [open,     setOpen    ] = useState(false);
 
   if (!open) return (
     <button onClick={()=>setOpen(true)}
