@@ -3357,6 +3357,95 @@ const LWPnlChart = ({ data, darkMode, green, red }) => {
 };
 
 // ── App ───────────────────────────────────────────────────────────────────────
+// ── CreateCopierGroupPanel ────────────────────────────────────────────────────
+const CreateCopierGroupPanel = ({ tvAccounts, onCreate, C }) => {
+  const [name,     setName   ] = React.useState("My Copy Group");
+  const [masterId, setMasterId] = React.useState("");
+  const [slaveIds, setSlaveIds] = React.useState([]);
+  const [sizeMode, setSizeMode] = React.useState("mirror");
+  const [fixedQty, setFixedQty] = React.useState(1);
+  const [ratio,    setRatio   ] = React.useState(1.0);
+  const [creating, setCreating] = React.useState(false);
+  const [open,     setOpen    ] = React.useState(false);
+
+  if (!open) return (
+    <button onClick={()=>setOpen(true)}
+      style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:10,padding:"12px 20px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.accent,fontWeight:700,alignSelf:"flex-start"}}>
+      + New Copy Group
+    </button>
+  );
+
+  const inputS = {background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none",width:"100%",boxSizing:"border-box"};
+  const labelS = {fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5,display:"block"};
+
+  return (
+    <div style={{background:C.card,border:`1px solid ${C.accent}44`,borderRadius:12,padding:24,display:"flex",flexDirection:"column",gap:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:18}}>New Copy Group</div>
+        <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:18}}>✕</button>
+      </div>
+      <div>
+        <label style={labelS}>Group Name</label>
+        <input value={name} onChange={e=>setName(e.target.value)} style={inputS} placeholder="My Copy Group"/>
+      </div>
+      <div>
+        <label style={labelS}>Master Account (source)</label>
+        <select value={masterId} onChange={e=>setMasterId(e.target.value)} style={{...inputS,cursor:"pointer"}}>
+          <option value="">Select master account...</option>
+          {tvAccounts.map(a=>(
+            <option key={a.tradovate_account_id} value={String(a.tradovate_account_id)}>
+              {a.display_name || a.account_spec} (ID: {a.tradovate_account_id})
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label style={labelS}>Slave Accounts (destinations)</label>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {tvAccounts.filter(a=>String(a.tradovate_account_id)!==String(masterId)).map(a=>(
+            <label key={a.tradovate_account_id} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"10px 14px",background:C.surface,borderRadius:8,border:`1px solid ${slaveIds.includes(String(a.tradovate_account_id))?C.accent+"44":C.border}`}}>
+              <input type="checkbox"
+                checked={slaveIds.includes(String(a.tradovate_account_id))}
+                onChange={e=>{const id=String(a.tradovate_account_id);setSlaveIds(ids=>e.target.checked?[...ids,id]:ids.filter(x=>x!==id));}}
+              />
+              <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13}}>{a.display_name || a.account_spec}</span>
+              <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>ID: {a.tradovate_account_id}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label style={labelS}>Position Size</label>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {[{id:"mirror",label:"Mirror qty"},{id:"fixed",label:"Fixed qty"},{id:"ratio",label:"Ratio"}].map(m=>(
+            <button key={m.id} onClick={()=>setSizeMode(m.id)}
+              style={{padding:"8px 14px",borderRadius:8,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700,
+                background:sizeMode===m.id?C.accentDim:C.surface,border:`1px solid ${sizeMode===m.id?C.accent+"66":C.border}`,color:sizeMode===m.id?C.accent:C.textDim}}>
+              {m.label}
+            </button>
+          ))}
+        </div>
+        {sizeMode==="fixed" && <input type="number" min="1" value={fixedQty} onChange={e=>setFixedQty(parseInt(e.target.value)||1)} style={{...inputS,marginTop:8,width:120}} placeholder="Contracts"/>}
+        {sizeMode==="ratio" && <input type="number" min="0.1" step="0.1" value={ratio} onChange={e=>setRatio(parseFloat(e.target.value)||1)} style={{...inputS,marginTop:8,width:120}} placeholder="e.g. 0.5"/>}
+      </div>
+      <div style={{display:"flex",gap:10}}>
+        <button onClick={()=>setOpen(false)} style={{flex:1,padding:"12px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>Cancel</button>
+        <button disabled={!masterId||!slaveIds.length||creating}
+          onClick={async()=>{
+            setCreating(true);
+            const master=tvAccounts.find(a=>String(a.tradovate_account_id)===String(masterId));
+            const slaves=tvAccounts.filter(a=>slaveIds.includes(String(a.tradovate_account_id)));
+            await onCreate(master,slaves,name,sizeMode,fixedQty,ratio);
+            setOpen(false);setMasterId("");setSlaveIds([]);setName("My Copy Group");setCreating(false);
+          }}
+          style={{flex:2,padding:"12px",borderRadius:10,cursor:"pointer",background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:!masterId||!slaveIds.length?0.4:1}}>
+          {creating?"Creating...":"Create Group →"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export default function TradingPlatform({ session }) {
   const user = session?.user;
   const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Trader";
@@ -3655,17 +3744,9 @@ export default function TradingPlatform({ session }) {
   };
 
   // ── Trade Copier state ─────────────────────────────────────────────────────
-  const [copierAccounts, setCopierAccounts] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("edgestat_copier_accounts") || "[]"); }
-    catch { return []; }
-  });
-  const [copierGroups, setCopierGroups] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("edgestat_copier_groups") || "[]"); }
-    catch { return []; }
-  });
-  const [activeGroupId, setActiveGroupId] = useState(() =>
-    localStorage.getItem("edgestat_active_group") || null
-  );
+  const [copierGroups,  setCopierGroups  ] = useState([]);
+  const [copierLoading, setCopierLoading ] = useState(false);
+  const [activeGroupId, setActiveGroupId ] = useState(null);
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [showAddGroup,   setShowAddGroup  ] = useState(false);
   const [newAcctForm,    setNewAcctForm   ] = useState({ name:"", firm:"mffu", accountSize:"50000", username:"", password:"", accountId:"" });
@@ -3683,76 +3764,102 @@ export default function TradingPlatform({ session }) {
   const [copierStatus,   setCopierStatus  ] = useState(null); // live backend status
   const [copierLog,      setCopierLog     ] = useState([]);
 
-  // Kopiera API-anrop mot backend
+  // ── Copier backend helpers ──────────────────────────────────────────────────
+  const copierFetch = async (path, method = "GET", body = null) => {
+    const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+    const { data: { session } } = await supabase.auth.getSession();
+    const opts = { method, headers: { Authorization: `Bearer ${session?.access_token}`, "Content-Type": "application/json" } };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(`${API}${path}`, opts);
+    if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error || r.status); }
+    return r.json();
+  };
+
+  const loadCopierGroups = async () => {
+    setCopierLoading(true);
+    try {
+      const groups = await copierFetch("/copier/groups");
+      setCopierGroups(groups || []);
+      // Set active group if any is running
+      const active = (groups || []).find(g => g.running);
+      if (active) setActiveGroupId(active.id);
+    } catch(e) { console.error("[Copier] load error:", e.message); }
+    setCopierLoading(false);
+  };
+
+  // Load copier groups when tab is opened
+  useEffect(() => {
+    if (tab === "copier") loadCopierGroups();
+  }, [tab]);
+
   const startCopierBackend = async (group) => {
-    const masterAcc = copierAccounts.find(a => a.isMaster && group.accountIds.includes(a.id));
-    const slaveAccs = copierAccounts.filter(a => !a.isMaster && group.accountIds.includes(a.id));
-    if (!masterAcc || !slaveAccs.length) return;
     try {
       const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
       const token = (await supabase.auth.getSession()).data.session?.access_token;
-      const res = await fetch(`${API}/copier/start`, {
+      const res = await fetch(`${API}/copier/groups/${group.id}/start`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          masterAccountId: masterAcc.accountId,
-          slaveAccountIds: slaveAccs.map(a => a.accountId),
-          groupName: group.name,
-        }),
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      setActiveGroupId(group.id);
       setCopierEnabled(true);
-      pollCopierStatus();
+      await loadCopierGroups();
     } catch (err) {
       alert("Could not start copier: " + err.message);
     }
   };
 
-  const stopCopierBackend = async () => {
+  const stopCopierBackend = async (groupId) => {
     try {
-      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
-      const token = (await supabase.auth.getSession()).data.session?.access_token;
-      await fetch(`${API}/copier/stop`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      await copierFetch(`/copier/groups/${groupId}/stop`, "POST");
+      setActiveGroupId(null);
       setCopierEnabled(false);
-      setCopierStatus(null);
-    } catch {}
+      await loadCopierGroups();
+    } catch(e) { alert("Could not stop copier: " + e.message); }
   };
 
-  const pollCopierStatus = async () => {
+  const createCopierGroup = async (masterAccount, slaveAccounts, name, sizeMode, fixedQty, ratio) => {
     try {
-      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
-      const token = (await supabase.auth.getSession()).data.session?.access_token;
-      const res = await fetch(`${API}/copier/status`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      setCopierStatus(data);
-      setCopierEnabled(data.active && data.connected);
-      // Hämta log
-      const logRes = await fetch(`${API}/copier/log?limit=20`, { headers: { Authorization: `Bearer ${token}` } });
-      const logData = await logRes.json();
-      setCopierLog(Array.isArray(logData) ? logData : []);
-    } catch {}
+      const group = await copierFetch("/copier/groups", "POST", {
+        name,
+        master_account_id:   masterAccount.tradovate_account_id,
+        master_account_name: masterAccount.display_name || masterAccount.account_spec,
+        slave_account_ids:   slaveAccounts.map(a => a.tradovate_account_id),
+        slave_account_names: slaveAccounts.map(a => a.display_name || a.account_spec),
+        size_mode: sizeMode || "mirror",
+        fixed_qty: fixedQty || 1,
+        ratio: ratio || 1.0,
+      });
+      await loadCopierGroups();
+      return group;
+    } catch(e) { alert("Could not create group: " + e.message); }
   };
 
-  // Polla status var 5s när copier är aktiv
+  const deleteCopierGroup = async (groupId) => {
+    if (!confirm("Delete this group?")) return;
+    try {
+      await copierFetch(`/copier/groups/${groupId}`, "DELETE");
+      await loadCopierGroups();
+    } catch(e) { alert("Could not delete group: " + e.message); }
+  };
+
+  const loadCopierLog = async (groupId) => {
+    try {
+      const log = await copierFetch(`/copier/groups/${groupId}/log?limit=30`);
+      setCopierLog(Array.isArray(log) ? log : []);
+    } catch(e) { console.error("[Copier] log error:", e.message); }
+  };
+
+  // Poll groups every 10s when copier is active to refresh stats
   useEffect(() => {
     if (!copierEnabled) return;
-    const interval = setInterval(pollCopierStatus, 5000);
+    const interval = setInterval(loadCopierGroups, 10000);
     return () => clearInterval(interval);
   }, [copierEnabled]);
 
-  const saveCopierAccounts = (data) => {
-    setCopierAccounts(data);
-    localStorage.setItem("edgestat_copier_accounts", JSON.stringify(data));
-  };
-  const saveCopierGroups = (data) => {
-    setCopierGroups(data);
-    localStorage.setItem("edgestat_copier_groups", JSON.stringify(data));
-  };
-  const setActiveGroup = (id) => {
-    setActiveGroupId(id);
-    localStorage.setItem("edgestat_active_group", id || "");
-  };
+  const setActiveGroup = (id) => setActiveGroupId(id);
   const [loadingTrades, setLoadingTrades] = useState(true);
   const [syncingTV,     setSyncingTV    ] = useState(false);
   const [tvStatus,         setTvStatus        ] = useState(null);
@@ -6414,343 +6521,162 @@ export default function TradingPlatform({ session }) {
         {/* ── TRADE COPIER ────────────────────────────────────────────────────── */}
         {tab==="copier"&&(()=>{
           if (!canAccess("pro")) return <UpgradeGate plan="pro" C={C} onUpgrade={()=>setTab("myaccount")} feature="Trade Copier" desc="Mirror trades across multiple accounts automatically. Available on the Pro plan." />;
-          const FIRM_LABELS = {"mffu":"MFFU","lucid":"Lucid","alpha":"Alpha","tpt":"TPT","tradeify":"Tradeify"};
-          const FIRM_COLORS = {"mffu":C.accent,"lucid":"#a78bfa","alpha":"#34d399","tpt":C.amber,"tradeify":"#f472b6"};
-          const activeGroup = copierGroups.find(g=>g.id===activeGroupId);
 
-          // Check if OAuth is approved (backend returns oauthReady: true)
-          const oauthReady = copierStatus?.oauthReady === true;
-          const copierMode = copierStatus?.mode || "pending";
+          const activeGroup = copierGroups.find(g => g.id === activeGroupId);
 
-          // Smart warnings: konton nära breach baserat på prop firm-regler
-          const getAccountWarnings = (acctId) => {
-            const acc = copierAccounts.find(a=>a.id===acctId);
-            if (!acc) return [];
-            const warnings = [];
-            const firmTrades = trades.filter(t=>(t.tags||[]).includes(acc.firm)||trades.length<5);
-            const startBal = startBalances[acc.firm] || parseFloat(acc.accountSize)||50000;
-            const totalPnl = firmTrades.reduce((a,t)=>a+t.pnl,0);
-            const pnlByDay = {};
-            firmTrades.forEach(t=>{pnlByDay[t.trade_date]=(pnlByDay[t.trade_date]||0)+t.pnl;});
-            const dayPnls = Object.values(pnlByDay);
-            const cycleProfit = totalPnl;
-            const bestDay = dayPnls.length ? Math.max(...dayPnls.filter(p=>p>0),0) : 0;
-            const bestDayPct = cycleProfit>0 ? (bestDay/cycleProfit)*100 : 0;
-            const firmObj = firms.find(f=>f.id===acc.firm);
-            const acctTypeObj = firmObj?.accountTypes?.[0];
-            const ddRule = acctTypeObj?.rules?.find(r=>r.type==="drawdown");
-            const balance = startBal + totalPnl;
-            const peak = startBal + Math.max(0,totalPnl);
-            const dd = peak - balance;
-            if (ddRule && dd >= ddRule.value*0.75) warnings.push({level:"danger", msg:`DD ${Math.round(dd/ddRule.value*100)}% av max`});
-            else if (ddRule && dd >= ddRule.value*0.5) warnings.push({level:"warning", msg:`DD ${Math.round(dd/ddRule.value*100)}% av max`});
-            const csRule = acctTypeObj?.rules?.find(r=>r.type==="consist");
-            if (csRule && bestDayPct >= csRule.value*0.85) warnings.push({level:"warning", msg:`Consistency ${Math.round(bestDayPct)}% / ${csRule.value}%`});
-            return warnings;
-          };
+          return <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth:900}}>
 
-          return <div style={{display:"flex",flexDirection:"column",gap:22}}>
-
-            {/* OAuth status — internal only, not shown to users */}
-            {oauthReady && (
-              <div style={{background:`${C.green}0a`,border:`1px solid ${C.green}44`,borderRadius:10,padding:"12px 18px",display:"flex",alignItems:"center",gap:12}}>
-                <span style={{fontSize:20}}>✅</span>
-                <div>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.green,letterSpacing:"0.08em",textTransform:"uppercase"}}>OAuth Active · {copierMode === "websocket" ? "WebSocket <100ms" : "REST Polling ~500ms"}</div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginTop:2}}>Trade Copier is fully operational</div>
-                </div>
-              </div>
-            )}
+            {/* Header */}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
               <div>
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.amber,letterSpacing:"0.1em",textTransform:"uppercase"}}>Multi-Account</div>
                 <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Trade Copier</div>
-              </div>
-              {/* Master toggle */}
-              <div style={{display:"flex",alignItems:"center",gap:12}}>
-                <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>COPIER</span>
-                <div onClick={()=>{ if(!oauthReady){ alert("Trade Copier activates automatically when OAuth is approved. Check back after April 15!"); return; } setCopierEnabled(e=>!e); }} style={{width:48,height:26,borderRadius:13,background:copierEnabled?"#00d08444":C.surface,border:`1px solid ${copierEnabled?C.green:C.border}`,cursor:oauthReady?"pointer":"not-allowed",position:"relative",transition:"all 0.2s",opacity:oauthReady?1:0.5}}>
-                  <div style={{position:"absolute",top:3,left:copierEnabled?24:3,width:18,height:18,borderRadius:"50%",background:copierEnabled?C.green:C.muted,transition:"left 0.2s",boxShadow:copierEnabled?`0 0 8px ${C.green}`:"none"}}/>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,marginTop:4}}>
+                  Mirrors fills from a master account to slave accounts via REST polling every 2s. 
+                  Side (Buy/Sell) copied directly — no inversion bugs.
                 </div>
-                <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:copierEnabled?C.green:C.muted,fontWeight:700}}>{copierEnabled?"ACTIVE":"OFF"}</span>
               </div>
+              <button onClick={loadCopierGroups} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>
+                ↻ Refresh
+              </button>
             </div>
 
             {/* Active group banner */}
-            {activeGroup && copierEnabled && (
+            {activeGroup && activeGroup.running && (
               <div style={{background:"#00d08411",border:`1px solid ${C.green}44`,borderRadius:12,padding:"14px 20px",display:"flex",alignItems:"center",gap:14}}>
                 <div style={{width:10,height:10,borderRadius:"50%",background:C.green,boxShadow:`0 0 10px ${C.green}`,animation:"pulse 1.5s ease-in-out infinite"}}/>
                 <div style={{flex:1}}>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.green,letterSpacing:"0.08em",textTransform:"uppercase"}}>Active group — copying to {activeGroup.accountIds.length} accounts</div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.green,letterSpacing:"0.08em",textTransform:"uppercase"}}>
+                    LIVE · Copying to {activeGroup.slave_account_ids?.length} account(s) · Poll 2s
+                  </div>
                   <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:18,marginTop:2}}>{activeGroup.name}</div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:2}}>
+                    Master: {activeGroup.master_account_name} · 
+                    Copied: {activeGroup.stats?.copied || 0} · 
+                    Failed: {activeGroup.stats?.failed || 0}
+                  </div>
                 </div>
-                <button onClick={()=>{setActiveGroup(null);setCopierEnabled(false);}} style={{background:"#ff3d5a22",border:"1px solid #ff3d5a44",borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red}}>Stop</button>
+                <button onClick={()=>stopCopierBackend(activeGroup.id)}
+                  style={{background:"#ff3d5a22",border:"1px solid #ff3d5a44",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red,fontWeight:700}}>
+                  ⏹ Stop
+                </button>
               </div>
             )}
 
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18}}>
-
-              {/* ── Konton ─────────────────────────────────────────────────── */}
-              <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>My Accounts ({copierAccounts.length})</div>
-                  <button onClick={()=>setShowAddAccount(true)} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent}}>+ Add</button>
+            {/* No Tradovate accounts warning */}
+            {tvAccounts.length < 2 && (
+              <div style={{background:`${C.amber}11`,border:`1px solid ${C.amber}44`,borderRadius:10,padding:"14px 18px",display:"flex",gap:12,alignItems:"center"}}>
+                <span style={{fontSize:20}}>⚠️</span>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim}}>
+                  You need at least <strong style={{color:C.text}}>2 connected Tradovate accounts</strong> to use the copier — one master, one or more slaves.
+                  Go to the <button onClick={()=>setTab("accounts")} style={{background:"none",border:"none",cursor:"pointer",color:C.accent,fontFamily:"'DM Sans',sans-serif",fontSize:13,textDecoration:"underline",padding:0}}>Accounts tab</button> to connect more accounts.
                 </div>
+              </div>
+            )}
 
-                {copierAccounts.length===0 && (
-                  <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:12,padding:32,textAlign:"center",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>
-                    No accounts added yet<br/><span style={{fontSize:9,marginTop:6,display:"block"}}>Add your Tradovate accounts to get started</span>
-                  </div>
-                )}
-
-                {copierAccounts.map(acc=>{
-                  const warnings = getAccountWarnings(acc.id);
-                  const hasWarning = warnings.some(w=>w.level==="warning");
-                  const hasDanger  = warnings.some(w=>w.level==="danger");
-                  const borderCol  = hasDanger?C.red:hasWarning?C.amber:C.border;
-                  const inActiveGroup = activeGroup?.accountIds.includes(acc.id);
+            {/* Groups list */}
+            {copierLoading ? (
+              <div style={{display:"flex",alignItems:"center",gap:10,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>
+                <div style={{width:16,height:16,border:`2px solid ${C.accent}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+                Loading groups...
+              </div>
+            ) : copierGroups.length === 0 ? (
+              <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:12,padding:40,textAlign:"center"}}>
+                <div style={{fontSize:36,marginBottom:12}}>📡</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:18,marginBottom:8}}>No copy groups yet</div>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,marginBottom:20}}>Create a group to start mirroring trades between your Tradovate accounts</div>
+              </div>
+            ) : (
+              <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                {copierGroups.map(group => {
+                  const isRunning = group.running || group.active;
                   return (
-                    <div key={acc.id} style={{background:C.card,border:`1px solid ${inActiveGroup?C.green+"55":borderCol}`,borderRadius:12,padding:16,position:"relative"}}>
-                      {acc.isMaster && <span style={{position:"absolute",top:10,right:12,background:C.amber+"22",border:`1px solid ${C.amber}44`,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.amber}}>MASTER</span>}
-                      {inActiveGroup && !acc.isMaster && <span style={{position:"absolute",top:10,right:12,background:C.green+"22",border:`1px solid ${C.green}44`,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.green}}>AKTIV</span>}
-                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:warnings.length?8:0}}>
-                        <div style={{width:36,height:36,borderRadius:8,background:FIRM_COLORS[acc.firm]+"22",border:`1px solid ${FIRM_COLORS[acc.firm]}44`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:12,color:FIRM_COLORS[acc.firm],flexShrink:0}}>
-                          {FIRM_LABELS[acc.firm]?.slice(0,2).toUpperCase()}
-                        </div>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{acc.name}</div>
-                          <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,marginTop:1}}>{FIRM_LABELS[acc.firm]} · ${parseInt(acc.accountSize).toLocaleString()} · ID: {acc.accountId||"—"}</div>
-                        </div>
-                        <button onClick={()=>saveCopierAccounts(copierAccounts.map(a=>a.id===acc.id?{...a,isMaster:!a.isMaster}:a.isMaster?{...a,isMaster:false}:a))} style={{background:"transparent",border:"none",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:acc.isMaster?C.amber:C.muted,padding:"4px 6px"}} title="Set as master">★</button>
-                        <button onClick={()=>saveCopierAccounts(copierAccounts.filter(a=>a.id!==acc.id))} style={{background:"transparent",border:"none",cursor:"pointer",color:C.red,fontSize:13,opacity:.5,padding:"4px 6px"}}>✕</button>
-                      </div>
-                      {warnings.length>0 && (
-                        <div style={{display:"flex",flexDirection:"column",gap:3}}>
-                          {warnings.map((w,i)=>(
-                            <div key={i} style={{display:"flex",alignItems:"center",gap:6,background:w.level==="danger"?C.red+"11":C.amber+"11",borderRadius:6,padding:"4px 8px"}}>
-                              <span style={{fontSize:10}}>{w.level==="danger"?"🔴":"⚠️"}</span>
-                              <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:w.level==="danger"?C.red:C.amber}}>{w.msg}</span>
+                    <div key={group.id} style={{background:C.card,border:`1px solid ${isRunning?C.green+"66":C.border}`,borderRadius:12,padding:20,display:"flex",flexDirection:"column",gap:14}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:12}}>
+                          {isRunning && <div style={{width:8,height:8,borderRadius:"50%",background:C.green,boxShadow:`0 0 8px ${C.green}`,animation:"pulse 1.5s ease-in-out infinite"}}/>}
+                          <div>
+                            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>{group.name}</div>
+                            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:2}}>
+                              Master: <span style={{color:C.text}}>{group.master_account_name}</span>
+                              {" → "}
+                              {(group.slave_account_names||[]).join(", ") || `${group.slave_account_ids?.length} slave(s)`}
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* ── Grupper ────────────────────────────────────────────────── */}
-              <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Groups ({copierGroups.length})</div>
-                  <button onClick={()=>{setNewGroupForm({name:"",accountIds:[]});setShowAddGroup(true);setEditGroupId(null);}} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent}}>+ New Group</button>
-                </div>
-
-                {copierGroups.length===0 && (
-                  <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:12,padding:32,textAlign:"center",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>
-                    No groups created yet<br/><span style={{fontSize:9,marginTop:6,display:"block"}}>Create groups to select which accounts copy each trade</span>
-                  </div>
-                )}
-
-                {copierGroups.map(grp=>{
-                  const isActive = grp.id===activeGroupId;
-                  const grpAccounts = copierAccounts.filter(a=>grp.accountIds.includes(a.id));
-                  const masterAcc = grpAccounts.find(a=>a.isMaster);
-                  const slaveAccs = grpAccounts.filter(a=>!a.isMaster);
-                  const anyDanger = grpAccounts.some(a=>getAccountWarnings(a.id).some(w=>w.level==="danger"));
-                  return (
-                    <div key={grp.id} style={{background:C.card,border:`2px solid ${isActive?C.green+"88":anyDanger?C.red+"44":C.border}`,borderRadius:12,padding:16,transition:"border 0.2s"}}>
-                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                        <div>
-                          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>{grp.name}</div>
-                          <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,marginTop:2}}>{grpAccounts.length} accounts · {slaveAccs.length} slaves</div>
-                        </div>
-                        <div style={{display:"flex",gap:6}}>
-                          <button onClick={()=>{setEditGroupId(grp.id);setNewGroupForm({name:grp.name,accountIds:[...grp.accountIds]});setShowAddGroup(true);}} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.textDim}}>✏ Redigera</button>
-                          <button onClick={()=>saveCopierGroups(copierGroups.filter(g=>g.id!==grp.id))} style={{background:"transparent",border:"none",cursor:"pointer",color:C.red,fontSize:13,opacity:.5,padding:"4px 6px"}}>✕</button>
-                        </div>
-                      </div>
-
-                      {/* Konto-chips */}
-                      <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:12}}>
-                        {grpAccounts.map(a=>{
-                          const w = getAccountWarnings(a.id);
-                          const danger = w.some(x=>x.level==="danger");
-                          const warn   = w.some(x=>x.level==="warning");
-                          return (
-                            <span key={a.id} style={{fontFamily:"'Space Mono',monospace",fontSize:9,borderRadius:6,padding:"3px 9px",background:a.isMaster?C.amber+"22":danger?C.red+"22":warn?C.amber+"11":FIRM_COLORS[a.firm]+"18",border:`1px solid ${a.isMaster?C.amber+"55":danger?C.red+"55":warn?C.amber+"44":FIRM_COLORS[a.firm]+"44"}`,color:a.isMaster?C.amber:danger?C.red:warn?C.amber:FIRM_COLORS[a.firm]}}>
-                              {a.isMaster?"★ ":danger?"🔴 ":warn?"⚠ ":""}{a.name}
-                            </span>
-                          );
-                        })}
-                        {grpAccounts.length===0&&<span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>No accounts added</span>}
-                      </div>
-
-                      {/* Aktivera knapp */}
-                      {anyDanger && (
-                        <div style={{background:C.red+"11",border:`1px solid ${C.red}33`,borderRadius:6,padding:"5px 10px",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.red,marginBottom:8}}>
-                          ⚠ One or more accounts are near breach — consider removing them from this group
-                        </div>
-                      )}
-                      <button
-                        onClick={()=>{ if(isActive){setActiveGroup(null);stopCopierBackend();}else{setActiveGroup(grp.id);startCopierBackend(grp);} }}
-                        disabled={grpAccounts.length<2||!masterAcc}
-                        style={{width:"100%",padding:"9px",borderRadius:8,cursor:grpAccounts.length<2||!masterAcc?"not-allowed":"pointer",background:isActive?"#00d08422":grpAccounts.length<2||!masterAcc?"#1e2d40":C.accentDim,border:`1px solid ${isActive?C.green:grpAccounts.length<2||!masterAcc?C.border:C.accent+"44"}`,color:isActive?C.green:grpAccounts.length<2||!masterAcc?C.muted:C.accent,fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700,letterSpacing:"0.05em",transition:"all 0.15s"}}
-                      >
-                        {isActive?"⏹ Stop copying":grpAccounts.length<2?"Add at least 2 accounts":!masterAcc?"Set a master account":"▶ Activate group"}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* ── Lägg till konto modal ───────────────────────────────────── */}
-            {showAddAccount&&(
-              <div style={{position:"fixed",inset:0,background:"#00000088",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <div style={{background:"#0d1420",border:"1px solid #1e2d40",borderRadius:16,padding:32,width:440,maxWidth:"95vw"}}>
-                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginBottom:20}}>Add Account</div>
-                  <div style={{display:"flex",flexDirection:"column",gap:12}}>
-                    {[
-                      {label:"Account Name",key:"name",placeholder:"e.g. 50k Flex · MFFU #1"},
-                      {label:"Tradovate Account ID",key:"accountId",placeholder:"e.g. 12345678"},
-                      {label:"Account Balance (start balance)",key:"accountSize",placeholder:"50000"},
-                    ].map(f=>(
-                      <div key={f.key}>
-                        <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.07em"}}>{f.label}</div>
-                        <input value={newAcctForm[f.key]} onChange={e=>setNewAcctForm(x=>({...x,[f.key]:e.target.value}))} placeholder={f.placeholder}
-                          style={{width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"}}/>
-                      </div>
-                    ))}
-                    <div>
-                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.07em"}}>Prop Firm</div>
-                      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                        {Object.entries(FIRM_LABELS).map(([id,label])=>(
-                          <button key={id} onClick={()=>setNewAcctForm(x=>({...x,firm:id}))}
-                            style={{padding:"6px 14px",borderRadius:6,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,background:newAcctForm.firm===id?FIRM_COLORS[id]+"22":C.surface,border:`1px solid ${newAcctForm.firm===id?FIRM_COLORS[id]+"66":C.border}`,color:newAcctForm.firm===id?FIRM_COLORS[id]:C.textDim}}>
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div style={{background:"#00e5ff08",border:"1px solid #00e5ff22",borderRadius:8,padding:"10px 14px",fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,lineHeight:1.5}}>
-                      💡 Find your Tradovate account ID under <strong style={{color:C.text}}>Account → Account Info</strong> in the Tradovate app.
-                      Copying happens via Tradovate's own API using your existing logged-in accounts.
-                    </div>
-                  </div>
-                  <div style={{display:"flex",gap:10,marginTop:20}}>
-                    <button onClick={()=>setShowAddAccount(false)} style={{flex:1,padding:"11px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>Cancel</button>
-                    <button onClick={()=>{
-                      if(!newAcctForm.name.trim()||!newAcctForm.accountId.trim()) return;
-                      saveCopierAccounts([...copierAccounts,{...newAcctForm,id:Date.now().toString(),isMaster:copierAccounts.length===0}]);
-                      setShowAddAccount(false);
-                      setNewAcctForm({name:"",firm:"mffu",accountSize:"50000",username:"",password:"",accountId:""});
-                    }} style={{flex:2,padding:"11px",borderRadius:10,cursor:"pointer",background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700}}>
-                      + Add Account
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ── Skapa/redigera grupp modal ──────────────────────────────── */}
-            {showAddGroup&&(
-              <div style={{position:"fixed",inset:0,background:"#00000088",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <div style={{background:"#0d1420",border:"1px solid #1e2d40",borderRadius:16,padding:32,width:460,maxWidth:"95vw"}}>
-                  <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginBottom:20}}>{editGroupId?"Edit Group":"Create Group"}</div>
-                  <div style={{display:"flex",flexDirection:"column",gap:14}}>
-                    <div>
-                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:"0.07em"}}>Group Name</div>
-                      <input value={newGroupForm.name} onChange={e=>setNewGroupForm(x=>({...x,name:e.target.value}))} placeholder="e.g. All accounts · Only Tradeify · Safe mode"
-                        style={{width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"}}/>
-                    </div>
-                    <div>
-                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.07em"}}>Select Accounts</div>
-                      {copierAccounts.length===0
-                        ? <div style={{color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,padding:"12px 0"}}>Add accounts first</div>
-                        : <div style={{display:"flex",flexDirection:"column",gap:7}}>
-                            {copierAccounts.map(acc=>{
-                              const checked = newGroupForm.accountIds.includes(acc.id);
-                              const warnings = getAccountWarnings(acc.id);
-                              const danger = warnings.some(w=>w.level==="danger");
-                              const warn   = warnings.some(w=>w.level==="warning");
-                              return (
-                                <div key={acc.id} onClick={()=>setNewGroupForm(x=>({...x,accountIds:checked?x.accountIds.filter(i=>i!==acc.id):[...x.accountIds,acc.id]}))}
-                                  style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:8,cursor:"pointer",background:checked?C.accentDim:C.surface,border:`1px solid ${checked?C.accent+"44":C.border}`,transition:"all 0.12s"}}>
-                                  <div style={{width:16,height:16,borderRadius:4,border:`1.5px solid ${checked?C.accent:C.border}`,background:checked?C.accentDim:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                                    {checked&&<span style={{color:C.accent,fontSize:10}}>✓</span>}
-                                  </div>
-                                  <div style={{flex:1}}>
-                                    <span style={{fontFamily:"'Syne',sans-serif",fontWeight:600,fontSize:13}}>{acc.name}</span>
-                                    {acc.isMaster&&<span style={{marginLeft:6,fontFamily:"'Space Mono',monospace",fontSize:8,color:C.amber}}>★ MASTER</span>}
-                                  </div>
-                                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:FIRM_COLORS[acc.firm]}}>{FIRM_LABELS[acc.firm]}</span>
-                                  {(danger||warn)&&<span style={{fontSize:10}}>{danger?"🔴":"⚠️"}</span>}
-                                </div>
-                              );
-                            })}
                           </div>
-                      }
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          {/* Stats */}
+                          {(group.stats?.copied > 0 || group.stats?.failed > 0) && (
+                            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>
+                              <span style={{color:C.green}}>✓{group.stats.copied}</span>
+                              {group.stats.failed > 0 && <span style={{color:C.red}}> ✗{group.stats.failed}</span>}
+                            </div>
+                          )}
+                          {/* Size mode badge */}
+                          <span style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>
+                            {group.size_mode === "mirror" ? "Mirror" : group.size_mode === "fixed" ? `Fixed ${group.fixed_qty}` : `Ratio ${group.ratio}x`}
+                          </span>
+                          {/* Start/Stop */}
+                          {isRunning ? (
+                            <button onClick={()=>stopCopierBackend(group.id)}
+                              style={{background:"#ff3d5a22",border:"1px solid #ff3d5a44",borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red,fontWeight:700}}>
+                              ⏹ Stop
+                            </button>
+                          ) : (
+                            <button onClick={()=>{startCopierBackend(group);}}
+                              disabled={tvAccounts.length < 2}
+                              style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700,opacity:tvAccounts.length<2?0.4:1}}>
+                              ▶ Start
+                            </button>
+                          )}
+                          {/* Log */}
+                          <button onClick={()=>loadCopierLog(group.id)}
+                            style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>
+                            📋 Log
+                          </button>
+                          {/* Delete */}
+                          <button onClick={()=>deleteCopierGroup(group.id)}
+                            style={{background:"transparent",border:"none",cursor:"pointer",color:C.red,fontSize:14,opacity:0.5,padding:"4px 6px"}}>✕</button>
+                        </div>
+                      </div>
                     </div>
-                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,padding:"6px 0"}}>
-                      {newGroupForm.accountIds.length} accounts selected · {newGroupForm.accountIds.length>=2?"Ready to save":"Select at least 2 accounts"}
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Copy log */}
+            {copierLog.length > 0 && (
+              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16}}>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Recent Activity</div>
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {copierLog.slice(0,15).map(entry => (
+                    <div key={entry.id} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 10px",background:C.surface,borderRadius:6,
+                      borderLeft:`3px solid ${entry.event==="copied"?C.green:entry.event==="failed"?C.red:C.amber}`}}>
+                      <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,flexShrink:0}}>
+                        {new Date(entry.ts).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}
+                      </span>
+                      <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,
+                        color:entry.event==="copied"?C.green:entry.event==="failed"?C.red:C.amber,
+                        fontWeight:700,flexShrink:0,textTransform:"uppercase"}}>
+                        {entry.event}
+                      </span>
+                      {entry.symbol && <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.text}}>{entry.side} {entry.qty}x {entry.symbol}</span>}
+                      {entry.slave_account && <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>→ {entry.slave_account}</span>}
+                      {entry.error && <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.red}}>({entry.error})</span>}
                     </div>
-                  </div>
-                  <div style={{display:"flex",gap:10,marginTop:20}}>
-                    <button onClick={()=>{setShowAddGroup(false);setEditGroupId(null);}} style={{flex:1,padding:"11px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>Cancel</button>
-                    <button onClick={()=>{
-                      if(!newGroupForm.name.trim()||newGroupForm.accountIds.length<2) return;
-                      if(editGroupId) {
-                        saveCopierGroups(copierGroups.map(g=>g.id===editGroupId?{...g,...newGroupForm}:g));
-                      } else {
-                        saveCopierGroups([...copierGroups,{...newGroupForm,id:Date.now().toString()}]);
-                      }
-                      setShowAddGroup(false); setEditGroupId(null);
-                    }} disabled={!newGroupForm.name.trim()||newGroupForm.accountIds.length<2}
-                      style={{flex:2,padding:"11px",borderRadius:10,cursor:!newGroupForm.name.trim()||newGroupForm.accountIds.length<2?"not-allowed":"pointer",background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:!newGroupForm.name.trim()||newGroupForm.accountIds.length<2?.5:1}}>
-                      {editGroupId?"Save Changes":"Create Group"}
-                    </button>
-                  </div>
+                  ))}
                 </div>
               </div>
             )}
 
-            {/* ── Live stats + log ──────────────────────────────────────── */}
-            {copierEnabled && copierStatus && (
-              <div style={{display:"flex",flexDirection:"column",gap:14}}>
-                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Live Statistics</div>
-                <div style={{display:"flex",gap:12}}>
-                  <StatCard label="Copied trades" value={String(copierStatus.stats?.copiedTrades||0)} sub="This session" color={C.green}/>
-                  <StatCard label="Failed"       value={String(copierStatus.stats?.failedTrades||0)} sub="Check log" color={copierStatus.stats?.failedTrades>0?C.red:C.muted}/>
-                  <StatCard label="WebSocket"         value={copierStatus.connected?"✓ Live":"⚠ Reconnecting"} sub={copierStatus.wsState} color={copierStatus.connected?C.green:C.amber}/>
-                  <StatCard label="Slaves"            value={String(copierStatus.slaveCount||0)} sub="Active accounts" color={C.accent}/>
-                </div>
-
-                {/* Kopieringslogg */}
-                {copierLog.length>0 && (
-                  <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
-                    <div style={{padding:"12px 18px",borderBottom:`1px solid ${C.border}`,fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Copy Log</div>
-                    <table style={{width:"100%",borderCollapse:"collapse"}}>
-                      <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>
-                        {["Time","Action","Qty","Price","Succeeded","Failed"].map(h=><th key={h} style={{padding:"8px 16px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",fontWeight:400}}>{h}</th>)}
-                      </tr></thead>
-                      <tbody>
-                        {copierLog.map((entry,i)=>(
-                          <tr key={entry.id||i} style={{borderBottom:i<copierLog.length-1?`1px solid ${C.border}`:"none"}}
-                            onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                            <td style={{padding:"9px 16px",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>{new Date(entry.timestamp).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</td>
-                            <td style={{padding:"9px 16px"}}><span style={{background:entry.action==="Buy"?C.green+"18":C.red+"18",color:entry.action==="Buy"?C.green:C.red,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{entry.action}</span></td>
-                            <td style={{padding:"9px 16px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.text}}>{entry.qty}</td>
-                            <td style={{padding:"9px 16px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim}}>{entry.price}</td>
-                            <td style={{padding:"9px 16px",fontFamily:"'Syne',sans-serif",fontSize:13,fontWeight:700,color:C.green}}>{entry.succeeded}</td>
-                            <td style={{padding:"9px 16px",fontFamily:"'Syne',sans-serif",fontSize:13,fontWeight:700,color:entry.failed>0?C.red:C.muted}}>{entry.failed}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
+            {/* Create group */}
+            {tvAccounts.length >= 2 && (
+              <CreateCopierGroupPanel
+                tvAccounts={tvAccounts}
+                onCreate={createCopierGroup}
+                C={C}
+              />
             )}
 
           </div>;
