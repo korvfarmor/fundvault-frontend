@@ -3357,6 +3357,135 @@ const LWPnlChart = ({ data, darkMode, green, red }) => {
 };
 
 // ── App ───────────────────────────────────────────────────────────────────────
+// ── CopierOnboarding ──────────────────────────────────────────────────────────
+const CopierOnboarding = ({ onDismiss, onGoToAccounts, C }) => {
+  const [step, setStep] = React.useState(0);
+
+  const steps = [
+    {
+      icon: "📡",
+      title: "How Trade Copier Works",
+      body: (
+        <>
+          <p>FundVault polls Tradovate's REST API every <strong style={{color:C.accent}}>2 seconds</strong> for new fills on your master account. When a fill is detected, we immediately place the same trade on your slave accounts in parallel.</p>
+          <p>Typical delay from master fill → slave order: <strong style={{color:C.text}}>2–4 seconds</strong>.</p>
+          <div style={{background:`${C.green}11`,border:`1px solid ${C.green}44`,borderRadius:8,padding:"10px 14px",marginTop:12}}>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.green,fontWeight:700,marginBottom:4}}>✅ DIRECTION GUARANTEED</div>
+            <div style={{fontSize:12,color:C.textDim}}>We read <code style={{background:C.bg,padding:"1px 5px",borderRadius:3,fontSize:11}}>side</code> directly from the fill. "Buy" stays Buy, "Sell" stays Sell. No inference, no TraderSync-style inversion bugs.</div>
+          </div>
+        </>
+      ),
+    },
+    {
+      icon: "🧪",
+      title: "Dry Run Mode (Default)",
+      body: (
+        <>
+          <p>Every new group starts with <strong style={{color:C.accent}}>Dry Run Mode enabled</strong>. In dry run, we:</p>
+          <ul style={{margin:"10px 0 10px 20px",padding:0,lineHeight:1.7,color:C.textDim}}>
+            <li>Detect fills on master (same as live)</li>
+            <li>Log exactly what would be copied + detection delay</li>
+            <li style={{color:C.red}}><strong>Do NOT place any real orders</strong></li>
+          </ul>
+          <p>Use it to verify timing, direction, symbol, and quantity before going live.</p>
+          <div style={{background:`${C.amber}11`,border:`1px solid ${C.amber}44`,borderRadius:8,padding:"10px 14px",marginTop:12}}>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.amber,fontWeight:700,marginBottom:4}}>⚠ CAN'T TOGGLE WHILE ACTIVE</div>
+            <div style={{fontSize:12,color:C.textDim}}>To switch from dry run to live, stop the group, then create a new one. This prevents accidental live trading.</div>
+          </div>
+        </>
+      ),
+    },
+    {
+      icon: "⚠️",
+      title: "Important Limitations",
+      body: (
+        <>
+          <p style={{marginBottom:10}}>Before you start, understand what the copier does <strong style={{color:C.red}}>NOT</strong> do:</p>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {[
+              {t:"Does NOT copy stops or targets", d:"Only executed fills are detected. A pending Stop Loss on master doesn't appear on slaves until it triggers and fills. Your slaves are unprotected during the trade — set stops manually per slave, or accept that stops only sync after they fire."},
+              {t:"Does NOT validate prop firm rules", d:"If copying a trade would breach a slave's daily loss limit, the order still goes through. Monitor your accounts yourself."},
+              {t:"Does NOT copy pending limit orders", d:"Resting limit orders aren't detected until they fill."},
+              {t:"Does NOT copy historical trades", d:"Only trades after 'Start' are copied. Stopping resets the 'since' point."},
+            ].map((item,i)=>(
+              <div key={i} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px"}}>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,color:C.red,marginBottom:4}}>✗ {item.t}</div>
+                <div style={{fontSize:12,color:C.textDim,lineHeight:1.5}}>{item.d}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      ),
+    },
+    {
+      icon: "🚀",
+      title: "Recommended Test Flow",
+      body: (
+        <>
+          <ol style={{margin:"0 0 0 20px",padding:0,lineHeight:1.8,color:C.textDim}}>
+            <li>Connect at least 2 Tradovate accounts in the <a onClick={()=>{onGoToAccounts();onDismiss();}} style={{color:C.accent,cursor:"pointer",textDecoration:"underline"}}>Accounts tab</a></li>
+            <li>Return here and click "+ New Copy Group"</li>
+            <li>Keep <strong style={{color:C.accent}}>Dry Run enabled</strong> (it's the default)</li>
+            <li>Start the group, then place 3–5 trades on your master in Tradovate</li>
+            <li>Check the activity log — each fill should show <code style={{background:C.bg,padding:"1px 5px",borderRadius:3,fontSize:11,color:C.accent}}>🧪 DRY</code> with the detection delay</li>
+            <li>Verify side, quantity, and symbol match your actual trades</li>
+            <li>When confident, stop the group, delete it, and create a new LIVE group with the same accounts</li>
+          </ol>
+          <div style={{background:`${C.accent}11`,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"12px 16px",marginTop:14}}>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700,marginBottom:4}}>💡 PRO TIP</div>
+            <div style={{fontSize:12,color:C.textDim,lineHeight:1.5}}>Use a demo/eval account as your slave for the first real test. If something goes sideways, nothing real is at risk.</div>
+          </div>
+        </>
+      ),
+    },
+  ];
+
+  const current = steps[step];
+  const isLast = step === steps.length - 1;
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(4px)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,maxWidth:600,width:"100%",maxHeight:"90vh",overflow:"auto",display:"flex",flexDirection:"column"}}>
+
+        {/* Progress dots */}
+        <div style={{display:"flex",gap:8,justifyContent:"center",padding:"20px 20px 0"}}>
+          {steps.map((_,i)=>(
+            <div key={i} style={{width:i===step?28:8,height:8,borderRadius:4,background:i<=step?C.accent:C.surface,transition:"all 0.2s"}}/>
+          ))}
+        </div>
+
+        {/* Body */}
+        <div style={{padding:"28px 32px",flex:1}}>
+          <div style={{fontSize:40,marginBottom:12}}>{current.icon}</div>
+          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:24,marginBottom:16}}>{current.title}</div>
+          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:C.text,lineHeight:1.6}}>
+            {current.body}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div style={{display:"flex",gap:10,padding:"16px 32px 24px",borderTop:`1px solid ${C.border}`}}>
+          <button onClick={onDismiss}
+            style={{background:"transparent",border:"none",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,padding:"10px 14px"}}>
+            Skip tour
+          </button>
+          <div style={{flex:1}}/>
+          {step > 0 && (
+            <button onClick={()=>setStep(s=>s-1)}
+              style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 20px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>
+              ← Back
+            </button>
+          )}
+          <button onClick={()=>isLast ? onDismiss() : setStep(s=>s+1)}
+            style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"10px 24px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.accent,fontWeight:700}}>
+            {isLast ? "Got it — let's go ✓" : `Next → (${step+1}/${steps.length})`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── CreateCopierGroupPanel ────────────────────────────────────────────────────
 const CreateCopierGroupPanel = ({ tvAccounts, onCreate, C }) => {
   const [name,     setName   ] = React.useState("My Copy Group");
@@ -3761,6 +3890,9 @@ export default function TradingPlatform({ session }) {
   const [copierGroups,  setCopierGroups  ] = useState([]);
   const [copierLoading, setCopierLoading ] = useState(false);
   const [activeGroupId, setActiveGroupId ] = useState(null);
+  const [showCopierOnboarding, setShowCopierOnboarding] = useState(() => {
+    try { return !localStorage.getItem("fv_copier_onboarded"); } catch { return true; }
+  });
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [showAddGroup,   setShowAddGroup  ] = useState(false);
   const [newAcctForm,    setNewAcctForm   ] = useState({ name:"", firm:"mffu", accountSize:"50000", username:"", password:"", accountId:"" });
@@ -6538,8 +6670,21 @@ export default function TradingPlatform({ session }) {
           if (!canAccess("pro")) return <UpgradeGate plan="pro" C={C} onUpgrade={()=>setTab("myaccount")} feature="Trade Copier" desc="Mirror trades across multiple accounts automatically. Available on the Pro plan." />;
 
           const activeGroup = copierGroups.find(g => g.id === activeGroupId);
+          const dismissOnboarding = () => {
+            setShowCopierOnboarding(false);
+            try { localStorage.setItem("fv_copier_onboarded", "1"); } catch {}
+          };
 
           return <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth:900}}>
+
+            {/* Onboarding overlay */}
+            {showCopierOnboarding && (
+              <CopierOnboarding 
+                onDismiss={dismissOnboarding}
+                onGoToAccounts={()=>setTab("accounts")}
+                C={C}
+              />
+            )}
 
             {/* Header */}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
@@ -6551,9 +6696,14 @@ export default function TradingPlatform({ session }) {
                   Side (Buy/Sell) copied directly — no inversion bugs.
                 </div>
               </div>
-              <button onClick={loadCopierGroups} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>
-                ↻ Refresh
-              </button>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setShowCopierOnboarding(true)} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent}}>
+                  ? How it works
+                </button>
+                <button onClick={loadCopierGroups} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>
+                  ↻ Refresh
+                </button>
+              </div>
             </div>
 
             {/* Active group banner */}
