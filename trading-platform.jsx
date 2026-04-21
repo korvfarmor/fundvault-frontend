@@ -3360,6 +3360,7 @@ const LWPnlChart = ({ data, darkMode, green, red }) => {
 // ── CopierOnboarding ──────────────────────────────────────────────────────────
 const CopierOnboarding = ({ onDismiss, onGoToAccounts, C }) => {
   const [step, setStep] = useState(0);
+  const mob = typeof window !== "undefined" && window.innerWidth <= 768;
 
   const steps = [
     {
@@ -3444,8 +3445,8 @@ const CopierOnboarding = ({ onDismiss, onGoToAccounts, C }) => {
   const isLast = step === steps.length - 1;
 
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(4px)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,maxWidth:600,width:"100%",maxHeight:"90vh",overflow:"auto",display:"flex",flexDirection:"column"}}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(4px)",zIndex:1000,display:"flex",alignItems:mob?"flex-end":"center",justifyContent:"center",padding:mob?0:16}}>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:mob?"20px 20px 0 0":16,maxWidth:mob?"100%":600,width:"100%",maxHeight:mob?"95vh":"90vh",overflow:"auto",display:"flex",flexDirection:"column"}}>
 
         {/* Progress dots */}
         <div style={{display:"flex",gap:8,justifyContent:"center",padding:"20px 20px 0"}}>
@@ -3455,30 +3456,32 @@ const CopierOnboarding = ({ onDismiss, onGoToAccounts, C }) => {
         </div>
 
         {/* Body */}
-        <div style={{padding:"28px 32px",flex:1}}>
-          <div style={{fontSize:40,marginBottom:12}}>{current.icon}</div>
-          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:24,marginBottom:16}}>{current.title}</div>
+        <div style={{padding:mob?"20px 20px":"28px 32px",flex:1}}>
+          <div style={{fontSize:mob?32:40,marginBottom:12}}>{current.icon}</div>
+          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:mob?20:24,marginBottom:14}}>{current.title}</div>
           <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:C.text,lineHeight:1.6}}>
             {current.body}
           </div>
         </div>
 
         {/* Actions */}
-        <div style={{display:"flex",gap:10,padding:"16px 32px 24px",borderTop:`1px solid ${C.border}`}}>
-          <button onClick={onDismiss}
-            style={{background:"transparent",border:"none",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,padding:"10px 14px"}}>
-            Skip tour
-          </button>
+        <div style={{display:"flex",gap:mob?6:10,padding:mob?"14px 16px 18px":"16px 32px 24px",borderTop:`1px solid ${C.border}`,alignItems:"center"}}>
+          {!mob && (
+            <button onClick={onDismiss}
+              style={{background:"transparent",border:"none",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,padding:"10px 14px"}}>
+              Skip tour
+            </button>
+          )}
           <div style={{flex:1}}/>
           {step > 0 && (
             <button onClick={()=>setStep(s=>s-1)}
-              style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 20px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>
+              style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,padding:mob?"10px 14px":"10px 20px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:mob?10:11,color:C.muted}}>
               ← Back
             </button>
           )}
           <button onClick={()=>isLast ? onDismiss() : setStep(s=>s+1)}
-            style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"10px 24px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.accent,fontWeight:700}}>
-            {isLast ? "Got it — let's go ✓" : `Next → (${step+1}/${steps.length})`}
+            style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:mob?"10px 16px":"10px 24px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:mob?10:11,color:C.accent,fontWeight:700,flex:mob?1:"initial"}}>
+            {isLast ? (mob?"Got it ✓":"Got it — let's go ✓") : (mob?`Next (${step+1}/${steps.length})`:`Next → (${step+1}/${steps.length})`)}
           </button>
         </div>
       </div>
@@ -3488,6 +3491,7 @@ const CopierOnboarding = ({ onDismiss, onGoToAccounts, C }) => {
 
 // ── CreateCopierGroupPanel ────────────────────────────────────────────────────
 const CreateCopierGroupPanel = ({ tvAccounts, onCreate, C }) => {
+  const mob = typeof window !== "undefined" && window.innerWidth <= 768;
   const [name,     setName   ] = useState("My Copy Group");
   const [masterId, setMasterId] = useState("");
   const [slaveIds, setSlaveIds] = useState([]);
@@ -3509,7 +3513,7 @@ const CreateCopierGroupPanel = ({ tvAccounts, onCreate, C }) => {
   const labelS = {fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5,display:"block"};
 
   return (
-    <div style={{background:C.card,border:`1px solid ${C.accent}44`,borderRadius:12,padding:24,display:"flex",flexDirection:"column",gap:16}}>
+    <div style={{background:C.card,border:`1px solid ${C.accent}44`,borderRadius:12,padding:mob?16:24,display:"flex",flexDirection:"column",gap:16}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:18}}>New Copy Group</div>
         <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:18}}>✕</button>
@@ -3571,7 +3575,7 @@ const CreateCopierGroupPanel = ({ tvAccounts, onCreate, C }) => {
         {sizeMode==="fixed" && <input type="number" min="1" value={fixedQty} onChange={e=>setFixedQty(parseInt(e.target.value)||1)} style={{...inputS,marginTop:8,width:120}} placeholder="Contracts"/>}
         {sizeMode==="ratio" && <input type="number" min="0.1" step="0.1" value={ratio} onChange={e=>setRatio(parseFloat(e.target.value)||1)} style={{...inputS,marginTop:8,width:120}} placeholder="e.g. 0.5"/>}
       </div>
-      <div style={{display:"flex",gap:10}}>
+      <div style={{display:"flex",gap:10,flexDirection:mob?"column-reverse":"row"}}>
         <button onClick={()=>setOpen(false)} style={{flex:1,padding:"12px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>Cancel</button>
         <button disabled={!masterId||!slaveIds.length||creating}
           onClick={async()=>{
@@ -6670,6 +6674,7 @@ export default function TradingPlatform({ session }) {
           if (!canAccess("pro")) return <UpgradeGate plan="pro" C={C} onUpgrade={()=>setTab("myaccount")} feature="Trade Copier" desc="Mirror trades across multiple accounts automatically. Available on the Pro plan." />;
 
           const activeGroup = copierGroups.find(g => g.id === activeGroupId);
+          const mob = typeof window !== "undefined" && window.innerWidth <= 768;
           const dismissOnboarding = () => {
             setShowCopierOnboarding(false);
             try { localStorage.setItem("fv_copier_onboarded", "1"); } catch {}
@@ -6688,13 +6693,15 @@ export default function TradingPlatform({ session }) {
 
             {/* Header */}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
-              <div>
+              <div style={{flex:mob?1:"initial",minWidth:0}}>
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.amber,letterSpacing:"0.1em",textTransform:"uppercase"}}>Multi-Account</div>
-                <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Trade Copier</div>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,marginTop:4}}>
-                  Mirrors fills from a master account to slave accounts via REST polling every 2s. 
-                  Side (Buy/Sell) copied directly — no inversion bugs.
-                </div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontSize:mob?22:28,fontWeight:800,marginTop:4}}>Trade Copier</div>
+                {!mob && (
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,marginTop:4}}>
+                    Mirrors fills from a master account to slave accounts via REST polling every 2s. 
+                    Side (Buy/Sell) copied directly — no inversion bugs.
+                  </div>
+                )}
               </div>
               <div style={{display:"flex",gap:8}}>
                 <button onClick={()=>setShowCopierOnboarding(true)} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent}}>
@@ -6757,20 +6764,20 @@ export default function TradingPlatform({ session }) {
                 {copierGroups.map(group => {
                   const isRunning = group.running || group.active;
                   return (
-                    <div key={group.id} style={{background:C.card,border:`1px solid ${isRunning?C.green+"66":C.border}`,borderRadius:12,padding:20,display:"flex",flexDirection:"column",gap:14}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:12}}>
-                          {isRunning && <div style={{width:8,height:8,borderRadius:"50%",background:C.green,boxShadow:`0 0 8px ${C.green}`,animation:"pulse 1.5s ease-in-out infinite"}}/>}
-                          <div>
+                    <div key={group.id} style={{background:C.card,border:`1px solid ${isRunning?C.green+"66":C.border}`,borderRadius:12,padding:mob?16:20,display:"flex",flexDirection:"column",gap:14}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:mob?"flex-start":"center",flexDirection:mob?"column":"row",gap:mob?12:0}}>
+                        <div style={{display:"flex",alignItems:"center",gap:12,minWidth:0,width:mob?"100%":"auto"}}>
+                          {isRunning && <div style={{width:8,height:8,borderRadius:"50%",background:C.green,boxShadow:`0 0 8px ${C.green}`,animation:"pulse 1.5s ease-in-out infinite",flexShrink:0}}/>}
+                          <div style={{minWidth:0,flex:1}}>
                             <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>{group.name}</div>
-                            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:2}}>
+                            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:mob?"normal":"nowrap"}}>
                               Master: <span style={{color:C.text}}>{group.master_account_name}</span>
                               {" → "}
                               {(group.slave_account_names||[]).join(", ") || `${group.slave_account_ids?.length} slave(s)`}
                             </div>
                           </div>
                         </div>
-                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",width:mob?"100%":"auto",justifyContent:mob?"flex-start":"flex-end"}}>
                           {/* Stats */}
                           {(group.stats?.copied > 0 || group.stats?.failed > 0) && (
                             <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>
@@ -6823,7 +6830,7 @@ export default function TradingPlatform({ session }) {
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Recent Activity</div>
                 <div style={{display:"flex",flexDirection:"column",gap:6}}>
                   {copierLog.slice(0,15).map(entry => (
-                    <div key={entry.id} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 10px",background:C.surface,borderRadius:6,
+                    <div key={entry.id} style={{display:"flex",alignItems:mob?"flex-start":"center",gap:mob?6:10,padding:"8px 10px",background:C.surface,borderRadius:6,flexWrap:"wrap",
                       borderLeft:`3px solid ${entry.event==="copied"?C.green:entry.event==="failed"?C.red:entry.event==="dry_run"?C.accent:C.amber}`}}>
                       <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,flexShrink:0}}>
                         {new Date(entry.ts).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}
