@@ -3365,6 +3365,7 @@ const CreateCopierGroupPanel = ({ tvAccounts, onCreate, C }) => {
   const [sizeMode, setSizeMode] = React.useState("mirror");
   const [fixedQty, setFixedQty] = React.useState(1);
   const [ratio,    setRatio   ] = React.useState(1.0);
+  const [dryRun,   setDryRun  ] = React.useState(true);  // Default: safe test mode
   const [creating, setCreating] = React.useState(false);
   const [open,     setOpen    ] = React.useState(false);
 
@@ -3414,6 +3415,19 @@ const CreateCopierGroupPanel = ({ tvAccounts, onCreate, C }) => {
           ))}
         </div>
       </div>
+      {/* Dry run toggle */}
+      <label style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:dryRun?C.accentDim:C.surface,border:`1px solid ${dryRun?C.accent+"66":C.border}`,borderRadius:8,cursor:"pointer"}}>
+        <input type="checkbox" checked={dryRun} onChange={e=>setDryRun(e.target.checked)} style={{cursor:"pointer"}}/>
+        <div style={{flex:1}}>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,color:dryRun?C.accent:C.text,textTransform:"uppercase"}}>
+            🧪 Dry Run Mode
+          </div>
+          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,marginTop:2}}>
+            Detect fills and log them with timing — but DO NOT place real orders. Safe for testing delay & accuracy.
+          </div>
+        </div>
+      </label>
+
       <div>
         <label style={labelS}>Position Size</label>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -3435,7 +3449,7 @@ const CreateCopierGroupPanel = ({ tvAccounts, onCreate, C }) => {
             setCreating(true);
             const master=tvAccounts.find(a=>String(a.tradovate_account_id)===String(masterId));
             const slaves=tvAccounts.filter(a=>slaveIds.includes(String(a.tradovate_account_id)));
-            await onCreate(master,slaves,name,sizeMode,fixedQty,ratio);
+            await onCreate(master,slaves,name,sizeMode,fixedQty,ratio,dryRun);
             setOpen(false);setMasterId("");setSlaveIds([]);setName("My Copy Group");setCreating(false);
           }}
           style={{flex:2,padding:"12px",borderRadius:10,cursor:"pointer",background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:!masterId||!slaveIds.length?0.4:1}}>
@@ -3820,7 +3834,7 @@ export default function TradingPlatform({ session }) {
     } catch(e) { alert("Could not stop copier: " + e.message); }
   };
 
-  const createCopierGroup = async (masterAccount, slaveAccounts, name, sizeMode, fixedQty, ratio) => {
+  const createCopierGroup = async (masterAccount, slaveAccounts, name, sizeMode, fixedQty, ratio, dryRun) => {
     try {
       const group = await copierFetch("/copier/groups", "POST", {
         name,
@@ -3831,6 +3845,7 @@ export default function TradingPlatform({ session }) {
         size_mode: sizeMode || "mirror",
         fixed_qty: fixedQty || 1,
         ratio: ratio || 1.0,
+        dry_run: dryRun === true,
       });
       await loadCopierGroups();
       return group;
@@ -6552,8 +6567,9 @@ export default function TradingPlatform({ session }) {
                   <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:18,marginTop:2}}>{activeGroup.name}</div>
                   <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:2}}>
                     Master: {activeGroup.master_account_name} · 
-                    Copied: {activeGroup.stats?.copied || 0} · 
-                    Failed: {activeGroup.stats?.failed || 0}
+                    {activeGroup.dry_run 
+                      ? `Dry runs: ${activeGroup.stats?.dryRun || 0}` 
+                      : `Copied: ${activeGroup.stats?.copied || 0} · Failed: ${activeGroup.stats?.failed || 0}`}
                   </div>
                 </div>
                 <button onClick={()=>stopCopierBackend(activeGroup.id)}
@@ -6612,6 +6628,12 @@ export default function TradingPlatform({ session }) {
                               {group.stats.failed > 0 && <span style={{color:C.red}}> ✗{group.stats.failed}</span>}
                             </div>
                           )}
+                          {/* Dry run badge */}
+                          {group.dry_run && (
+                            <span style={{background:`${C.accent}22`,border:`1px solid ${C.accent}66`,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.accent,fontWeight:700}}>
+                              🧪 DRY RUN
+                            </span>
+                          )}
                           {/* Size mode badge */}
                           <span style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>
                             {group.size_mode === "mirror" ? "Mirror" : group.size_mode === "fixed" ? `Fixed ${group.fixed_qty}` : `Ratio ${group.ratio}x`}
@@ -6652,14 +6674,14 @@ export default function TradingPlatform({ session }) {
                 <div style={{display:"flex",flexDirection:"column",gap:6}}>
                   {copierLog.slice(0,15).map(entry => (
                     <div key={entry.id} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 10px",background:C.surface,borderRadius:6,
-                      borderLeft:`3px solid ${entry.event==="copied"?C.green:entry.event==="failed"?C.red:C.amber}`}}>
+                      borderLeft:`3px solid ${entry.event==="copied"?C.green:entry.event==="failed"?C.red:entry.event==="dry_run"?C.accent:C.amber}`}}>
                       <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,flexShrink:0}}>
                         {new Date(entry.ts).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}
                       </span>
                       <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,
-                        color:entry.event==="copied"?C.green:entry.event==="failed"?C.red:C.amber,
+                        color:entry.event==="copied"?C.green:entry.event==="failed"?C.red:entry.event==="dry_run"?C.accent:C.amber,
                         fontWeight:700,flexShrink:0,textTransform:"uppercase"}}>
-                        {entry.event}
+                        {entry.event==="dry_run"?"🧪 DRY":entry.event}
                       </span>
                       {entry.symbol && <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.text}}>{entry.side} {entry.qty}x {entry.symbol}</span>}
                       {entry.slave_account && <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>→ {entry.slave_account}</span>}
