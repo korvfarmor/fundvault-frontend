@@ -6675,7 +6675,7 @@ export default function TradingPlatform({ session }) {
             try { localStorage.setItem("fv_copier_onboarded", "1"); } catch {}
           };
 
-          return <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth:900}}>
+          return <div style={{display:"flex",flexDirection:"column",gap:22}}>
 
             {/* Onboarding overlay */}
             {showCopierOnboarding && (
