@@ -1931,6 +1931,8 @@ const PropFirmWizardModal = ({
   wizardTypeId, setWizardTypeId,
   wizardBalance, setWizardBalance,
   wizardNickname, setWizardNickname,
+  wizardTvAccId, setWizardTvAccId,
+  tvAccounts,
   editingPropAcc, addPropAccount,
   onClose,
 }) => {
@@ -2035,6 +2037,26 @@ const PropFirmWizardModal = ({
                 <input type="number" value={wizardBalance} onChange={e=>setWizardBalance(e.target.value)}
                   placeholder={`Default: $${wizType.accountSize.toLocaleString()}`} style={inputS}/>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,marginTop:5}}>Your balance when you started tracking — usually the funded account size.</div>
+              </div>
+              <div>
+                <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6,display:"block"}}>Link to Tradovate Account (optional)</label>
+                <select value={wizardTvAccId||""} onChange={e=>setWizardTvAccId(e.target.value)}
+                  style={{...inputS,cursor:"pointer"}}>
+                  <option value="">Not linked — trades won't auto-assign</option>
+                  {(tvAccounts||[]).map(a=>(
+                    <option key={a.tradovate_account_id} value={a.tradovate_account_id}>
+                      {a.display_name || a.account_spec} (ID: {a.tradovate_account_id})
+                    </option>
+                  ))}
+                </select>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,marginTop:5}}>
+                  Link this cycle to the Tradovate account you're trading on. Trades synced from this account after this cycle starts will be automatically assigned here.
+                </div>
+                {(!tvAccounts || tvAccounts.length === 0) && (
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.amber,marginTop:5}}>
+                    No Tradovate accounts connected. Connect one in the Accounts tab to enable auto-linking.
+                  </div>
+                )}
               </div>
               <div>
                 <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6,display:"block"}}>Nickname (optional)</label>
@@ -6294,9 +6316,11 @@ export default function TradingPlatform({ session }) {
             wizardTypeId={wizardTypeId} setWizardTypeId={setWizardTypeId}
             wizardBalance={wizardBalance} setWizardBalance={setWizardBalance}
             wizardNickname={wizardNickname} setWizardNickname={setWizardNickname}
+            wizardTvAccId={wizardTvAccId} setWizardTvAccId={setWizardTvAccId}
+            tvAccounts={tvAccounts}
             editingPropAcc={editingPropAcc}
             addPropAccount={addPropAccount}
-            onClose={()=>{setShowPropWizard(false);setWizardStep(1);setWizardFirmId(null);setWizardTypeId(null);setWizardBalance("");setWizardNickname("");setEditingPropAcc(null);}}
+            onClose={()=>{setShowPropWizard(false);setWizardStep(1);setWizardFirmId(null);setWizardTypeId(null);setWizardBalance("");setWizardNickname("");setWizardTvAccId("");setEditingPropAcc(null);}}
           />}
               <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.amber,letterSpacing:"0.1em",textTransform:"uppercase"}}>Live Tracking</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Prop Firm Tracker</div></div>
               <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:16,padding:"60px 40px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
@@ -6353,9 +6377,11 @@ export default function TradingPlatform({ session }) {
             wizardTypeId={wizardTypeId} setWizardTypeId={setWizardTypeId}
             wizardBalance={wizardBalance} setWizardBalance={setWizardBalance}
             wizardNickname={wizardNickname} setWizardNickname={setWizardNickname}
+            wizardTvAccId={wizardTvAccId} setWizardTvAccId={setWizardTvAccId}
+            tvAccounts={tvAccounts}
             editingPropAcc={editingPropAcc}
             addPropAccount={addPropAccount}
-            onClose={()=>{setShowPropWizard(false);setWizardStep(1);setWizardFirmId(null);setWizardTypeId(null);setWizardBalance("");setWizardNickname("");setEditingPropAcc(null);}}
+            onClose={()=>{setShowPropWizard(false);setWizardStep(1);setWizardFirmId(null);setWizardTypeId(null);setWizardBalance("");setWizardNickname("");setWizardTvAccId("");setEditingPropAcc(null);}}
           />}
 
             {/* Header */}
@@ -6369,55 +6395,138 @@ export default function TradingPlatform({ session }) {
                   ? <span style={{background:`${C.green}18`,border:`1px solid ${C.green}44`,borderRadius:6,padding:"3px 10px",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.green}}>⚡ LIVE — Tradovate</span>
                   : trades.length > 0 ? <span style={{background:`${C.accent}11`,border:`1px solid ${C.accent}33`,borderRadius:6,padding:"3px 10px",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.accent}}>📊 Calculated from logged trades</span> : null
                 }
-                <button onClick={()=>{setShowPropWizard(true);setWizardStep(1);setWizardFirmId(null);setWizardTypeId(null);setWizardBalance("");setWizardNickname("");setEditingPropAcc(null);}}
+                <button onClick={()=>{setShowPropWizard(true);setWizardStep(1);setWizardFirmId(null);setWizardTypeId(null);setWizardBalance("");setWizardNickname("");setWizardTvAccId("");setEditingPropAcc(null);}}
                   style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700}}>
                   + Add Account
                 </button>
               </div>
             </div>
 
-            {/* Account switcher (if multiple) */}
-            {propAccounts.length > 1 && (
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                {propAccounts.map(a=>{
-                  const af = firms.find(f=>f.id===a.firmId);
-                  const isActive = a.id === (activePropAccId || propAccounts[0]?.id);
-                  return (
-                    <button key={a.id} onClick={()=>setActivePropAccount(a.id)}
-                      style={{padding:"8px 16px",borderRadius:8,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:isActive?700:400,background:isActive?`${af?.color||C.accent}22`:C.surface,border:`2px solid ${isActive?af?.color||C.accent:C.border}`,color:isActive?af?.color||C.accent:C.textDim,transition:"all 0.15s"}}>
-                      {a.nickname}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            {/* Account switcher with status groups */}
+            {propAccounts.length > 1 && (() => {
+              const activeAccs     = propAccounts.filter(a => a.status === "active");
+              const historicalAccs = propAccounts.filter(a => a.status !== "active");
+              const STATUS_COLORS = {
+                active:   C.green,
+                passed:   C.accent,
+                breached: C.red,
+                retired:  C.muted,
+              };
+              const STATUS_ICONS = {
+                active:"●", passed:"✓", breached:"✗", retired:"□",
+              };
+              return (
+                <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                  {activeAccs.length > 0 && (
+                    <div>
+                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:6}}>Active ({activeAccs.length})</div>
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                        {activeAccs.map(a=>{
+                          const af = firms.find(f=>f.id===a.firmId);
+                          const isCurrent = a.id === (activePropAccId || activeAccs[0]?.id);
+                          return (
+                            <button key={a.id} onClick={()=>setActivePropAccount(a.id)}
+                              style={{display:"flex",alignItems:"center",gap:8,padding:"8px 16px",borderRadius:8,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:isCurrent?700:400,background:isCurrent?`${af?.color||C.accent}22`:C.surface,border:`2px solid ${isCurrent?af?.color||C.accent:C.border}`,color:isCurrent?af?.color||C.accent:C.textDim,transition:"all 0.15s"}}>
+                              <span style={{color:C.green,fontSize:8}}>●</span>
+                              {a.nickname}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {historicalAccs.length > 0 && (
+                    <div>
+                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:6}}>Historical ({historicalAccs.length})</div>
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                        {historicalAccs.map(a=>{
+                          const af = firms.find(f=>f.id===a.firmId);
+                          const isCurrent = a.id === activePropAccId;
+                          const statusColor = STATUS_COLORS[a.status] || C.muted;
+                          return (
+                            <button key={a.id} onClick={()=>setActivePropAccount(a.id)}
+                              style={{display:"flex",alignItems:"center",gap:8,padding:"8px 16px",borderRadius:8,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:isCurrent?700:400,background:isCurrent?`${statusColor}22`:C.surface,border:`2px solid ${isCurrent?statusColor:C.border}`,color:isCurrent?statusColor:C.muted,transition:"all 0.15s",opacity:isCurrent?1:0.7}}>
+                              <span style={{color:statusColor,fontSize:9}}>{STATUS_ICONS[a.status]}</span>
+                              {a.nickname}
+                              <span style={{fontSize:9,opacity:0.7,textTransform:"uppercase"}}>{a.status}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Active account card */}
-            <div style={{background:C.card,border:`2px solid ${curFirm?.color||C.accent}44`,borderRadius:12,padding:"16px 20px",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
-              <div style={{width:44,height:44,borderRadius:10,background:`${curFirm?.color||C.accent}18`,border:`1px solid ${curFirm?.color||C.accent}33`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:16,color:curFirm?.color||C.accent,flexShrink:0}}>
-                {curFirm?.name?.slice(0,2).toUpperCase()}
-              </div>
-              <div style={{flex:1,minWidth:160}}>
-                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:17}}>{curAcc?.nickname}</div>
-                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:2}}>{curFirm?.name} · {curType?.label} · {curType?.payoutSplit}% split</div>
-              </div>
-              <div style={{display:"flex",gap:6}}>
-                <button onClick={()=>{
-                  setEditingPropAcc(curAcc.id);
-                  setWizardFirmId(curAcc.firmId);
-                  setWizardTypeId(curAcc.typeId);
-                  setWizardBalance(String(curAcc.startBalance));
-                  setWizardNickname(curAcc.nickname);
-                  setWizardStep(3);
-                  setShowPropWizard(true);
-                }} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>✏ Edit</button>
-                <button onClick={()=>{
-                  const updated = propAccounts.filter(a=>a.id!==curAcc.id);
-                  savePropAccounts(updated);
-                  setActivePropAccount(updated[0]?.id || null);
-                }} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red}}>✕ Remove</button>
-              </div>
-            </div>
+            {(() => {
+              const curStatus = curAcc?.status || "active";
+              const STATUS_META = {
+                active:   {color:C.green,  label:"ACTIVE",   icon:"●"},
+                passed:   {color:C.accent, label:"PASSED",   icon:"✓"},
+                breached: {color:C.red,    label:"BREACHED", icon:"✗"},
+                retired:  {color:C.muted,  label:"RETIRED",  icon:"□"},
+              };
+              const sm = STATUS_META[curStatus];
+              return (
+                <div style={{background:C.card,border:`2px solid ${sm.color}44`,borderRadius:12,padding:"16px 20px",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+                  <div style={{width:44,height:44,borderRadius:10,background:`${curFirm?.color||C.accent}18`,border:`1px solid ${curFirm?.color||C.accent}33`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:16,color:curFirm?.color||C.accent,flexShrink:0}}>
+                    {curFirm?.name?.slice(0,2).toUpperCase()}
+                  </div>
+                  <div style={{flex:1,minWidth:160}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                      <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:17}}>{curAcc?.nickname}</div>
+                      <span style={{background:`${sm.color}22`,border:`1px solid ${sm.color}66`,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:9,color:sm.color,fontWeight:700,letterSpacing:"0.05em"}}>
+                        {sm.icon} {sm.label}
+                      </span>
+                    </div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:3}}>
+                      {curFirm?.name} · {curType?.label} · {curType?.payoutSplit}% split
+                      {curAcc?.tradovateAccountId && (
+                        <span style={{marginLeft:8,color:C.accent}}>· 🔗 TV: {curAcc.tradovateAccountSpec || curAcc.tradovateAccountId}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {/* Status action buttons — only shown when active */}
+                    {curStatus === "active" && (
+                      <>
+                        <button onClick={()=>{
+                          if (confirm(`Mark "${curAcc.nickname}" as BREACHED?\n\nTrades already logged will stay linked to this cycle. New trades synced from this Tradovate account will go to your next active cycle.`)) {
+                            setPropAccountStatus(curAcc.id, "breached");
+                          }
+                        }} style={{background:`${C.red}11`,border:`1px solid ${C.red}66`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red,fontWeight:700}}>✗ Breached</button>
+                        <button onClick={()=>{
+                          if (confirm(`Mark "${curAcc.nickname}" as PASSED?\n\nThis usually means you progressed to funded/payout. Trades stay linked to this cycle.`)) {
+                            setPropAccountStatus(curAcc.id, "passed");
+                          }
+                        }} style={{background:`${C.accent}11`,border:`1px solid ${C.accent}66`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700}}>✓ Passed</button>
+                      </>
+                    )}
+                    {curStatus !== "active" && (
+                      <button onClick={()=>{
+                        if (confirm(`Reactivate "${curAcc.nickname}"?`)) {
+                          setPropAccountStatus(curAcc.id, "active");
+                        }
+                      }} style={{background:`${C.green}11`,border:`1px solid ${C.green}66`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.green,fontWeight:700}}>↻ Reactivate</button>
+                    )}
+                    <button onClick={()=>{
+                      setEditingPropAcc(curAcc.id);
+                      setWizardFirmId(curAcc.firmId);
+                      setWizardTypeId(curAcc.typeId);
+                      setWizardBalance(String(curAcc.startBalance));
+                      setWizardNickname(curAcc.nickname);
+                      setWizardTvAccId(curAcc.tradovateAccountId || "");
+                      setWizardStep(3);
+                      setShowPropWizard(true);
+                    }} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>✏ Edit</button>
+                    <button onClick={()=>deletePropAccountDB(curAcc.id)}
+                      style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red}}>✕ Delete</button>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Stat cards */}
             <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
