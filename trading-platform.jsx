@@ -3823,24 +3823,120 @@ export default function TradingPlatform({ session }) {
   const [firms,      setFirms     ] = useState(DEFAULT_PROP_FIRMS);
   const [activeFirm, setActiveFirm] = useState("mffu");
   // ── User's configured prop accounts ──────────────────────────────────────
-  const [propAccounts, setPropAccounts] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("fv_prop_accounts") || "[]"); }
-    catch { return []; }
-  });
+  const [propAccounts, setPropAccounts] = useState([]);
+  const [propLoading,  setPropLoading ] = useState(true);
   const [activePropAccId, setActivePropAccId] = useState(() =>
     localStorage.getItem("fv_active_prop_acc") || null
   );
   const [showPropWizard, setShowPropWizard] = useState(false);
-  const [wizardStep,     setWizardStep    ] = useState(1); // 1=firm, 2=type, 3=balance
+  const [wizardStep,     setWizardStep    ] = useState(1);
   const [wizardFirmId,   setWizardFirmId  ] = useState(null);
   const [wizardTypeId,   setWizardTypeId  ] = useState(null);
   const [wizardBalance,  setWizardBalance ] = useState("");
   const [wizardNickname, setWizardNickname] = useState("");
+  const [wizardTvAccId,  setWizardTvAccId ] = useState("");  // Tradovate account link
   const [editingPropAcc, setEditingPropAcc] = useState(null);
 
+  // Load prop accounts from DB
+  const loadPropAccounts = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const r = await fetch(`${API}/prop-accounts`, {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const data = await r.json();
+      // Map DB columns to UI fields, keep backward-compatible
+      const mapped = (data || []).map(a => ({
+        id: a.id,
+        firmId: a.firm_id,
+        typeId: a.account_type,
+        startBalance: parseFloat(a.start_balance || a.account_size),
+        nickname: a.label,
+        addedAt: a.created_at,
+        status: a.status || "active",
+        tradovateAccountId: a.tradovate_account_id,
+        tradovateAccountSpec: a.tradovate_account_spec,
+        activatedAt: a.activated_at,
+        deactivatedAt: a.deactivated_at,
+      }));
+      setPropAccounts(mapped);
+      setPropLoading(false);
+    } catch(e) {
+      console.log("[PropAccounts] load error:", e.message);
+      setPropLoading(false);
+    }
+  };
+
+  useEffect(() => { loadPropAccounts(); }, []);
+
+  // Save to backend
+  const savePropAccountDB = async (acc, isNew = false) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const payload = {
+        firm_id: acc.firmId,
+        account_type: acc.typeId,
+        account_size: acc.startBalance,
+        start_balance: acc.startBalance,
+        label: acc.nickname,
+        status: acc.status || "active",
+        tradovate_account_id: acc.tradovateAccountId || null,
+        tradovate_account_spec: acc.tradovateAccountSpec || null,
+      };
+      const url = isNew ? `${API}/prop-accounts` : `${API}/prop-accounts/${acc.id}`;
+      const r = await fetch(url, {
+        method: isNew ? "POST" : "PATCH",
+        headers: { Authorization: `Bearer ${session?.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      await loadPropAccounts();
+      return await r.json();
+    } catch(e) {
+      console.error("[PropAccounts] save error:", e.message);
+      alert("Could not save prop account: " + e.message);
+    }
+  };
+
+  // Update status (breached/passed/retired/active)
+  const setPropAccountStatus = async (id, status) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const body = { status };
+      if (status !== "active") body.deactivated_at = new Date().toISOString();
+      else body.deactivated_at = null;
+      const r = await fetch(`${API}/prop-accounts/${id}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${session?.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      await loadPropAccounts();
+    } catch(e) { alert("Could not update status: " + e.message); }
+  };
+
+  const deletePropAccountDB = async (id) => {
+    if (!confirm("Delete this prop account? Trades linked to it will be unlinked but not deleted.")) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const r = await fetch(`${API}/prop-accounts/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (!r.ok) throw new Error(await r.text());
+      await loadPropAccounts();
+    } catch(e) { alert("Could not delete: " + e.message); }
+  };
+
+  // Legacy localStorage-based save (used during wizard) — now writes to DB
   const savePropAccounts = (data) => {
+    // Deprecated — kept for backward compat but prefer savePropAccountDB
     setPropAccounts(data);
-    localStorage.setItem("fv_prop_accounts", JSON.stringify(data));
   };
   const setActivePropAccount = (id) => {
     setActivePropAccId(id);
@@ -3848,32 +3944,33 @@ export default function TradingPlatform({ session }) {
     const acc = propAccounts.find(a=>a.id===id);
     if (acc) { setActiveFirm(acc.firmId); setFirmAccountType(acc.firmId, acc.typeId); }
   };
-  const addPropAccount = () => {
+  const addPropAccount = async () => {
     if (!wizardFirmId || !wizardTypeId) return;
     const bal = parseFloat(wizardBalance) || DEFAULT_PROP_FIRMS.find(f=>f.id===wizardFirmId)?.accountTypes.find(t=>t.id===wizardTypeId)?.accountSize || 50000;
     const firm = DEFAULT_PROP_FIRMS.find(f=>f.id===wizardFirmId);
     const type = firm?.accountTypes.find(t=>t.id===wizardTypeId);
-    const newAcc = {
-      id: Date.now().toString(),
+    // Find Tradovate account if selected
+    const tvAcc = tvAccounts.find(t => String(t.tradovate_account_id) === String(wizardTvAccId));
+    const accPayload = {
+      id: editingPropAcc,
       firmId: wizardFirmId,
       typeId: wizardTypeId,
       startBalance: bal,
       nickname: wizardNickname.trim() || `${firm?.name} ${type?.label}`,
-      addedAt: new Date().toISOString(),
+      status: "active",
+      tradovateAccountId: tvAcc?.tradovate_account_id || null,
+      tradovateAccountSpec: tvAcc?.account_spec || null,
     };
-    const updated = editingPropAcc
-      ? propAccounts.map(a => a.id===editingPropAcc ? {...newAcc, id:editingPropAcc} : a)
-      : [...propAccounts, newAcc];
-    savePropAccounts(updated);
-    // Set active account directly — don't rely on setActivePropAccount which reads stale propAccounts
-    const targetId = editingPropAcc || newAcc.id;
-    setActivePropAccId(targetId);
-    localStorage.setItem("fv_active_prop_acc", targetId);
+    const saved = await savePropAccountDB(accPayload, !editingPropAcc);
+    if (saved?.id) {
+      setActivePropAccId(saved.id);
+      localStorage.setItem("fv_active_prop_acc", saved.id);
+    }
     setActiveFirm(wizardFirmId);
     setFirmAccountType(wizardFirmId, wizardTypeId);
     setShowPropWizard(false);
     setWizardStep(1); setWizardFirmId(null); setWizardTypeId(null);
-    setWizardBalance(""); setWizardNickname(""); setEditingPropAcc(null);
+    setWizardBalance(""); setWizardNickname(""); setWizardTvAccId(""); setEditingPropAcc(null);
   };
   const [tagFilter,  setTagFilter ] = useState("All");
   const [symbolFilter, setSymbolFilter] = useState("All");
