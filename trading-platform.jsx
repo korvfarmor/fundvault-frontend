@@ -4606,7 +4606,9 @@ export default function TradingPlatform({ session }) {
       trades.every(x => !(x.tags||[]).some(tag => ["mffu","lucid","alpha","tpt","tradeify"].includes(tag)))
     );
 
-    const startBalance = startBalances[activeFirm] || 50000;
+    // Priority: active prop account's startBalance → firm-level override → default 50k
+    const activePa = propAccounts.find(a => a.id === activePropAccId) || propAccounts[0];
+    const startBalance = activePa?.startBalance || startBalances[activeFirm] || 50000;
     const today = (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })();
     const todayTrades = firmTrades.filter(t => t.trade_date === today);
     const todayPnl = todayTrades.reduce((a,t) => a+t.pnl, 0);
@@ -6353,15 +6355,20 @@ export default function TradingPlatform({ session }) {
 
           const profit = acct.balance - acct.startBalance;
           const dd     = acct.peakBalance - acct.balance;
-          const saveStartBalance = (firmId, val) => {
+          const saveStartBalance = async (firmId, val) => {
             const num = parseFloat(val.replace(/[^0-9.]/g,""));
             if (!num || isNaN(num)) return;
-            const updated = { ...startBalances, [firmId]: num };
-            setStartBalances(updated);
-            localStorage.setItem("edgestat_startbal", JSON.stringify(updated));
+            // Clear the old firm-level localStorage override (it was causing bugs with multiple accounts)
+            const cleared = { ...startBalances };
+            delete cleared[firmId];
+            setStartBalances(cleared);
+            localStorage.setItem("edgestat_startbal", JSON.stringify(cleared));
             setEditingBalance(null);
-            // Also update propAccount startBalance
-            savePropAccounts(propAccounts.map(a => a.id===curAcc.id ? {...a, startBalance:num} : a));
+            // Save to DB on the specific prop account
+            await savePropAccountDB({
+              ...curAcc,
+              startBalance: num,
+            }, false);
           };
           const po     = curType?.payout || {cycleTarget:3000,minDays:5,minProfit:0,buffer:0,consistency:999};
           const dlRule = curType?.rules?.find(r=>r.type==="loss");
