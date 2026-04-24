@@ -4883,7 +4883,24 @@ export default function TradingPlatform({ session }) {
 
   const getPropStatus = rule => {
     if(rule.type==="loss")    { const u=Math.abs(Math.min(0,acct.todayPnl));    return {used:u,    pct:u/rule.value,                           status:u>=rule.value?"breach":u>=rule.value*.75?"warning":"ok"}; }
-    if(rule.type==="drawdown"){ const dd=acct.peakBalance-acct.balance;          return {used:dd,   pct:dd/rule.value,                          status:dd>=rule.value?"breach":dd>=rule.value*.75?"warning":"ok"}; }
+    if(rule.type==="drawdown"){
+      // Proper trailing drawdown: floor follows peak up by (peak - ddValue), but locked at startBalance
+      // (For most eval accounts — once funded, floor can lock permanently at startBalance)
+      const rawFloor  = acct.peakBalance - rule.value;
+      const floor     = Math.max(rawFloor, acct.startBalance - rule.value);
+      // In eval, floor can never rise above startBalance (the trailing stops there)
+      const evalFloor = Math.min(floor, acct.startBalance);
+      const distanceToBreach = Math.max(0, acct.balance - evalFloor);  // how much room left before breach
+      const used = Math.max(0, acct.peakBalance - acct.balance);        // how far from peak
+      return {
+        used, pct: used / rule.value,
+        remaining: distanceToBreach,
+        floor: evalFloor,
+        status: distanceToBreach <= 0 ? "breach"
+              : distanceToBreach <= rule.value * 0.25 ? "warning"
+              : "ok"
+      };
+    }
     if(rule.type==="target")  { const p=acct.balance-acct.startBalance;          return {used:p,    pct:Math.min(1,p/rule.value),               status:p>=rule.value?"achieved":p>=rule.value*.75?"close":"ok"}; }
     if(rule.type==="days")    {                                                   return {used:acct.tradingDays,pct:Math.min(1,acct.tradingDays/rule.value),status:acct.tradingDays>=rule.value?"achieved":"ok"}; }
     if(rule.type==="hold")    { const v=trades.filter(t=>t.holdMin<rule.value).length; return {used:v,pct:v>0?1:0,status:v>0?"breach":"ok"}; }
@@ -6444,7 +6461,13 @@ export default function TradingPlatform({ session }) {
           if (curType?.id !== curFirm?.activeType) setFirmAccountType(curFirm?.id, curType?.id);
 
           const profit = acct.balance - acct.startBalance;
-          const dd     = acct.peakBalance - acct.balance;
+          // Proper trailing drawdown calculation
+          const ddRuleForCalc = (curType?.rules||[]).find(r => r.type === "drawdown");
+          const ddValue = ddRuleForCalc?.value || 2000;
+          const rawFloor = acct.peakBalance - ddValue;
+          const ddFloor = Math.min(Math.max(rawFloor, acct.startBalance - ddValue), acct.startBalance);
+          const ddRemaining = Math.max(0, acct.balance - ddFloor); // $ room left before breach
+          const dd = Math.max(0, acct.peakBalance - acct.balance); // legacy — kept for rule card calcs
           const saveStartBalance = async (firmId, val) => {
             const num = parseFloat(val.replace(/[^0-9.]/g,""));
             if (!num || isNaN(num)) return;
@@ -6700,7 +6723,12 @@ export default function TradingPlatform({ session }) {
               } color={C.accent}/>
               <StatCard label="Total Profit"  value={`${profit>=0?"+":""}$${Math.abs(profit).toLocaleString()}`} sub={ptRule?`Target: $${ptRule.value.toLocaleString()}`:"Funded"} color={profit>=0?C.green:C.red}/>
               <StatCard label="Today P&L"     value={`${acct.todayPnl>=0?"+":""}$${Math.round(acct.todayPnl).toLocaleString()}`} sub={dlRule?`Limit: -$${dlRule.value.toLocaleString()}`:"No daily limit"} color={acct.todayPnl>=0?C.green:C.red}/>
-              <StatCard label="Drawdown"       value={`$${dd.toLocaleString()}`} sub={ddRule?`Max: $${ddRule.value.toLocaleString()}`:"—"} color={ddRule&&dd>ddRule.value*.75?C.red:C.amber}/>
+              <StatCard 
+                label="From Drawdown" 
+                value={`$${ddRemaining.toLocaleString()}`}
+                sub={ddRule?`Floor: $${Math.round(ddFloor).toLocaleString()} · Max DD: $${ddRule.value.toLocaleString()}`:"—"}
+                color={ddRemaining<=0?C.red:ddRemaining<ddValue*0.25?C.red:ddRemaining<ddValue*0.5?C.amber:C.green}
+              />
               <StatCard label="Payout Split"   value={`${curType?.payoutSplit||90}%`} sub={(curType?.payoutFreq||"").split("(")[0].trim()} color={curFirm?.color||C.accent}/>
             </div>
 
