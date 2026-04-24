@@ -6818,8 +6818,8 @@ export default function TradingPlatform({ session }) {
               </div>
             </div>
 
-            {/* Payout Tracker */}
-            {(()=>{
+            {/* Payout Tracker — only show for passed (funded) accounts */}
+            {curAcc?.status === "passed" && (()=>{
               const cycPct      = Math.min(1,(acct.cycleProfit||0)/Math.max(po.cycleTarget,1));
               const daysPct     = Math.min(1,(acct.cycleWinDays||0)/Math.max(po.minDays,1));
               const noConsist   = po.consistency>=900;
@@ -6879,6 +6879,88 @@ export default function TradingPlatform({ session }) {
                 </div>
               </div>;
             })()}
+
+            {/* Eval Progress — shown while account is active (not yet passed) */}
+            {curAcc?.status === "active" && (() => {
+              const ptRuleLocal = (curType?.rules||[]).find(r => r.type === "target");
+              const target = ptRuleLocal?.value || 0;
+              const progress = target > 0 ? Math.min(1, profit / target) : 0;
+              const remaining = Math.max(0, target - profit);
+              return (
+                <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:18,flexWrap:"wrap",gap:10}}>
+                    <div>
+                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.amber,letterSpacing:"0.1em",textTransform:"uppercase"}}>Evaluation Progress</div>
+                      <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginTop:2}}>{curFirm?.name} · {curType?.label}</div>
+                      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginTop:3}}>Pass the evaluation first — payout tracker unlocks after.</div>
+                    </div>
+                    {progress >= 1 && (
+                      <div style={{background:`${C.green}22`,border:`1px solid ${C.green}55`,borderRadius:8,padding:"8px 16px",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.green,fontWeight:700}}>
+                        ✓ TARGET HIT
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:14}}>
+                    {target > 0 && (
+                      <div style={{background:C.surface,borderRadius:10,padding:16,border:`1px solid ${progress>=1?C.green+"44":C.border}`}}>
+                        <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Profit Target</div>
+                        <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:progress>=1?C.green:C.text}}>
+                          ${Math.round(profit).toLocaleString()}<span style={{fontSize:14,color:C.muted,fontWeight:400}}> / ${target.toLocaleString()}</span>
+                        </div>
+                        <div style={{height:4,background:C.border,borderRadius:2,marginTop:10,overflow:"hidden"}}>
+                          <div style={{height:"100%",width:`${progress*100}%`,background:progress>=1?C.green:curFirm?.color||C.accent,borderRadius:2,transition:"width 0.5s"}}/>
+                        </div>
+                        <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:progress>=1?C.green:C.textDim,marginTop:5}}>
+                          {progress>=1 ? "✓ Target reached — mark as Passed when funded" : `$${Math.round(remaining).toLocaleString()} to go`}
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{background:C.surface,borderRadius:10,padding:16,border:`1px solid ${C.border}`}}>
+                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Trading Days</div>
+                      <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22}}>{acct.tradingDays||0}</div>
+                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:5}}>
+                        Days with trades · {acct.cycleWinDays||0} profitable
+                      </div>
+                    </div>
+
+                    <div style={{background:C.surface,borderRadius:10,padding:16,border:`1px solid ${ddRemaining <= 0 ? C.red+"55" : C.border}`}}>
+                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Room Before Breach</div>
+                      <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:ddRemaining <= 0 ? C.red : ddRemaining < ddValue*0.25 ? C.red : ddRemaining < ddValue*0.5 ? C.amber : C.green}}>
+                        ${Math.round(ddRemaining).toLocaleString()}
+                      </div>
+                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:5}}>
+                        {ddTypeLabel} · Floor ${Math.round(ddFloor).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {progress >= 1 && (
+                    <div style={{marginTop:18,background:`${C.green}11`,border:`1px solid ${C.green}44`,borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
+                      <span style={{fontSize:18}}>🎯</span>
+                      <div style={{flex:1,fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.text}}>
+                        You've hit the profit target. When your prop firm approves your funded account, click <strong style={{color:C.green}}>✓ Passed</strong> on the account card above to unlock the Payout Tracker.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Breached — minimal message */}
+            {curAcc?.status === "breached" && (
+              <div style={{background:`${C.red}08`,border:`1px solid ${C.red}44`,borderRadius:12,padding:"18px 22px",display:"flex",alignItems:"center",gap:14}}>
+                <span style={{fontSize:22}}>✗</span>
+                <div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red,letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:700}}>Account Breached</div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginTop:4}}>
+                    This cycle has ended. Historical trades stay linked here. Create a new prop account to continue tracking your next cycle.
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>;
         })()}
 
