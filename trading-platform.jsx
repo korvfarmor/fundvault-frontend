@@ -4667,17 +4667,34 @@ export default function TradingPlatform({ session }) {
   // ── Beräkna prop firm-data från riktiga trades (Alt 1) ──────────────────────
   // Om Tradovate är anslutet och har live-data används den istället (Alt 2)
   const acct = (() => {
-    // Alt 2: Tradovate live-data (när anslutet)
-    if (liveAcctData?.[activeFirm]) return liveAcctData[activeFirm];
+    // Active prop account (the source of truth for this card)
+    const activePa = propAccounts.find(a => a.id === activePropAccId) || propAccounts[0];
 
-    // Alt 1: Beräkna från loggade trades
-    const firmTrades = trades.filter(t => (t.tags||[]).includes(activeFirm) ||
-      // fallback: alla trades om ingen firm-taggning finns
-      trades.every(x => !(x.tags||[]).some(tag => ["mffu","lucid","alpha","tpt","tradeify"].includes(tag)))
-    );
+    // Alt 2: Tradovate live balance (if prop account is linked to a TV account)
+    let liveBalance = null;
+    if (activePa?.tradovateAccountId) {
+      const tvAcc = tvAccounts.find(t => 
+        String(t.tradovate_account_id) === String(activePa.tradovateAccountId)
+      );
+      if (tvAcc?.balance != null) liveBalance = parseFloat(tvAcc.balance);
+    }
+    // Fallback to demo data only if nothing else
+    if (liveAcctData?.[activeFirm] && !activePa) return liveAcctData[activeFirm];
+
+    // Alt 1: Filter trades by prop_account_id (the proper linkage)
+    // Priority: prop_account_id match → firm tag match → all trades (legacy fallback)
+    let firmTrades;
+    if (activePa?.id) {
+      // Trades linked to this specific prop account cycle
+      firmTrades = trades.filter(t => t.prop_account_id === activePa.id);
+    } else {
+      // Legacy fallback: filter by firm tag
+      firmTrades = trades.filter(t => (t.tags||[]).includes(activeFirm) ||
+        trades.every(x => !(x.tags||[]).some(tag => ["mffu","lucid","alpha","tpt","tradeify"].includes(tag)))
+      );
+    }
 
     // Priority: active prop account's startBalance → firm-level override → default 50k
-    const activePa = propAccounts.find(a => a.id === activePropAccId) || propAccounts[0];
     const startBalance = activePa?.startBalance || startBalances[activeFirm] || 50000;
     const today = (() => { const _n=new Date(); return `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`; })();
     const todayTrades = firmTrades.filter(t => t.trade_date === today);
@@ -4687,8 +4704,11 @@ export default function TradingPlatform({ session }) {
     const sorted = [...firmTrades].sort((a,b) => a.trade_date?.localeCompare(b.trade_date));
     let cumPnl = 0, peakPnl = 0;
     sorted.forEach(t => { cumPnl += t.pnl; if (cumPnl > peakPnl) peakPnl = cumPnl; });
-    const balance = startBalance + cumPnl;
-    const peakBalance = startBalance + peakPnl;
+    // If we have live Tradovate balance, use it (more accurate)
+    // Otherwise calculate from logged trades
+    const calculatedBalance = startBalance + cumPnl;
+    const balance = liveBalance != null ? liveBalance : calculatedBalance;
+    const peakBalance = Math.max(startBalance + peakPnl, balance);
 
     // Trading days = unika dagar med trades
     const tradingDays = new Set(firmTrades.map(t => t.trade_date).filter(Boolean)).size;
