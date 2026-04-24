@@ -4700,15 +4700,37 @@ export default function TradingPlatform({ session }) {
     const todayTrades = firmTrades.filter(t => t.trade_date === today);
     const todayPnl = todayTrades.reduce((a,t) => a+t.pnl, 0);
 
-    // Bygg equity curve för att hitta peak
-    const sorted = [...firmTrades].sort((a,b) => a.trade_date?.localeCompare(b.trade_date));
-    let cumPnl = 0, peakPnl = 0;
-    sorted.forEach(t => { cumPnl += t.pnl; if (cumPnl > peakPnl) peakPnl = cumPnl; });
-    // If we have live Tradovate balance, use it (more accurate)
-    // Otherwise calculate from logged trades
+    // Build equity curve — compute both intraday and EOD peaks for proper drawdown calc
+    const sorted = [...firmTrades].sort((a,b) => {
+      const d = (a.trade_date || "").localeCompare(b.trade_date || "");
+      return d !== 0 ? d : (a.exit_time || "").localeCompare(b.exit_time || "");
+    });
+
+    // Intraday peak (highest cumulative P&L at any trade exit point)
+    let cumPnl = 0, peakPnlIntraday = 0;
+    sorted.forEach(t => { 
+      cumPnl += t.pnl; 
+      if (cumPnl > peakPnlIntraday) peakPnlIntraday = cumPnl;
+    });
+
+    // EOD peak (highest end-of-day balance sum)
+    const dayEndBalances = {};
+    let running = 0;
+    sorted.forEach(t => {
+      running += t.pnl;
+      dayEndBalances[t.trade_date] = running; // last update per day = EOD balance
+    });
+    const peakPnlEod = Object.values(dayEndBalances).length
+      ? Math.max(0, ...Object.values(dayEndBalances))
+      : 0;
+
+    // Use live Tradovate balance when available
     const calculatedBalance = startBalance + cumPnl;
     const balance = liveBalance != null ? liveBalance : calculatedBalance;
-    const peakBalance = Math.max(startBalance + peakPnl, balance);
+    const peakBalanceIntraday = Math.max(startBalance + peakPnlIntraday, balance);
+    const peakBalanceEod      = startBalance + peakPnlEod;
+    // Default peakBalance is intraday (stricter) — callers pick per DD rule
+    const peakBalance = peakBalanceIntraday;
 
     // Trading days = unika dagar med trades
     const tradingDays = new Set(firmTrades.map(t => t.trade_date).filter(Boolean)).size;
@@ -4725,8 +4747,11 @@ export default function TradingPlatform({ session }) {
     const bestDayPnl = cycleWinDays ? Math.max(...Object.values(pnlByDay).filter(p => p > 0)) : 0;
     const bestDayPct = cycleProfit > 0 ? Math.round((bestDayPnl / cycleProfit) * 100) : 0;
 
-    return { balance, startBalance, peakBalance, todayPnl: Math.round(todayPnl),
-             tradingDays, cycleProfit, cycleWinDays, bestDayPct };
+    return { 
+      balance, startBalance, peakBalance, peakBalanceIntraday, peakBalanceEod,
+      todayPnl: Math.round(todayPnl),
+      tradingDays, cycleProfit, cycleWinDays, bestDayPct 
+    };
   })();
 
   // Helper: switch account type for active firm
@@ -4884,18 +4909,33 @@ export default function TradingPlatform({ session }) {
   const getPropStatus = rule => {
     if(rule.type==="loss")    { const u=Math.abs(Math.min(0,acct.todayPnl));    return {used:u,    pct:u/rule.value,                           status:u>=rule.value?"breach":u>=rule.value*.75?"warning":"ok"}; }
     if(rule.type==="drawdown"){
-      // Proper trailing drawdown: floor follows peak up by (peak - ddValue), but locked at startBalance
-      // (For most eval accounts — once funded, floor can lock permanently at startBalance)
-      const rawFloor  = acct.peakBalance - rule.value;
-      const floor     = Math.max(rawFloor, acct.startBalance - rule.value);
-      // In eval, floor can never rise above startBalance (the trailing stops there)
-      const evalFloor = Math.min(floor, acct.startBalance);
-      const distanceToBreach = Math.max(0, acct.balance - evalFloor);  // how much room left before breach
-      const used = Math.max(0, acct.peakBalance - acct.balance);        // how far from peak
+      // Detect DD sub-type from label: Intraday / EOD / Static
+      const label = (rule.label || "").toLowerCase();
+      const isStatic   = label.includes("static");
+      const isIntraday = label.includes("intraday");
+      // Default to EOD (most common)
+
+      let peak;
+      if (isStatic) {
+        peak = acct.startBalance; // never trails
+      } else if (isIntraday) {
+        peak = acct.peakBalanceIntraday ?? acct.peakBalance;
+      } else {
+        peak = acct.peakBalanceEod ?? acct.peakBalance;
+      }
+
+      // Floor = peak - ddValue, but capped at startBalance for eval accounts
+      // (once floor reaches startBalance it typically locks there)
+      const rawFloor = peak - rule.value;
+      const floor    = Math.min(rawFloor, acct.startBalance);
+
+      const distanceToBreach = Math.max(0, acct.balance - floor);
+      const used             = Math.max(0, peak - acct.balance);
       return {
         used, pct: used / rule.value,
         remaining: distanceToBreach,
-        floor: evalFloor,
+        floor,
+        ddType: isStatic ? "static" : isIntraday ? "intraday" : "eod",
         status: distanceToBreach <= 0 ? "breach"
               : distanceToBreach <= rule.value * 0.25 ? "warning"
               : "ok"
@@ -6461,13 +6501,20 @@ export default function TradingPlatform({ session }) {
           if (curType?.id !== curFirm?.activeType) setFirmAccountType(curFirm?.id, curType?.id);
 
           const profit = acct.balance - acct.startBalance;
-          // Proper trailing drawdown calculation
+          // Trailing drawdown — detect type from rule label
           const ddRuleForCalc = (curType?.rules||[]).find(r => r.type === "drawdown");
           const ddValue = ddRuleForCalc?.value || 2000;
-          const rawFloor = acct.peakBalance - ddValue;
-          const ddFloor = Math.min(Math.max(rawFloor, acct.startBalance - ddValue), acct.startBalance);
-          const ddRemaining = Math.max(0, acct.balance - ddFloor); // $ room left before breach
-          const dd = Math.max(0, acct.peakBalance - acct.balance); // legacy — kept for rule card calcs
+          const ddLabel = (ddRuleForCalc?.label || "").toLowerCase();
+          const ddIsStatic   = ddLabel.includes("static");
+          const ddIsIntraday = ddLabel.includes("intraday");
+          const ddTypeLabel  = ddIsStatic ? "Static" : ddIsIntraday ? "Intraday" : "EOD";
+          // Pick correct peak for DD type
+          const ddPeak = ddIsStatic ? acct.startBalance
+                       : ddIsIntraday ? (acct.peakBalanceIntraday ?? acct.peakBalance)
+                       : (acct.peakBalanceEod ?? acct.peakBalance);
+          const ddFloor = Math.min(ddPeak - ddValue, acct.startBalance);
+          const ddRemaining = Math.max(0, acct.balance - ddFloor);
+          const dd = Math.max(0, ddPeak - acct.balance);
           const saveStartBalance = async (firmId, val) => {
             const num = parseFloat(val.replace(/[^0-9.]/g,""));
             if (!num || isNaN(num)) return;
@@ -6726,7 +6773,7 @@ export default function TradingPlatform({ session }) {
               <StatCard 
                 label="From Drawdown" 
                 value={`$${ddRemaining.toLocaleString()}`}
-                sub={ddRule?`Floor: $${Math.round(ddFloor).toLocaleString()} · Max DD: $${ddRule.value.toLocaleString()}`:"—"}
+                sub={ddRule?`${ddTypeLabel} · Floor: $${Math.round(ddFloor).toLocaleString()} · Max: $${ddRule.value.toLocaleString()}`:"—"}
                 color={ddRemaining<=0?C.red:ddRemaining<ddValue*0.25?C.red:ddRemaining<ddValue*0.5?C.amber:C.green}
               />
               <StatCard label="Payout Split"   value={`${curType?.payoutSplit||90}%`} sub={(curType?.payoutFreq||"").split("(")[0].trim()} color={curFirm?.color||C.accent}/>
