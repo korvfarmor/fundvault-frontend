@@ -2063,6 +2063,18 @@ const PropFirmWizardModal = ({
                 <input type="text" value={wizardNickname} onChange={e=>setWizardNickname(e.target.value)}
                   placeholder={`e.g. "My MFFU 50K"`} style={inputS}/>
               </div>
+              {/* Warning if TV accounts exist but none selected */}
+              {(tvAccounts||[]).length > 0 && !wizardTvAccId && (
+                <div style={{background:`${C.amber}11`,border:`1px solid ${C.amber}44`,borderRadius:8,padding:"10px 14px",display:"flex",alignItems:"flex-start",gap:10}}>
+                  <span style={{fontSize:16,lineHeight:1}}>⚠️</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.amber,fontWeight:700,marginBottom:3,letterSpacing:"0.05em"}}>NO TRADOVATE LINK SELECTED</div>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,lineHeight:1.5}}>
+                      Without a link, new trades synced from Tradovate won't automatically be assigned to this account. You can link it later from the Accounts tab or by editing this account.
+                    </div>
+                  </div>
+                </div>
+              )}
               <div style={{display:"flex",gap:8}}>
                 <button onClick={()=>setWizardStep(2)} style={{flex:1,padding:"12px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
                 <button onClick={addPropAccount}
@@ -3892,6 +3904,64 @@ export default function TradingPlatform({ session }) {
   };
 
   useEffect(() => { loadPropAccounts(); }, []);
+
+  // Unlinked/orphan trade stats
+  const [orphanStats, setOrphanStats] = useState({ count: 0, totalPnl: 0, earliest: null, latest: null });
+  const [backfilling, setBackfilling] = useState(false);
+
+  const loadOrphanStats = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const r = await fetch(`${API}/prop-accounts/unlinked-stats`, {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (r.ok) setOrphanStats(await r.json());
+    } catch(e) { console.log("[Orphan] load error:", e.message); }
+  };
+
+  useEffect(() => { loadOrphanStats(); }, []);
+
+  const backfillOrphanTrades = async () => {
+    setBackfilling(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      
+      // First: dry run to preview
+      const drR = await fetch(`${API}/prop-accounts/backfill-trades`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session?.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ dry_run: true }),
+      });
+      const drData = await drR.json();
+      
+      if (drData.matched === 0) {
+        alert("No orphan trades match any prop account window. Make sure your prop accounts have correct activation dates.");
+        setBackfilling(false);
+        return;
+      }
+
+      if (!confirm(`Found ${drData.matched} of ${drData.total} orphan trades that can be linked to prop accounts based on trade dates.\n\nProceed with linking?`)) {
+        setBackfilling(false);
+        return;
+      }
+
+      // Actually run
+      const r = await fetch(`${API}/prop-accounts/backfill-trades`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session?.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ dry_run: false }),
+      });
+      const data = await r.json();
+      alert(`✅ ${data.message}`);
+      await loadOrphanStats();
+      await loadTrades();
+    } catch(e) {
+      alert("Backfill failed: " + e.message);
+    }
+    setBackfilling(false);
+  };
 
   // Save to backend
   const savePropAccountDB = async (acc, isNew = false) => {
@@ -6488,11 +6558,45 @@ export default function TradingPlatform({ session }) {
                         {sm.icon} {sm.label}
                       </span>
                     </div>
-                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:3}}>
-                      {curFirm?.name} · {curType?.label} · {curType?.payoutSplit}% split
-                      {curAcc?.tradovateAccountId && (
-                        <span style={{marginLeft:8,color:C.accent}}>· 🔗 TV: {curAcc.tradovateAccountSpec || curAcc.tradovateAccountId}</span>
-                      )}
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:3,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                      <span>{curFirm?.name} · {curType?.label} · {curType?.payoutSplit}% split</span>
+                      {curAcc?.tradovateAccountId ? (
+                        <span style={{color:C.accent,display:"inline-flex",alignItems:"center",gap:4}}>
+                          · 🔗 TV: {curAcc.tradovateAccountSpec || curAcc.tradovateAccountId}
+                          <button onClick={async()=>{
+                            if (confirm("Unlink this prop account from Tradovate? New trades won't auto-link to this account.")) {
+                              await savePropAccountDB({...curAcc, tradovateAccountId: null, tradovateAccountSpec: null}, false);
+                            }
+                          }} style={{background:"transparent",border:"none",cursor:"pointer",color:C.muted,fontSize:10,padding:"0 4px",marginLeft:2}} title="Unlink">✕</button>
+                        </span>
+                      ) : tvAccounts.length > 0 && curStatus === "active" ? (
+                        <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
+                          · 
+                          <select
+                            defaultValue=""
+                            onChange={async (e) => {
+                              const tvId = e.target.value;
+                              if (!tvId) return;
+                              const tv = tvAccounts.find(t => String(t.tradovate_account_id) === String(tvId));
+                              if (tv) {
+                                await savePropAccountDB({
+                                  ...curAcc,
+                                  tradovateAccountId: tv.tradovate_account_id,
+                                  tradovateAccountSpec: tv.account_spec,
+                                }, false);
+                              }
+                            }}
+                            style={{background:C.surface,border:`1px solid ${C.amber}66`,borderRadius:4,padding:"2px 6px",color:C.amber,fontFamily:"'Space Mono',monospace",fontSize:10,cursor:"pointer"}}
+                          >
+                            <option value="">⚠ Link Tradovate...</option>
+                            {tvAccounts.map(t => (
+                              <option key={t.tradovate_account_id} value={t.tradovate_account_id}>
+                                {t.display_name || t.account_spec}
+                              </option>
+                            ))}
+                          </select>
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                   <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -6534,6 +6638,29 @@ export default function TradingPlatform({ session }) {
                 </div>
               );
             })()}
+
+            {/* Orphan trades banner */}
+            {orphanStats.count > 0 && (
+              <div style={{background:`${C.amber}11`,border:`1px solid ${C.amber}44`,borderRadius:12,padding:"14px 18px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+                <span style={{fontSize:22}}>🔍</span>
+                <div style={{flex:1,minWidth:200}}>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.amber,fontWeight:700,letterSpacing:"0.05em",marginBottom:3}}>UNLINKED TRADES DETECTED</div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,lineHeight:1.4}}>
+                    <strong style={{color:C.text}}>{orphanStats.count}</strong> trade{orphanStats.count===1?"":"s"} 
+                    {orphanStats.earliest && orphanStats.latest && (
+                      <span> from <strong style={{color:C.text}}>{orphanStats.earliest}</strong> to <strong style={{color:C.text}}>{orphanStats.latest}</strong></span>
+                    )}
+                    {" "}aren't linked to any prop account. 
+                    Total P&L: <strong style={{color: orphanStats.totalPnl >= 0 ? C.green : C.red}}>${Math.round(orphanStats.totalPnl).toLocaleString()}</strong>
+                  </div>
+                </div>
+                <button onClick={backfillOrphanTrades} disabled={backfilling || propAccounts.length === 0}
+                  style={{background:C.accentDim,border:`1px solid ${C.accent}66`,borderRadius:8,padding:"8px 16px",cursor:propAccounts.length===0?"not-allowed":"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700,opacity:backfilling||propAccounts.length===0?0.5:1}}
+                  title={propAccounts.length === 0 ? "Create at least one prop account first" : ""}>
+                  {backfilling ? "Matching..." : "🔗 Match to Prop Accounts"}
+                </button>
+              </div>
+            )}
 
             {/* Stat cards */}
             <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
@@ -6756,28 +6883,96 @@ export default function TradingPlatform({ session }) {
                   <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,marginBottom:6}}>No accounts connected</div>
                   <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted}}>Connect your Tradovate accounts to enable Trade Copier and live P&amp;L tracking</div>
                 </div>
-              ) : tvAccounts.map(acc => (
-                <div key={acc.tradovate_account_id} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:14}}>
-                    <div style={{width:44,height:44,borderRadius:10,background:C.accentDim,border:`1px solid ${C.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>📈</div>
-                    <div>
-                      <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>{acc.display_name || acc.account_spec}</div>
-                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:3}}>ID: {acc.tradovate_account_id} · {acc.account_spec}</div>
+              ) : tvAccounts.map(acc => {
+                // Find linked prop accounts (active + historical)
+                const linkedProps = propAccounts.filter(p => 
+                  String(p.tradovateAccountId) === String(acc.tradovate_account_id)
+                );
+                const activeLinked = linkedProps.find(p => p.status === "active");
+                const historicalLinked = linkedProps.filter(p => p.status !== "active");
+
+                return (
+                  <div key={acc.tradovate_account_id} style={{background:C.card,border:`1px solid ${activeLinked?C.accent+"66":C.border}`,borderRadius:12,padding:22,display:"flex",flexDirection:"column",gap:14}}>
+                    {/* Top row: account info + balance/status */}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
+                      <div style={{display:"flex",alignItems:"center",gap:14}}>
+                        <div style={{width:44,height:44,borderRadius:10,background:C.accentDim,border:`1px solid ${C.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>📈</div>
+                        <div>
+                          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>{acc.display_name || acc.account_spec}</div>
+                          <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:3}}>ID: {acc.tradovate_account_id} · {acc.account_spec}</div>
+                        </div>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+                        {acc.balance!=null && <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:20,color:C.green}}>${Math.round(acc.balance).toLocaleString()}</div>}
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          <div style={{width:6,height:6,borderRadius:"50%",background:C.green,boxShadow:`0 0 6px ${C.green}`}}/>
+                          <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.green}}>Connected</span>
+                        </div>
+                        <button onClick={()=>disconnectAccount(acc.tradovate_account_id)}
+                          style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>
+                          Disconnect
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Linking status row */}
+                    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                      <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Linked Prop Account:</span>
+                      {activeLinked ? (
+                        <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0}}>
+                          <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,color:C.text}}>🔗 {activeLinked.nickname}</span>
+                          <span style={{background:`${C.green}22`,border:`1px solid ${C.green}66`,borderRadius:4,padding:"1px 7px",fontFamily:"'Space Mono',monospace",fontSize:8,color:C.green,fontWeight:700}}>● ACTIVE</span>
+                          {historicalLinked.length > 0 && (
+                            <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>+ {historicalLinked.length} historical</span>
+                          )}
+                          <div style={{flex:1}}/>
+                          <button onClick={()=>setTab("prop")}
+                            style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.accent}}>
+                            Manage →
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",flex:1}}>
+                          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.amber}}>⚠ No prop account linked — trades won't auto-assign</span>
+                          <div style={{flex:1}}/>
+                          {propAccounts.filter(p => p.status === "active" && !p.tradovateAccountId).length > 0 ? (
+                            <select 
+                              defaultValue=""
+                              onChange={async (e) => {
+                                const propId = e.target.value;
+                                if (!propId) return;
+                                const prop = propAccounts.find(p => p.id === propId);
+                                if (!prop) return;
+                                await savePropAccountDB({
+                                  ...prop,
+                                  tradovateAccountId: acc.tradovate_account_id,
+                                  tradovateAccountSpec: acc.account_spec,
+                                }, false);
+                              }}
+                              style={{background:C.bg,border:`1px solid ${C.accent}66`,borderRadius:6,padding:"4px 10px",color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:10,cursor:"pointer"}}>
+                              <option value="">Quick link to...</option>
+                              {propAccounts.filter(p => p.status === "active" && !p.tradovateAccountId).map(p => (
+                                <option key={p.id} value={p.id}>{p.nickname}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <button onClick={()=>{
+                              setTab("prop");
+                              setTimeout(()=>{
+                                setShowPropWizard(true);
+                                setWizardStep(1);
+                                setWizardTvAccId(acc.tradovate_account_id);
+                              }, 200);
+                            }} style={{background:C.accentDim,border:`1px solid ${C.accent}66`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.accent,fontWeight:700}}>
+                              + Add Prop Account
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div style={{display:"flex",alignItems:"center",gap:16}}>
-                    {acc.balance!=null && <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:20,color:C.green}}>${Math.round(acc.balance).toLocaleString()}</div>}
-                    <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <div style={{width:6,height:6,borderRadius:"50%",background:C.green,boxShadow:`0 0 6px ${C.green}`}}/>
-                      <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.green}}>Connected</span>
-                    </div>
-                    <button onClick={()=>disconnectAccount(acc.tradovate_account_id)}
-                      style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>
-                      Disconnect
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* ── Login modal ─────────────────────────────────────────────── */}
