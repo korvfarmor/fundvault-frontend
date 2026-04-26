@@ -1604,30 +1604,76 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
 
       candles.setData(chartBars);
 
-      // Entry price line
-      if (trade.entry_price) {
-        candles.createPriceLine({
-          price: parseFloat(trade.entry_price), color: "#00d084",
-          lineWidth: 2, lineStyle: 2, axisLabelVisible: true,
-          title: `▲ Entry ${trade.entry_price}`,
-        });
-      }
-      // Exit price line
-      if (trade.exit_price) {
-        candles.createPriceLine({
-          price: parseFloat(trade.exit_price), color: "#ff3d5a",
-          lineWidth: 2, lineStyle: 2, axisLabelVisible: true,
-          title: `▼ Exit ${trade.exit_price}`,
-        });
-      }
+      // Determine trade direction (Long = Buy entry / Sell exit, Short = opposite)
+      const isLong = (trade.side || "").toLowerCase().includes("long") || (trade.side || "").toLowerCase() === "buy";
 
-      // Zoom to trade window
+      // ── TradingView-style markers (arrows) on entry and exit candles ──
       const entryTs = trade.entry_time
         ? Math.floor(new Date(trade.entry_time).getTime() / 1000)
         : chartBars[Math.floor(chartBars.length * 0.3)].time;
       const exitTs = trade.exit_time
         ? Math.floor(new Date(trade.exit_time).getTime() / 1000)
         : entryTs + 3600;
+
+      // Snap entry/exit timestamps to the nearest candle
+      const snapToCandle = (ts) => {
+        if (!chartBars.length) return ts;
+        let nearest = chartBars[0].time;
+        let minDiff = Math.abs(ts - nearest);
+        for (const bar of chartBars) {
+          const diff = Math.abs(ts - bar.time);
+          if (diff < minDiff) { minDiff = diff; nearest = bar.time; }
+        }
+        return nearest;
+      };
+
+      const entryCandleTime = snapToCandle(entryTs);
+      const exitCandleTime  = snapToCandle(exitTs);
+
+      // Build markers — arrow up below candle for buy, arrow down above for sell
+      const markers = [];
+      if (trade.entry_price) {
+        markers.push({
+          time:     entryCandleTime,
+          position: isLong ? "belowBar" : "aboveBar",
+          color:    isLong ? "#00d084" : "#ff3d5a",
+          shape:    isLong ? "arrowUp" : "arrowDown",
+          text:     `${isLong ? "Buy" : "Sell"} @ ${trade.entry_price}`,
+          size:     2,
+        });
+      }
+      if (trade.exit_price) {
+        markers.push({
+          time:     exitCandleTime,
+          position: isLong ? "aboveBar" : "belowBar",
+          color:    isLong ? "#ff3d5a" : "#00d084",
+          shape:    isLong ? "arrowDown" : "arrowUp",
+          text:     `${isLong ? "Sell" : "Buy"} @ ${trade.exit_price} (${trade.pnl >= 0 ? "+" : ""}$${Math.round(trade.pnl)})`,
+          size:     2,
+        });
+      }
+
+      // Sort markers by time (required by lightweight-charts)
+      markers.sort((a, b) => a.time - b.time);
+      if (markers.length) candles.setMarkers(markers);
+
+      // ── Trade duration line (entry → exit) ──
+      if (trade.entry_price && trade.exit_price && entryCandleTime !== exitCandleTime) {
+        const tradeLineSeries = chart.addLineSeries({
+          color:           trade.pnl >= 0 ? "#00d08488" : "#ff3d5a88",
+          lineWidth:       2,
+          lineStyle:       0, // solid
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        tradeLineSeries.setData([
+          { time: entryCandleTime, value: parseFloat(trade.entry_price) },
+          { time: exitCandleTime,  value: parseFloat(trade.exit_price)  },
+        ]);
+      }
+
+      // Zoom to trade window
       chart.timeScale().setVisibleRange({ from: entryTs - 15*60, to: exitTs + 30*60 });
 
       const ro = new ResizeObserver(() => {
