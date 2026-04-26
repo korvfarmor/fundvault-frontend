@@ -3627,6 +3627,318 @@ const CreateCopierGroupPanel = ({ tvAccounts, onCreate, C }) => {
   );
 };
 
+// ── DrawdownWidget ─────────────────────────────────────────────────────────────
+const DrawdownWidget = ({ acct, ddRule, ddValue, ddFloor, ddRemaining, ddTypeLabel, snapshots, onSave, propAccountId, C }) => {
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todaysSnap = snapshots.find(s => s.snapshot_date === todayKey);
+  const lastSnap = snapshots[0];
+
+  const [editing, setEditing] = useState(false);
+  const [inputBalance, setInputBalance] = useState(todaysSnap?.actual_balance ?? Math.round(acct?.balance || 0));
+  const [inputRemaining, setInputRemaining] = useState(todaysSnap?.actual_drawdown_remaining ?? Math.round(ddRemaining || 0));
+
+  // Determine which value to show as "main"
+  const useActual = !!lastSnap;
+  const displayRemaining = useActual ? lastSnap.actual_drawdown_remaining : ddRemaining;
+  const displayBalance   = useActual ? lastSnap.actual_balance              : acct.balance;
+
+  const colorFor = (rem) => rem <= 0 ? C.red : rem < ddValue * 0.25 ? C.red : rem < ddValue * 0.5 ? C.amber : C.green;
+  const mainColor = colorFor(displayRemaining);
+
+  const handleSave = async () => {
+    await onSave(propAccountId, {
+      actual_balance: parseFloat(inputBalance),
+      actual_drawdown_remaining: parseFloat(inputRemaining),
+      actual_floor: parseFloat(inputBalance) - parseFloat(inputRemaining),
+      source: "manual",
+    });
+    setEditing(false);
+  };
+
+  return (
+    <div style={{background:C.card,border:`1px solid ${mainColor}33`,borderRadius:12,padding:20}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12,flexWrap:"wrap",gap:10}}>
+        <div>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Drawdown Tracker</div>
+          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginTop:3}}>{ddTypeLabel} trailing · Max ${ddValue?.toLocaleString()}</div>
+        </div>
+        <button onClick={()=>setEditing(!editing)}
+          style={{background:editing?C.surface:C.accentDim,border:`1px solid ${editing?C.border:C.accent+"66"}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:editing?C.muted:C.accent,fontWeight:700}}>
+          {editing ? "✕ Cancel" : todaysSnap ? "✏ Update" : "+ Update Today"}
+        </button>
+      </div>
+
+      {editing ? (
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{background:`${C.amber}11`,border:`1px solid ${C.amber}44`,borderRadius:8,padding:"10px 14px"}}>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.amber,fontWeight:700,marginBottom:4}}>📊 ENTER VALUES FROM YOUR PROP FIRM DASHBOARD</div>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim}}>Open your prop firm portal to see exact balance + remaining drawdown. We'll use your numbers as truth instead of estimating.</div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div>
+              <label style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:5,display:"block"}}>Current Balance</label>
+              <input type="number" value={inputBalance} onChange={e=>setInputBalance(e.target.value)}
+                style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:14,outline:"none",width:"100%",boxSizing:"border-box"}}/>
+            </div>
+            <div>
+              <label style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:5,display:"block"}}>$ Until Breach</label>
+              <input type="number" value={inputRemaining} onChange={e=>setInputRemaining(e.target.value)}
+                style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:14,outline:"none",width:"100%",boxSizing:"border-box"}}/>
+            </div>
+          </div>
+          <button onClick={handleSave}
+            style={{background:C.accentDim,border:`1px solid ${C.accent}66`,borderRadius:8,padding:"10px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.accent,fontWeight:700}}>
+            Save Today's Snapshot
+          </button>
+        </div>
+      ) : (
+        <>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12}}>
+            {/* Main — actual or calculated */}
+            <div style={{background:C.surface,borderRadius:10,padding:14,border:`1px solid ${mainColor}55`}}>
+              <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:mainColor,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontWeight:700}}>
+                {useActual ? "✓ From Prop Firm" : "Calculated"}
+              </div>
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:24,color:mainColor}}>
+                ${Math.round(displayRemaining || 0).toLocaleString()}
+              </div>
+              <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:3}}>From breach</div>
+              {useActual && (
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,marginTop:5}}>
+                  As of {lastSnap.snapshot_date}
+                </div>
+              )}
+            </div>
+
+            {/* Calculated reference (when actual exists) */}
+            {useActual && (
+              <div style={{background:C.surface,borderRadius:10,padding:14,border:`1px solid ${C.border}`,opacity:0.7}}>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>Calculated</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:20,color:C.textDim}}>
+                  ${Math.round(ddRemaining || 0).toLocaleString()}
+                </div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:3}}>From your trades</div>
+                {Math.abs((ddRemaining || 0) - (displayRemaining || 0)) > 50 && (
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.amber,marginTop:5}}>
+                    Δ ${Math.round(Math.abs((ddRemaining || 0) - displayRemaining)).toLocaleString()} diff
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Floor */}
+            <div style={{background:C.surface,borderRadius:10,padding:14,border:`1px solid ${C.border}`}}>
+              <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>Floor</div>
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:20}}>
+                ${Math.round(useActual ? lastSnap.actual_floor || 0 : ddFloor).toLocaleString()}
+              </div>
+              <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:3}}>Below = breach</div>
+            </div>
+          </div>
+
+          {!useActual && (
+            <div style={{marginTop:14,background:`${C.amber}11`,border:`1px solid ${C.amber}33`,borderRadius:8,padding:"10px 14px",display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:14}}>💡</span>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,flex:1}}>
+                For accuracy, click "Update Today" and enter the balance + drawdown remaining from your prop firm dashboard. Our calculated value may differ due to commissions, fees, or pending P&L.
+              </div>
+            </div>
+          )}
+
+          {snapshots.length > 1 && (
+            <details style={{marginTop:14}}>
+              <summary style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",cursor:"pointer"}}>
+                History ({snapshots.length} snapshots)
+              </summary>
+              <div style={{marginTop:10,maxHeight:200,overflow:"auto",display:"flex",flexDirection:"column",gap:5}}>
+                {snapshots.slice(0, 14).map(s => (
+                  <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 10px",background:C.surface,borderRadius:5,fontFamily:"'Space Mono',monospace",fontSize:10}}>
+                    <span style={{color:C.muted,minWidth:80}}>{s.snapshot_date}</span>
+                    <span style={{color:C.text}}>${Math.round(s.actual_balance).toLocaleString()}</span>
+                    <span style={{color:colorFor(s.actual_drawdown_remaining)}}>${Math.round(s.actual_drawdown_remaining || 0).toLocaleString()} from DD</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+// ── RuleEditor ─────────────────────────────────────────────────────────────────
+const RULE_TYPES = [
+  { id: "drawdown",       label: "Drawdown Limit",      hint: "Max loss from peak balance" },
+  { id: "target",         label: "Profit Target",       hint: "Required profit to pass" },
+  { id: "days_in_profit", label: "Days In Profit",      hint: "Min profitable days needed" },
+  { id: "consistency",    label: "Consistency Rule",    hint: "Max % single day vs total" },
+  { id: "daily_loss",     label: "Daily Loss Limit",    hint: "Max loss in one day" },
+  { id: "min_trading_days", label: "Min Trading Days",  hint: "Min days you must trade" },
+  { id: "other",          label: "Custom Rule",         hint: "Any other rule" },
+];
+
+const RuleEditor = ({ propAccountId, suggestedRules, customRules, onSaveRule, onDeleteRule, C }) => {
+  const [adding, setAdding]       = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState({ rule_type: "drawdown", label: "", value: "", params: {} });
+
+  // Merge suggested + custom — custom overrides if same type
+  const allRules = customRules.length 
+    ? customRules.map(r => ({ ...r, isCustom: true }))
+    : (suggestedRules || []).map((r, i) => ({ id: `sug-${i}`, rule_type: r.type, label: r.label, value: r.value, params: r.params || {}, isCustom: false }));
+
+  const startEdit = (rule) => {
+    setEditingId(rule.id);
+    setDraft({ 
+      id: rule.isCustom ? rule.id : null,
+      rule_type: rule.rule_type, 
+      label: rule.label, 
+      value: rule.value || "", 
+      params: rule.params || {},
+    });
+  };
+
+  const startAdd = () => {
+    setAdding(true);
+    setEditingId(null);
+    setDraft({ rule_type: "drawdown", label: "", value: "", params: {} });
+  };
+
+  const handleSave = async () => {
+    const rule = {
+      id: draft.id || undefined,
+      rule_type: draft.rule_type,
+      label:     draft.label || RULE_TYPES.find(r => r.id === draft.rule_type)?.label || "Custom Rule",
+      value:     draft.value !== "" ? parseFloat(draft.value) : null,
+      params:    draft.params || {},
+    };
+    await onSaveRule(propAccountId, rule);
+    setAdding(false);
+    setEditingId(null);
+  };
+
+  const updateParam = (key, val) => {
+    setDraft(d => ({ ...d, params: { ...d.params, [key]: val } }));
+  };
+
+  const inputS = {background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"8px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"};
+
+  // Render param inputs based on rule_type
+  const renderParams = () => {
+    if (draft.rule_type === "drawdown") {
+      return (
+        <>
+          <select value={draft.params.dd_type || "eod"} onChange={e=>updateParam("dd_type", e.target.value)} style={{...inputS,cursor:"pointer"}}>
+            <option value="eod">EOD Trailing</option>
+            <option value="intraday">Intraday Trailing</option>
+            <option value="static">Static</option>
+          </select>
+          <label style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,cursor:"pointer"}}>
+            <input type="checkbox" checked={draft.params.floor_locks !== false} onChange={e=>updateParam("floor_locks", e.target.checked)}/>
+            Floor locks at start balance
+          </label>
+        </>
+      );
+    }
+    if (draft.rule_type === "days_in_profit") {
+      return (
+        <input type="number" placeholder="Min profit per day ($)" value={draft.params.min_profit || ""} onChange={e=>updateParam("min_profit", parseFloat(e.target.value)||0)} style={{...inputS,width:200}}/>
+      );
+    }
+    if (draft.rule_type === "consistency") {
+      return (
+        <input type="number" placeholder="Max % per day" value={draft.params.max_pct || ""} onChange={e=>updateParam("max_pct", parseFloat(e.target.value)||0)} style={{...inputS,width:200}}/>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:10}}>
+        <div>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Account Rules</div>
+          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginTop:3}}>
+            {customRules.length === 0 
+              ? "Showing suggested defaults — verify with your prop firm and customize" 
+              : "Your custom rule set"}
+          </div>
+        </div>
+        <button onClick={startAdd}
+          style={{background:C.accentDim,border:`1px solid ${C.accent}66`,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700}}>
+          + Add Rule
+        </button>
+      </div>
+
+      {/* Rule list */}
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {allRules.map(rule => (
+          <div key={rule.id} style={{background:C.surface,border:`1px solid ${rule.isCustom ? C.accent+"33" : C.border}`,borderRadius:8,padding:"10px 14px"}}>
+            {editingId === rule.id ? (
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <select value={draft.rule_type} onChange={e=>setDraft(d=>({...d,rule_type:e.target.value}))} style={{...inputS,cursor:"pointer"}}>
+                    {RULE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                  </select>
+                  <input placeholder="Label" value={draft.label} onChange={e=>setDraft(d=>({...d,label:e.target.value}))} style={{...inputS,flex:1,minWidth:120}}/>
+                  <input type="number" placeholder="Value" value={draft.value} onChange={e=>setDraft(d=>({...d,value:e.target.value}))} style={{...inputS,width:120}}/>
+                </div>
+                <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+                  {renderParams()}
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={handleSave} style={{flex:1,background:C.accentDim,border:`1px solid ${C.accent}66`,borderRadius:6,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700}}>Save</button>
+                  <button onClick={()=>setEditingId(null)} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:200}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                    <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14}}>{rule.label}</span>
+                    {!rule.isCustom && <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.amber,background:`${C.amber}22`,padding:"1px 6px",borderRadius:3}}>SUGGESTED</span>}
+                    {rule.isCustom && <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.accent,background:`${C.accent}22`,padding:"1px 6px",borderRadius:3}}>CUSTOM</span>}
+                  </div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:3}}>
+                    {rule.value != null && `$${Number(rule.value).toLocaleString()}`}
+                    {rule.params?.dd_type && ` · ${rule.params.dd_type}`}
+                    {rule.params?.min_profit > 0 && ` · min $${rule.params.min_profit}/day`}
+                    {rule.params?.max_pct && ` · max ${rule.params.max_pct}%/day`}
+                  </div>
+                </div>
+                <button onClick={()=>startEdit(rule)} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>✏ Edit</button>
+                {rule.isCustom && (
+                  <button onClick={()=>onDeleteRule(propAccountId, rule.id)} style={{background:"transparent",border:"none",cursor:"pointer",color:C.red,fontSize:14,padding:"4px 6px",opacity:0.6}}>✕</button>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {/* Add new rule form */}
+        {adding && (
+          <div style={{background:C.surface,border:`1px dashed ${C.accent}66`,borderRadius:8,padding:"12px 14px",display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700}}>NEW RULE</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <select value={draft.rule_type} onChange={e=>setDraft(d=>({...d,rule_type:e.target.value,label:RULE_TYPES.find(t=>t.id===e.target.value)?.label||""}))} style={{...inputS,cursor:"pointer"}}>
+                {RULE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+              <input placeholder="Custom label (optional)" value={draft.label} onChange={e=>setDraft(d=>({...d,label:e.target.value}))} style={{...inputS,flex:1,minWidth:120}}/>
+              <input type="number" placeholder="Value" value={draft.value} onChange={e=>setDraft(d=>({...d,value:e.target.value}))} style={{...inputS,width:120}}/>
+            </div>
+            <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>{renderParams()}</div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={handleSave} style={{flex:1,background:C.accentDim,border:`1px solid ${C.accent}66`,borderRadius:6,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700}}>Save Rule</button>
+              <button onClick={()=>setAdding(false)} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function TradingPlatform({ session }) {
   const user = session?.user;
   const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Trader";
@@ -3908,6 +4220,88 @@ export default function TradingPlatform({ session }) {
   // Unlinked/orphan trade stats
   const [orphanStats, setOrphanStats] = useState({ count: 0, totalPnl: 0, earliest: null, latest: null });
   const [backfilling, setBackfilling] = useState(false);
+
+  // Drawdown snapshots per active account
+  const [drawdownSnapshots, setDrawdownSnapshots] = useState([]);
+  const [showDrawdownInput, setShowDrawdownInput] = useState(false);
+  const [customRules, setCustomRules] = useState([]);
+
+  const loadSnapshots = async (propAccountId) => {
+    if (!propAccountId) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const r = await fetch(`${API}/prop-accounts/${propAccountId}/snapshots?limit=30`, {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (r.ok) setDrawdownSnapshots(await r.json());
+    } catch(e) { console.log("[Snapshots] load:", e.message); }
+  };
+
+  const saveDrawdownSnapshot = async (propAccountId, payload) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const r = await fetch(`${API}/prop-accounts/${propAccountId}/snapshots`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session?.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      await loadSnapshots(propAccountId);
+      return await r.json();
+    } catch(e) { alert("Could not save snapshot: " + e.message); }
+  };
+
+  const loadCustomRules = async (propAccountId) => {
+    if (!propAccountId) { setCustomRules([]); return; }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const r = await fetch(`${API}/prop-accounts/${propAccountId}/rules`, {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (r.ok) setCustomRules(await r.json());
+    } catch(e) { console.log("[Rules] load:", e.message); }
+  };
+
+  const saveCustomRule = async (propAccountId, rule) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const url = rule.id 
+        ? `${API}/prop-accounts/${propAccountId}/rules/${rule.id}`
+        : `${API}/prop-accounts/${propAccountId}/rules`;
+      const r = await fetch(url, {
+        method: rule.id ? "PATCH" : "POST",
+        headers: { Authorization: `Bearer ${session?.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(rule),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      await loadCustomRules(propAccountId);
+      return await r.json();
+    } catch(e) { alert("Could not save rule: " + e.message); }
+  };
+
+  const deleteCustomRule = async (propAccountId, ruleId) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      await fetch(`${API}/prop-accounts/${propAccountId}/rules/${ruleId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      await loadCustomRules(propAccountId);
+    } catch(e) { alert("Could not delete rule: " + e.message); }
+  };
+
+  // Load snapshots and rules when active account changes
+  useEffect(() => {
+    if (activePropAccId) {
+      loadSnapshots(activePropAccId);
+      loadCustomRules(activePropAccId);
+    }
+  }, [activePropAccId]);
 
   const loadOrphanStats = async () => {
     try {
@@ -6501,19 +6895,34 @@ export default function TradingPlatform({ session }) {
           if (curType?.id !== curFirm?.activeType) setFirmAccountType(curFirm?.id, curType?.id);
 
           const profit = acct.balance - acct.startBalance;
-          // Trailing drawdown — detect type from rule label
-          const ddRuleForCalc = (curType?.rules||[]).find(r => r.type === "drawdown");
+          // Custom rules override suggestions if present
+          const customDdRule = customRules.find(r => r.rule_type === "drawdown");
+          const ddRuleForCalc = customDdRule 
+            ? { value: customDdRule.value, label: customDdRule.label, params: customDdRule.params || {} }
+            : (curType?.rules||[]).find(r => r.type === "drawdown");
           const ddValue = ddRuleForCalc?.value || 2000;
-          const ddLabel = (ddRuleForCalc?.label || "").toLowerCase();
-          const ddIsStatic   = ddLabel.includes("static");
-          const ddIsIntraday = ddLabel.includes("intraday");
+          // Detect DD type — from custom params first, then label
+          const ddType = ddRuleForCalc?.params?.dd_type 
+            || ((ddRuleForCalc?.label || "").toLowerCase().includes("intraday") ? "intraday"
+              : (ddRuleForCalc?.label || "").toLowerCase().includes("static")   ? "static"
+              : "eod");
+          const ddIsStatic   = ddType === "static";
+          const ddIsIntraday = ddType === "intraday";
           const ddTypeLabel  = ddIsStatic ? "Static" : ddIsIntraday ? "Intraday" : "EOD";
+          const ddFloorLocks = ddRuleForCalc?.params?.floor_locks !== false;
           // Pick correct peak for DD type
           const ddPeak = ddIsStatic ? acct.startBalance
                        : ddIsIntraday ? (acct.peakBalanceIntraday ?? acct.peakBalance)
                        : (acct.peakBalanceEod ?? acct.peakBalance);
-          const ddFloor = Math.min(ddPeak - ddValue, acct.startBalance);
-          const ddRemaining = Math.max(0, acct.balance - ddFloor);
+          const rawDdFloor = ddPeak - ddValue;
+          const ddFloor = ddFloorLocks ? Math.min(rawDdFloor, acct.startBalance) : rawDdFloor;
+          // Calculated drawdown remaining
+          const ddRemainingCalc = Math.max(0, acct.balance - ddFloor);
+          // Use latest snapshot's actual value if it exists (more accurate than calc)
+          const latestSnap = drawdownSnapshots[0];
+          const ddRemaining = latestSnap?.actual_drawdown_remaining != null
+            ? latestSnap.actual_drawdown_remaining
+            : ddRemainingCalc;
           const dd = Math.max(0, ddPeak - acct.balance);
           const saveStartBalance = async (firmId, val) => {
             const num = parseFloat(val.replace(/[^0-9.]/g,""));
@@ -6752,6 +7161,22 @@ export default function TradingPlatform({ session }) {
               </div>
             )}
 
+            {/* Drawdown Tracker — only for active accounts */}
+            {curAcc?.status === "active" && curAcc?.id && (
+              <DrawdownWidget
+                acct={acct}
+                ddRule={ddRule}
+                ddValue={ddValue}
+                ddFloor={ddFloor}
+                ddRemaining={ddRemaining}
+                ddTypeLabel={ddTypeLabel}
+                snapshots={drawdownSnapshots}
+                onSave={saveDrawdownSnapshot}
+                propAccountId={curAcc.id}
+                C={C}
+              />
+            )}
+
             {/* Stat cards */}
             <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
               <StatCard label="Account Balance" value={`$${Math.round(acct.balance).toLocaleString()}`} sub={
@@ -6959,6 +7384,18 @@ export default function TradingPlatform({ session }) {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* Rule Editor — for any non-retired account */}
+            {curAcc?.id && curAcc?.status !== "retired" && (
+              <RuleEditor
+                propAccountId={curAcc.id}
+                suggestedRules={curType?.rules || []}
+                customRules={customRules}
+                onSaveRule={saveCustomRule}
+                onDeleteRule={deleteCustomRule}
+                C={C}
+              />
             )}
 
           </div>;
