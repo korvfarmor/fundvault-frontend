@@ -4641,6 +4641,58 @@ export default function TradingPlatform({ session }) {
 
   const setActiveGroup = (id) => setActiveGroupId(id);
   const [loadingTrades, setLoadingTrades] = useState(true);
+  const [selectedTrades, setSelectedTrades] = useState(new Set()); // for grouping multi-select
+  const [groupingMode,   setGroupingMode  ] = useState(false);     // toggles checkboxes in trade list
+
+  const toggleTradeSelection = (id) => {
+    setSelectedTrades(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const groupSelectedTrades = async () => {
+    if (selectedTrades.size < 2) {
+      alert("Select at least 2 trades to group");
+      return;
+    }
+    // Verify all same symbol
+    const sel = trades.filter(t => selectedTrades.has(t.id));
+    const symbols = [...new Set(sel.map(t => t.symbol))];
+    if (symbols.length > 1) {
+      alert(`Trades must be the same symbol to group. Selected: ${symbols.join(", ")}`);
+      return;
+    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const r = await fetch(`${API}/trade-groups/group`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session?.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ trade_ids: Array.from(selectedTrades) }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error || r.status);
+      setSelectedTrades(new Set());
+      setGroupingMode(false);
+      await loadTrades();
+    } catch(e) { alert("Could not group: " + e.message); }
+  };
+
+  const ungroupTrade = async (parentId) => {
+    if (!confirm("Ungroup this trade? Sub-trades will become standalone again.")) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const r = await fetch(`${API}/trade-groups/ungroup`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session?.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ parent_id: parentId }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error || r.status);
+      await loadTrades();
+    } catch(e) { alert("Could not ungroup: " + e.message); }
+  };
   const [syncingTV,     setSyncingTV    ] = useState(false);
   const [tvStatus,         setTvStatus        ] = useState(null);
   const [appMode,          setAppMode         ] = useState(() =>
@@ -4862,6 +4914,44 @@ export default function TradingPlatform({ session }) {
       });
     }
   }, [trades, propAccounts, mood, hChecks]);
+  // ── Auto-sync Tradovate on app load (once per session) ────────────────────
+  useEffect(() => {
+    // Only run once per session — flag stored in sessionStorage so it triggers on each login
+    if (sessionStorage.getItem("fv_session_synced") === "1") return;
+    
+    // Wait for profile to load to know if Tradovate is connected
+    const timer = setTimeout(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+        const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+        // Check connection status quietly
+        const statusR = await fetch(`${API}/tradovate/status`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const status = await statusR.json().catch(() => null);
+        if (!status?.connected) return;
+        
+        // Connected — fire silent sync
+        console.log("[AutoSync] Login sync starting...");
+        const r = await fetch(`${API}/tradovate/sync`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+        });
+        const result = await r.json().catch(() => ({}));
+        if (result?.synced > 0) {
+          console.log(`[AutoSync] Synced ${result.synced} new trade(s)`);
+          await loadTrades();
+        }
+        sessionStorage.setItem("fv_session_synced", "1");
+      } catch(e) {
+        console.log("[AutoSync] Login sync failed:", e.message);
+      }
+    }, 3000); // 3s delay so initial UI loads first
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   // ── Load rules, habits, check-in, tradovate status on mount ───────────────
   useEffect(() => {
     loadTrades();
@@ -5213,7 +5303,68 @@ export default function TradingPlatform({ session }) {
     return `${fmt(dateRange.from)} – ${fmt(dateRange.to)}`;
   })();
 
-  const filteredTrades = rangedTrades.filter(t => {
+  // Group child trades under their parent — aggregate qty, weighted avg prices, sum pnl
+  const groupedTrades = (() => {
+    const childrenByParent = {};
+    const standalone = [];
+    
+    for (const t of rangedTrades) {
+      if (t.parent_trade_id) {
+        if (!childrenByParent[t.parent_trade_id]) childrenByParent[t.parent_trade_id] = [];
+        childrenByParent[t.parent_trade_id].push(t);
+      } else {
+        standalone.push(t);
+      }
+    }
+    
+    // For each potential parent, gather children and aggregate
+    return standalone.map(parent => {
+      const children = childrenByParent[parent.id] || [];
+      if (!children.length) return parent;
+      
+      // All trades in group (parent + children)
+      const all = [parent, ...children];
+      const totalPnl    = all.reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0);
+      const totalRR     = all.reduce((s, t) => s + (parseFloat(t.rr) || 0), 0);
+      const avgRR       = all.length ? totalRR / all.length : 0;
+      // Weighted avg prices (weighted by abs(pnl) as a proxy for size — better when contracts not stored)
+      const weights     = all.map(t => Math.abs(parseFloat(t.pnl) || 1));
+      const totalW      = weights.reduce((a, b) => a + b, 0) || all.length;
+      const avgEntry    = all.reduce((s, t, i) => s + (parseFloat(t.entry_price) || 0) * weights[i], 0) / totalW;
+      const avgExit     = all.reduce((s, t, i) => s + (parseFloat(t.exit_price)  || 0) * weights[i], 0) / totalW;
+      // Earliest entry, latest exit
+      const entries = all.map(t => t.entry_time).filter(Boolean).sort();
+      const exits   = all.map(t => t.exit_time).filter(Boolean).sort();
+      const earliestEntry = entries[0];
+      const latestExit    = exits[exits.length - 1];
+      const totalHold     = earliestEntry && latestExit
+        ? Math.round((new Date(latestExit) - new Date(earliestEntry)) / 60000)
+        : all.reduce((s, t) => s + (t.holdMin || t.hold_min || 0), 0);
+      // Combined tags (unique)
+      const allTags = [...new Set(all.flatMap(t => t.tags || []))];
+      
+      return {
+        ...parent,
+        // Override aggregates
+        pnl:         Math.round(totalPnl * 100) / 100,
+        rr:          Math.round(avgRR * 10) / 10,
+        entry_price: Math.round(avgEntry * 100) / 100,
+        exit_price:  Math.round(avgExit * 100) / 100,
+        entry_time:  earliestEntry,
+        exit_time:   latestExit,
+        holdMin:     totalHold,
+        hold_min:    totalHold,
+        tags:        allTags,
+        status:      totalPnl > 0 ? "win" : totalPnl < 0 ? "loss" : "be",
+        // Group metadata
+        _isGroup:      true,
+        _childCount:   children.length + 1, // includes parent
+        _children:     all,
+      };
+    });
+  })();
+
+  const filteredTrades = groupedTrades.filter(t => {
     const tagOk = tagFilter === "All" || (t.tags||[]).includes(tagFilter);
     const symOk = symbolFilter === "All" || t.symbol === symbolFilter;
     return tagOk && symOk;
@@ -6279,6 +6430,17 @@ export default function TradingPlatform({ session }) {
                   <button onClick={()=>setShowAddTrade(true)} style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"7px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>+ Add Trade</button>
                   <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>⬆ Import CSV</button>
                   <button onClick={()=>canAccess("advanced")?setShowExport(true):setTab("myaccount")} style={{background:C.surface,border:`1px solid ${C.border}`,color:canAccess("advanced")?C.textDim:C.muted,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5,opacity:canAccess("advanced")?1:0.5}} title={canAccess("advanced")?"":" Advanced plan required"}>⬇ Export PDF {!canAccess("advanced")&&"🔒"}</button>
+                  {/* Group trades mode */}
+                  <button onClick={()=>{setGroupingMode(g=>!g);if(groupingMode)setSelectedTrades(new Set());}}
+                    style={{background:groupingMode?C.accentDim:C.surface,border:`1px solid ${groupingMode?C.accent+"55":C.border}`,color:groupingMode?C.accent:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>
+                    🔗 {groupingMode?"Cancel":"Group Trades"}
+                  </button>
+                  {groupingMode && selectedTrades.size >= 2 && (
+                    <button onClick={groupSelectedTrades}
+                      style={{background:C.accent,border:`1px solid ${C.accent}`,color:"#000",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700}}>
+                      ✓ Group {selectedTrades.size} selected
+                    </button>
+                  )}
                   {/* Filter dropdown */}
                   <div style={{position:"relative"}} className="fv-filter-menu">
                     <button onClick={()=>setShowFilterMenu(m=>!m)}
@@ -6403,9 +6565,22 @@ export default function TradingPlatform({ session }) {
                     <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>{["#","Symbol","Side","Entry","Exit","Tags","Rating","R:R","P&L","Review",""].map(h=><th key={h} style={{padding:"11px 14px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:400}}>{h}</th>)}</tr></thead>
                     <tbody>{filteredTrades.map((t,i)=>{
                       const rs=t.checks?Object.values(t.checks).filter(Boolean).length:null;
-                      return <tr key={t.id} style={{borderBottom:i<filteredTrades.length-1?`1px solid ${C.border}`:"none"}} onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                      const isSelected = selectedTrades.has(t.id);
+                      return <tr key={t.id} style={{borderBottom:i<filteredTrades.length-1?`1px solid ${C.border}`:"none",background:isSelected?C.accentDim:"transparent"}} onMouseEnter={e=>{if(!isSelected)e.currentTarget.style.background=C.surface;}} onMouseLeave={e=>{if(!isSelected)e.currentTarget.style.background="transparent";}}>
+                        {groupingMode && (
+                          <td style={{padding:"11px 8px",width:30}}>
+                            <input type="checkbox" checked={isSelected} onChange={()=>toggleTradeSelection(t.id)} style={{cursor:"pointer"}}/>
+                          </td>
+                        )}
                         <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>#{i+1}</td>
-                        <td style={{padding:"11px 14px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15}}>{t.symbol}</td>
+                        <td style={{padding:"11px 14px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15}}>
+                          {t.symbol}
+                          {t._isGroup && (
+                            <span title={`Group of ${t._childCount} trades — click ungroup to split`} style={{marginLeft:6,fontFamily:"'Space Mono',monospace",fontSize:9,color:C.accent,background:`${C.accent}22`,padding:"1px 5px",borderRadius:3,cursor:"pointer"}} onClick={(e)=>{e.stopPropagation();ungroupTrade(t.id);}}>
+                              🔗 {t._childCount}
+                            </span>
+                          )}
+                        </td>
                         <td style={{padding:"11px 14px"}}><span style={{background:t.side==="Long"?"#00d08418":"#ff3d5a18",color:t.side==="Long"?C.green:C.red,borderRadius:4,padding:"3px 8px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{t.side}</span></td>
                         <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.textDim}}>{t.entry}</td>
                         <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.textDim}}>{t.exit}</td>
