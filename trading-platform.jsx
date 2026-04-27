@@ -3815,19 +3815,104 @@ const DrawdownWidget = ({ acct, ddRule, ddValue, ddFloor, ddRemaining, ddTypeLab
 
 // ── RuleEditor ─────────────────────────────────────────────────────────────────
 const RULE_TYPES = [
-  { id: "drawdown",       label: "Drawdown Limit",      hint: "Max loss from peak balance" },
-  { id: "target",         label: "Profit Target",       hint: "Required profit to pass" },
-  { id: "days_in_profit", label: "Days In Profit",      hint: "Min profitable days needed" },
-  { id: "consistency",    label: "Consistency Rule",    hint: "Max % single day vs total" },
-  { id: "daily_loss",     label: "Daily Loss Limit",    hint: "Max loss in one day" },
-  { id: "min_trading_days", label: "Min Trading Days",  hint: "Min days you must trade" },
-  { id: "other",          label: "Custom Rule",         hint: "Any other rule" },
+  { id: "drawdown",         label: "Drawdown Limit",      hint: "Max loss from peak balance" },
+  { id: "target",           label: "Profit Target",       hint: "Required profit to pass" },
+  { id: "days_in_profit",   label: "Days In Profit",      hint: "Min profitable days needed" },
+  { id: "consistency",      label: "Consistency Rule",    hint: "Max % single day vs total" },
+  { id: "daily_loss",       label: "Daily Loss Limit",    hint: "Max loss in one day" },
+  { id: "min_trading_days", label: "Min Trading Days",    hint: "Min days you must trade" },
+  { id: "max_contracts",    label: "Max Contracts",       hint: "Max position size per trade" },
+  { id: "min_hold_time",    label: "Min Hold Time",       hint: "Min seconds/minutes per trade" },
+  { id: "max_loss_streak",  label: "Max Loss Streak",     hint: "Max consecutive losses" },
+  { id: "win_rate",         label: "Min Win Rate",        hint: "Min win rate over period" },
+  { id: "news_block",       label: "News Trading",        hint: "No trading during high-impact news" },
+  { id: "stop_loss",        label: "Required Stop Loss",  hint: "Every trade must have a stop" },
+  { id: "weekend_hold",     label: "No Weekend Holds",    hint: "Close all positions Friday" },
+  { id: "other",            label: "Custom Rule",         hint: "Any other rule you want to track" },
+];
+
+// Direction options (max = stay under, min = stay over)
+const RULE_DIRECTIONS = [
+  { id: "max", label: "Max (stay under)" },
+  { id: "min", label: "Min (stay above)" },
+];
+
+// Period options (when does the rule reset/recalculate)
+const RULE_PERIODS = [
+  { id: "trade",  label: "Per trade" },
+  { id: "day",    label: "Per day" },
+  { id: "week",   label: "Per week" },
+  { id: "cycle",  label: "Per cycle" },
+  { id: "all",    label: "Cumulative" },
+];
+
+// Unit options
+const RULE_UNITS = [
+  { id: "dollar",   label: "$ (dollars)" },
+  { id: "percent",  label: "% (percent)" },
+  { id: "count",    label: "Count (number)" },
+  { id: "days",     label: "Days" },
+  { id: "minutes",  label: "Minutes" },
+  { id: "seconds",  label: "Seconds" },
+];
+
+// ── Template library: pre-built rules from common prop firms ─────────────────
+// Inspiration / starting points — user copies these and customizes
+const RULE_TEMPLATES = [
+  // Drawdown variants
+  { firm: "Apex",      rule_type: "drawdown",       label: "Trailing Threshold (Apex)",   value: 2500, params: { dd_type: "intraday", floor_locks: false, floor_locks_at_profit: 1500 }, note: "Trails until +$1500 over start, then locks" },
+  { firm: "Topstep",   rule_type: "drawdown",       label: "Trailing Drawdown",            value: 2000, params: { dd_type: "eod", floor_locks: true }, note: "EOD trailing, locks at start balance" },
+  { firm: "MFFU",      rule_type: "drawdown",       label: "End-of-Day Drawdown",          value: 2000, params: { dd_type: "eod", floor_locks: true }, note: "EOD only" },
+  { firm: "Tradeify",  rule_type: "drawdown",       label: "Static Drawdown",              value: 2500, params: { dd_type: "static", floor_locks: true }, note: "Floor never moves" },
+
+  // Targets
+  { firm: "Apex",      rule_type: "target",         label: "Profit Target ($50K)",         value: 3000, params: {}, note: "$3K to pass eval" },
+  { firm: "Topstep",   rule_type: "target",         label: "Profit Target ($50K Combine)", value: 3000, params: {}, note: "$3K combine target" },
+  { firm: "MFFU",      rule_type: "target",         label: "Eval Profit Target",           value: 3000, params: {}, note: "$3K to pass" },
+
+  // Days
+  { firm: "Topstep",   rule_type: "days_in_profit", label: "Min Winning Days",             value: 5,    params: { min_profit: 200 }, note: "5 days with ≥$200 profit" },
+  { firm: "Apex",      rule_type: "min_trading_days", label: "Min Trading Days",           value: 7,    params: {}, note: "7 days before payout" },
+
+  // Consistency
+  { firm: "Apex",      rule_type: "consistency",    label: "Consistency Rule (30%)",       value: 30,   params: { max_pct: 30 }, note: "Best day ≤30% of cycle profit" },
+  { firm: "Topstep",   rule_type: "consistency",    label: "Consistency (50%)",            value: 50,   params: { max_pct: 50 }, note: "Best day ≤50% of total" },
+
+  // Loss limits
+  { firm: "Tradeify",  rule_type: "daily_loss",     label: "Daily Loss Limit",             value: 1000, params: {}, note: "$1K max loss per day" },
+
+  // Position size
+  { firm: "Apex",      rule_type: "max_contracts",  label: "Max Contracts ($50K)",         value: 10,   params: { unit: "count" }, note: "Up to 10 contracts" },
+  { firm: "Topstep",   rule_type: "max_contracts",  label: "Position Size ($50K)",         value: 5,    params: { unit: "count" }, note: "Max 5 contracts" },
+
+  // Hold time
+  { firm: "Lucid",     rule_type: "min_hold_time",  label: "Min Hold Time",                value: 60,   params: { unit: "seconds" }, note: "60s min hold (prevents scalping)" },
+
+  // Custom personal rules (popular ones traders set themselves)
+  { firm: "Personal",  rule_type: "max_loss_streak", label: "Max 3 Losses In Row",          value: 3,    params: { unit: "count", period: "day" }, note: "Stop trading after 3 consecutive losses" },
+  { firm: "Personal",  rule_type: "win_rate",       label: "Min 50% Win Rate",             value: 50,   params: { unit: "percent", period: "week", direction: "min" }, note: "Maintain weekly win rate" },
+  { firm: "Personal",  rule_type: "news_block",     label: "No NFP/FOMC Trading",          value: 0,    params: {}, note: "Skip high-impact news days" },
+  { firm: "Personal",  rule_type: "stop_loss",      label: "Always Use Stop Loss",         value: 0,    params: {}, note: "Every trade has a stop" },
+  { firm: "Personal",  rule_type: "weekend_hold",   label: "No Weekend Positions",         value: 0,    params: {}, note: "Close everything Friday close" },
 ];
 
 const RuleEditor = ({ propAccountId, suggestedRules, customRules, onSaveRule, onDeleteRule, C }) => {
-  const [adding, setAdding]       = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [adding, setAdding]         = useState(false);
+  const [editingId, setEditingId]   = useState(null);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [libraryFilter, setLibraryFilter] = useState("All");
   const [draft, setDraft] = useState({ rule_type: "drawdown", label: "", value: "", params: {} });
+
+  // Add a template to current account's rules
+  const useTemplate = async (tmpl) => {
+    await onSaveRule(propAccountId, {
+      rule_type: tmpl.rule_type,
+      label:     tmpl.label,
+      value:     tmpl.value,
+      params:    tmpl.params || {},
+    });
+    setShowLibrary(false);
+  };
 
   // Merge suggested + custom rules:
   // - Custom rules with active=false signal the user explicitly hid that rule type
@@ -3912,7 +3997,10 @@ const RuleEditor = ({ propAccountId, suggestedRules, customRules, onSaveRule, on
 
   // Render param inputs based on rule_type
   const renderParams = () => {
-    if (draft.rule_type === "drawdown") {
+    const t = draft.rule_type;
+    
+    // Drawdown: type + floor lock
+    if (t === "drawdown") {
       return (
         <>
           <select value={draft.params.dd_type || "eod"} onChange={e=>updateParam("dd_type", e.target.value)} style={{...inputS,cursor:"pointer"}}>
@@ -3927,16 +4015,64 @@ const RuleEditor = ({ propAccountId, suggestedRules, customRules, onSaveRule, on
         </>
       );
     }
-    if (draft.rule_type === "days_in_profit") {
+    if (t === "days_in_profit") {
+      return <input type="number" placeholder="Min profit per day ($)" value={draft.params.min_profit || ""} onChange={e=>updateParam("min_profit", parseFloat(e.target.value)||0)} style={{...inputS,width:200}}/>;
+    }
+    if (t === "consistency") {
+      return <input type="number" placeholder="Max % per day" value={draft.params.max_pct || ""} onChange={e=>updateParam("max_pct", parseFloat(e.target.value)||0)} style={{...inputS,width:200}}/>;
+    }
+    if (t === "min_hold_time") {
       return (
-        <input type="number" placeholder="Min profit per day ($)" value={draft.params.min_profit || ""} onChange={e=>updateParam("min_profit", parseFloat(e.target.value)||0)} style={{...inputS,width:200}}/>
+        <select value={draft.params.unit || "seconds"} onChange={e=>updateParam("unit", e.target.value)} style={{...inputS,cursor:"pointer",width:160}}>
+          <option value="seconds">Seconds</option>
+          <option value="minutes">Minutes</option>
+        </select>
       );
     }
-    if (draft.rule_type === "consistency") {
+    if (t === "max_contracts" || t === "max_loss_streak") {
       return (
-        <input type="number" placeholder="Max % per day" value={draft.params.max_pct || ""} onChange={e=>updateParam("max_pct", parseFloat(e.target.value)||0)} style={{...inputS,width:200}}/>
+        <select value={draft.params.period || (t === "max_loss_streak" ? "day" : "trade")} onChange={e=>updateParam("period", e.target.value)} style={{...inputS,cursor:"pointer",width:160}}>
+          {RULE_PERIODS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+        </select>
       );
     }
+    if (t === "win_rate") {
+      return (
+        <>
+          <select value={draft.params.period || "week"} onChange={e=>updateParam("period", e.target.value)} style={{...inputS,cursor:"pointer",width:140}}>
+            {RULE_PERIODS.filter(p => p.id !== "trade").map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
+          <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>%</span>
+        </>
+      );
+    }
+    
+    // "other" — generic custom rule with all parameters
+    if (t === "other") {
+      return (
+        <>
+          <select value={draft.params.unit || "dollar"} onChange={e=>updateParam("unit", e.target.value)} style={{...inputS,cursor:"pointer",width:140}} title="Unit">
+            {RULE_UNITS.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
+          </select>
+          <select value={draft.params.direction || "max"} onChange={e=>updateParam("direction", e.target.value)} style={{...inputS,cursor:"pointer",width:160}} title="Direction">
+            {RULE_DIRECTIONS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+          </select>
+          <select value={draft.params.period || "cycle"} onChange={e=>updateParam("period", e.target.value)} style={{...inputS,cursor:"pointer",width:140}} title="Period">
+            {RULE_PERIODS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
+        </>
+      );
+    }
+    
+    // Boolean/info-type rules — no extra params
+    if (t === "news_block" || t === "stop_loss" || t === "weekend_hold") {
+      return (
+        <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.muted,fontStyle:"italic"}}>
+          Reminder rule — visible on dashboard for awareness
+        </span>
+      );
+    }
+    
     return null;
   };
 
@@ -3959,12 +4095,81 @@ const RuleEditor = ({ propAccountId, suggestedRules, customRules, onSaveRule, on
               ↻ Reset to defaults
             </button>
           )}
+          <button onClick={()=>setShowLibrary(true)}
+            title="Browse rules from popular prop firms"
+            style={{background:"transparent",border:`1px solid ${C.purple}66`,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.purple,fontWeight:700}}>
+            📋 Browse Library
+          </button>
           <button onClick={startAdd}
             style={{background:C.accentDim,border:`1px solid ${C.accent}66`,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700}}>
             + Add Rule
           </button>
         </div>
       </div>
+
+      {/* Library modal */}
+      {showLibrary && (
+        <div onClick={()=>setShowLibrary(false)}
+          style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:24,maxWidth:720,width:"100%",maxHeight:"85vh",display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+              <div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20}}>📋 Rule Library</div>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginTop:3}}>
+                  Common rules from prop firms + popular personal rules. Click to add to your account — you can edit after.
+                </div>
+              </div>
+              <button onClick={()=>setShowLibrary(false)} style={{background:"transparent",border:"none",color:C.muted,fontSize:22,cursor:"pointer",lineHeight:1}}>×</button>
+            </div>
+
+            {/* Filter chips */}
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {["All", ...[...new Set(RULE_TEMPLATES.map(t=>t.firm))]].map(f => (
+                <button key={f} onClick={()=>setLibraryFilter(f)}
+                  style={{background:libraryFilter===f?C.accentDim:C.surface,border:`1px solid ${libraryFilter===f?C.accent+"55":C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:libraryFilter===f?C.accent:C.muted,fontWeight:libraryFilter===f?700:400}}>
+                  {f}
+                </button>
+              ))}
+            </div>
+
+            {/* Templates list */}
+            <div style={{overflow:"auto",flex:1,display:"flex",flexDirection:"column",gap:8,paddingRight:4}}>
+              {RULE_TEMPLATES.filter(t => libraryFilter === "All" || t.firm === libraryFilter).map((t, i) => {
+                const typeMeta = RULE_TYPES.find(rt => rt.id === t.rule_type);
+                const alreadyAdded = customRules.some(c => c.label === t.label && c.active !== false);
+                return (
+                  <div key={i} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"12px 14px",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+                    <div style={{flex:1,minWidth:200}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:4}}>
+                        <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14}}>{t.label}</span>
+                        <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,background:`${C.purple}22`,color:C.purple,padding:"1px 6px",borderRadius:3}}>{t.firm}</span>
+                        <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>{typeMeta?.label || t.rule_type}</span>
+                      </div>
+                      <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,lineHeight:1.4}}>
+                        {t.value > 0 && <strong>${Number(t.value).toLocaleString()} · </strong>}
+                        {t.note}
+                      </div>
+                    </div>
+                    {alreadyAdded ? (
+                      <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.green,padding:"5px 12px"}}>✓ Added</span>
+                    ) : (
+                      <button onClick={()=>useTemplate(t)}
+                        style={{background:C.accentDim,border:`1px solid ${C.accent}66`,borderRadius:6,padding:"6px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700,whiteSpace:"nowrap"}}>
+                        + Use this
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.muted,fontStyle:"italic",textAlign:"center",borderTop:`1px solid ${C.border}`,paddingTop:10}}>
+              These are starting points — verify exact values with your prop firm
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Show hidden rule count if any */}
       {customRules.filter(c => c.active === false).length > 0 && (
@@ -4003,10 +4208,21 @@ const RuleEditor = ({ propAccountId, suggestedRules, customRules, onSaveRule, on
                     {rule.isCustom && <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.accent,background:`${C.accent}22`,padding:"1px 6px",borderRadius:3}}>CUSTOM</span>}
                   </div>
                   <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:3}}>
-                    {rule.value != null && `$${Number(rule.value).toLocaleString()}`}
-                    {rule.params?.dd_type && ` · ${rule.params.dd_type}`}
-                    {rule.params?.min_profit > 0 && ` · min $${rule.params.min_profit}/day`}
-                    {rule.params?.max_pct && ` · max ${rule.params.max_pct}%/day`}
+                    {rule.value != null && rule.value > 0 && (() => {
+                      const unit = rule.params?.unit;
+                      if (unit === "percent") return `${rule.value}%`;
+                      if (unit === "count")   return `${rule.value}`;
+                      if (unit === "days")    return `${rule.value} days`;
+                      if (unit === "minutes") return `${rule.value} min`;
+                      if (unit === "seconds") return `${rule.value} sec`;
+                      return `$${Number(rule.value).toLocaleString()}`;
+                    })()}
+                    {rule.params?.dd_type           && ` · ${rule.params.dd_type}`}
+                    {rule.params?.min_profit > 0    && ` · min $${rule.params.min_profit}/day`}
+                    {rule.params?.max_pct           && ` · max ${rule.params.max_pct}%/day`}
+                    {rule.params?.period            && ` · per ${rule.params.period}`}
+                    {rule.params?.direction         && ` · ${rule.params.direction}`}
+                    {rule.params?.floor_locks_at_profit > 0 && ` · locks at +$${rule.params.floor_locks_at_profit}`}
                   </div>
                 </div>
                 <button onClick={()=>startEdit(rule)} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>✏ Edit</button>
