@@ -7483,44 +7483,7 @@ export default function TradingPlatform({ session }) {
               <StatCard label="Payout Split"   value={`${curType?.payoutSplit||90}%`} sub={(curType?.payoutFreq||"").split("(")[0].trim()} color={curFirm?.color||C.accent}/>
             </div>
 
-            {/* Rule cards */}
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:13}}>
-              {(curType?.rules||[]).map(rule=>{
-                const s=getPropStatus(rule); const sColor=sc(s.status);
-                return <div key={rule.id} style={{background:C.card,border:`1px solid ${s.status==="breach"?C.red+"66":s.status==="warning"?C.amber+"44":C.border}`,borderRadius:12,padding:20,position:"relative",overflow:"hidden"}}>
-                  {(s.status==="breach"||s.status==="warning")&&<div style={{position:"absolute",top:0,left:0,right:0,height:3,background:sColor}}/>}
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:11}}>
-                    <div><div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15}}>{rule.label}</div><div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginTop:2}}>{rule.description}</div></div>
-                    <span style={{background:`${sColor}22`,border:`1px solid ${sColor}44`,color:sColor,borderRadius:6,padding:"3px 9px",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700,flexShrink:0,marginLeft:8}}>{sl(s.status)}</span>
-                  </div>
-                  {rule.type!=="hold"&&<>
-                    <div style={{height:6,background:C.border,borderRadius:4,marginBottom:7,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(100,s.pct*100)}%`,background:sColor,borderRadius:4,transition:"width 0.5s"}}/></div>
-                    <div style={{display:"flex",justifyContent:"space-between",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>
-                      <span>{rule.type==="days"?`${s.used} / ${rule.value} days`:rule.type==="consist"?`${s.used}% best day / ${rule.value}% limit`:`$${(s.used||0).toLocaleString()} / $${rule.value.toLocaleString()}`}</span>
-                      <span style={{color:sColor}}>{Math.round(Math.min(s.pct||0,1)*100)}%</span>
-                    </div>
-                  </>}
-                  {rule.type==="hold"&&<div style={{fontFamily:"'Space Mono',monospace",fontSize:12,color:s.status==="breach"?C.red:C.green}}>{s.used===0?"✓ No violations this period":`⚠ ${s.used} trade${s.used>1?"s":""} under minimum hold time`}</div>}
-                </div>;
-              })}
-              {/* Add custom rule */}
-              <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:12,padding:20}}>
-                <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:12}}>Add Custom Rule</div>
-                <input value={newRule.label} onChange={e=>setNewRule(r=>({...r,label:e.target.value}))} placeholder="Rule name..." style={{width:"100%",marginBottom:8,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
-                <div style={{display:"flex",gap:8,marginBottom:8}}>
-                  <select value={newRule.type} onChange={e=>setNewRule(r=>({...r,type:e.target.value}))} style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"}}>
-                    <option value="loss">Daily Loss Limit</option><option value="drawdown">Drawdown</option><option value="target">Profit Target</option><option value="hold">Min Hold Time</option><option value="days">Min Days</option><option value="consist">Consistency %</option>
-                  </select>
-                  <input type="number" value={newRule.value} onChange={e=>setNewRule(r=>({...r,value:e.target.value}))} placeholder="Value" style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"}}/>
-                </div>
-                <button onClick={()=>{
-                  if(!newRule.label||!newRule.value)return;
-                  const nr={id:Date.now().toString(),label:newRule.label,type:newRule.type,value:Number(newRule.value),description:`Custom: ${newRule.label}`};
-                  setFirms(ff=>ff.map(f=>f.id!==activeFirm?f:{...f,accountTypes:f.accountTypes.map(t=>t.id!==f.activeType?t:{...t,rules:[...t.rules,nr]})}));
-                  setNewRule({label:"",type:"loss",value:""});
-                }} style={{width:"100%",background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,borderRadius:8,padding:"10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,letterSpacing:"0.08em",textTransform:"uppercase"}}>+ Add Rule</button>
-              </div>
-            </div>
+            {/* Legacy rule cards block removed — replaced by RuleEditor component below */}
 
             {/* Payout Tracker — only show for passed (funded) accounts */}
             {curAcc?.status === "passed" && (()=>{
