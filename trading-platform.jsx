@@ -5754,11 +5754,7 @@ export default function TradingPlatform({ session }) {
       {/* Nav */}
       <div className="fv-navbar" style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",height:58,borderBottom:`1px solid ${C.border}`,background:C.surface,position:"sticky",top:0,zIndex:100}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <img src={darkMode ? "/fundvault-dark.svg" : "/fundvault-light.svg"} alt="FundVault" width={32} height={32} style={{display:"block"}}/>
-          <div style={{display:"flex",flexDirection:"column",gap:0}}>
-            <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:14,letterSpacing:"0.07em",color:C.text,lineHeight:1.1}}>FUNDVAULT</span>
-            <span style={{fontFamily:"'Space Mono',monospace",fontSize:8,color:C.accent,letterSpacing:"0.12em"}}>PROP TRADING JOURNAL</span>
-          </div>
+          <img src={darkMode ? "/fundvault-dark.svg" : "/fundvault-light.svg"} alt="FundVault" height={42} style={{display:"block",width:"auto"}}/>
           <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.amber,background:"#f59e0b18",border:"1px solid #f59e0b44",borderRadius:4,padding:"2px 8px"}}>PROP FOCUS</span>
         </div>
         <div style={{display:"flex",gap:3}} className={`fv-nav-tabs${mobileMenu?" open":""}`}>
@@ -6316,11 +6312,7 @@ export default function TradingPlatform({ session }) {
             }}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <img src={darkMode ? "/fundvault-dark.svg" : "/fundvault-light.svg"} alt="FundVault" width={32} height={32} style={{display:"block"}}/>
-                  <div>
-                    <div style={{color:"#c8d8e8",fontSize:12,fontWeight:700,letterSpacing:"0.1em"}}>FUNDVAULT</div>
-                    <div style={{color:"#00e5ff",fontSize:8,letterSpacing:"0.12em"}}>PROP TRADING JOURNAL</div>
-                  </div>
+                  <img src={darkMode ? "/fundvault-dark.svg" : "/fundvault-light.svg"} alt="FundVault" height={42} style={{display:"block",width:"auto"}}/>
                 </div>
                 <div style={{textAlign:"right"}}>
                   <div style={{color:"#4a6080",fontSize:9,letterSpacing:"0.08em",textTransform:"uppercase"}}>{monthLabel}</div>
