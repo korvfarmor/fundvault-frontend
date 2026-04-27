@@ -4700,8 +4700,24 @@ export default function TradingPlatform({ session }) {
 
   const setActiveGroup = (id) => setActiveGroupId(id);
   const [loadingTrades, setLoadingTrades] = useState(true);
-  const [selectedTrades, setSelectedTrades] = useState(new Set()); // for grouping multi-select
+  const [selectedTrades, setSelectedTrades] = useState(new Set()); // multi-select for group/delete
   const [groupingMode,   setGroupingMode  ] = useState(false);     // toggles checkboxes in trade list
+
+  // Bulk delete selected trades
+  const deleteSelectedTrades = async () => {
+    if (selectedTrades.size === 0) return;
+    const ids = Array.from(selectedTrades);
+    if (!confirm(`Delete ${ids.length} selected trade${ids.length === 1 ? "" : "s"}?\n\nThis cannot be undone.`)) return;
+    try {
+      // Delete in parallel
+      await Promise.all(ids.map(id => tradesApi.delete(id)));
+      setSelectedTrades(new Set());
+      setGroupingMode(false);
+      await loadTrades();
+    } catch(e) {
+      alert("Could not delete: " + e.message);
+    }
+  };
 
   const toggleTradeSelection = (id) => {
     setSelectedTrades(prev => {
@@ -6466,12 +6482,18 @@ export default function TradingPlatform({ session }) {
                   {/* Group trades mode */}
                   <button onClick={()=>{setGroupingMode(g=>!g);if(groupingMode)setSelectedTrades(new Set());}}
                     style={{background:groupingMode?C.accentDim:C.surface,border:`1px solid ${groupingMode?C.accent+"55":C.border}`,color:groupingMode?C.accent:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:5}}>
-                    🔗 {groupingMode?"Cancel":"Group Trades"}
+                    🔗 {groupingMode?"Cancel":"Select Trades"}
                   </button>
                   {groupingMode && selectedTrades.size >= 2 && (
                     <button onClick={groupSelectedTrades}
                       style={{background:C.accent,border:`1px solid ${C.accent}`,color:"#000",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700}}>
                       ✓ Group {selectedTrades.size} selected
+                    </button>
+                  )}
+                  {groupingMode && selectedTrades.size >= 1 && (
+                    <button onClick={deleteSelectedTrades}
+                      style={{background:`${C.red}22`,border:`1px solid ${C.red}66`,color:C.red,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700}}>
+                      🗑 Delete {selectedTrades.size}
                     </button>
                   )}
                   {/* Filter dropdown */}
