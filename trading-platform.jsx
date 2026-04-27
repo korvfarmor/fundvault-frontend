@@ -4652,7 +4652,7 @@ export default function TradingPlatform({ session }) {
       const drData = await drR.json();
       
       if (drData.matched === 0) {
-        alert("No orphan trades match any prop account window. Make sure your prop accounts have correct activation dates.");
+        alert(`No orphan trades match any prop account window.\n\nFound ${drData.total} orphan trade${drData.total === 1 ? "" : "s"} but none could be matched.\n\nPossible reasons:\n• Trades are from before any prop account was activated\n• Prop account dates don't overlap with trade dates\n\nTry: edit your prop account and check the activation date — it should cover when your trades happened.`);
         setBackfilling(false);
         return;
       }
@@ -4918,6 +4918,15 @@ export default function TradingPlatform({ session }) {
   const [loadingTrades, setLoadingTrades] = useState(true);
   const [selectedTrades, setSelectedTrades] = useState(new Set()); // multi-select for group/delete
   const [groupingMode,   setGroupingMode  ] = useState(false);     // toggles checkboxes in trade list
+  const [tradeSort,      setTradeSort    ] = useState({ key: "trade_date", dir: "desc" }); // sort state
+
+  const cycleSort = (key) => {
+    setTradeSort(s => {
+      if (s.key !== key) return { key, dir: "desc" };
+      if (s.dir === "desc") return { key, dir: "asc" };
+      return { key: "trade_date", dir: "desc" };  // reset to default
+    });
+  };
 
   // Bulk delete selected trades
   const deleteSelectedTrades = async () => {
@@ -5655,11 +5664,30 @@ export default function TradingPlatform({ session }) {
     });
   })();
 
-  const filteredTrades = groupedTrades.filter(t => {
-    const tagOk = tagFilter === "All" || (t.tags||[]).includes(tagFilter);
-    const symOk = symbolFilter === "All" || t.symbol === symbolFilter;
-    return tagOk && symOk;
-  });
+  const filteredTrades = (() => {
+    const filtered = groupedTrades.filter(t => {
+      const tagOk = tagFilter === "All" || (t.tags||[]).includes(tagFilter);
+      const symOk = symbolFilter === "All" || t.symbol === symbolFilter;
+      return tagOk && symOk;
+    });
+    // Apply sort
+    const { key, dir } = tradeSort;
+    const mult = dir === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      let av = a[key], bv = b[key];
+      // Special handling for dates and times
+      if (key === "trade_date" || key === "entry_time" || key === "exit_time") {
+        av = av ? new Date(av).getTime() : 0;
+        bv = bv ? new Date(bv).getTime() : 0;
+      } else if (typeof av === "string" && typeof bv === "string") {
+        return av.localeCompare(bv) * mult;
+      } else {
+        av = parseFloat(av) || 0;
+        bv = parseFloat(bv) || 0;
+      }
+      return (av - bv) * mult;
+    });
+  })();
   const allSymbols = [...new Set(rangedTrades.map(t=>t.symbol).filter(Boolean))].sort();
 
   // ── Stats computed from ranged trades (respects date range picker) ───────────
@@ -6833,7 +6861,35 @@ export default function TradingPlatform({ session }) {
                   <div style={{padding:40,textAlign:"center",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:12}}>No trades yet — they will appear here once logged</div>
                 ) : (
                   <table style={{width:"100%",borderCollapse:"collapse"}}>
-                    <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>{["#","Symbol","Side","Entry","Exit","Tags","Rating","R:R","P&L","Review",""].map(h=><th key={h} style={{padding:"11px 14px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:400}}>{h}</th>)}</tr></thead>
+                    <thead>
+                      <tr style={{borderBottom:`1px solid ${C.border}`}}>
+                        {groupingMode && <th style={{padding:"11px 8px",width:30}}></th>}
+                        {[
+                          { key: null,         label: "#" },
+                          { key: "trade_date", label: "Date",   sortable: true },
+                          { key: "symbol",     label: "Symbol", sortable: true },
+                          { key: "side",       label: "Side",   sortable: true },
+                          { key: null,         label: "Entry" },
+                          { key: null,         label: "Exit" },
+                          { key: null,         label: "Tags" },
+                          { key: "rating",     label: "Rating", sortable: true },
+                          { key: "rr",         label: "R:R",    sortable: true },
+                          { key: "pnl",        label: "P&L",    sortable: true },
+                          { key: null,         label: "Review" },
+                          { key: null,         label: "" },
+                        ].map(col => {
+                          const isSorted = tradeSort.key === col.key;
+                          const arrow = isSorted ? (tradeSort.dir === "asc" ? " ▲" : " ▼") : "";
+                          return (
+                            <th key={col.label} 
+                              onClick={col.sortable ? () => cycleSort(col.key) : undefined}
+                              style={{padding:"11px 14px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:10,color:isSorted ? C.accent : C.muted,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:400,cursor:col.sortable?"pointer":"default",userSelect:"none"}}>
+                              {col.label}{arrow}
+                            </th>
+                          );
+                        })}
+                      </tr>
+                    </thead>
                     <tbody>{filteredTrades.map((t,i)=>{
                       const rs=t.checks?Object.values(t.checks).filter(Boolean).length:null;
                       const isSelected = selectedTrades.has(t.id);
@@ -6844,6 +6900,7 @@ export default function TradingPlatform({ session }) {
                           </td>
                         )}
                         <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>#{i+1}</td>
+                        <td style={{padding:"11px 14px",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim,whiteSpace:"nowrap"}}>{t.trade_date || "—"}</td>
                         <td style={{padding:"11px 14px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15}}>
                           {t.symbol}
                           {t._isGroup && (
