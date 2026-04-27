@@ -3829,10 +3829,30 @@ const RuleEditor = ({ propAccountId, suggestedRules, customRules, onSaveRule, on
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState({ rule_type: "drawdown", label: "", value: "", params: {} });
 
-  // Merge suggested + custom — custom overrides if same type
-  const allRules = customRules.length 
-    ? customRules.map(r => ({ ...r, isCustom: true }))
-    : (suggestedRules || []).map((r, i) => ({ id: `sug-${i}`, rule_type: r.type, label: r.label, value: r.value, params: r.params || {}, isCustom: false }));
+  // Merge suggested + custom rules:
+  // - Custom rules with active=false signal the user explicitly hid that rule type
+  // - Custom rules with active=true (or undefined) override suggested rules of same type
+  // - Suggested rules show only if no custom rule of same type exists (hidden or active)
+  const customByType = {};
+  customRules.forEach(c => { customByType[c.rule_type] = c; });
+  
+  const allRules = [
+    // 1. Suggested rules NOT overridden or hidden by custom
+    ...(suggestedRules || [])
+      .filter(s => !customByType[s.type])
+      .map((r, i) => ({ 
+        id: `sug-${i}`, 
+        rule_type: r.type, 
+        label: r.label, 
+        value: r.value, 
+        params: r.params || {}, 
+        isCustom: false,
+      })),
+    // 2. Active custom rules
+    ...customRules
+      .filter(c => c.active !== false)
+      .map(r => ({ ...r, isCustom: true })),
+  ];
 
   const startEdit = (rule) => {
     setEditingId(rule.id);
@@ -3866,6 +3886,26 @@ const RuleEditor = ({ propAccountId, suggestedRules, customRules, onSaveRule, on
 
   const updateParam = (key, val) => {
     setDraft(d => ({ ...d, params: { ...d.params, [key]: val } }));
+  };
+
+  // Hide a suggested rule by creating an inactive custom rule
+  const hideSuggestedRule = async (rule) => {
+    if (!confirm(`Hide "${rule.label}" for this account?\n\nThis won't affect other accounts. You can restore it later via "Reset to defaults".`)) return;
+    await onSaveRule(propAccountId, {
+      rule_type: rule.rule_type,
+      label:     rule.label,
+      value:     rule.value,
+      params:    rule.params || {},
+      active:    false,
+    });
+  };
+
+  // Reset all custom rules — restores suggested defaults
+  const resetToDefaults = async () => {
+    if (!confirm("Reset to suggested defaults?\n\nThis will delete ALL your custom rules and restore the firm's standard rule set. Trades and other data won't be affected.")) return;
+    for (const rule of customRules) {
+      await onDeleteRule(propAccountId, rule.id);
+    }
   };
 
   const inputS = {background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"8px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"};
@@ -3911,11 +3951,27 @@ const RuleEditor = ({ propAccountId, suggestedRules, customRules, onSaveRule, on
               : "Your custom rule set"}
           </div>
         </div>
-        <button onClick={startAdd}
-          style={{background:C.accentDim,border:`1px solid ${C.accent}66`,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700}}>
-          + Add Rule
-        </button>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {customRules.length > 0 && (
+            <button onClick={resetToDefaults}
+              title="Remove all custom rules and restore firm defaults"
+              style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,fontWeight:400}}>
+              ↻ Reset to defaults
+            </button>
+          )}
+          <button onClick={startAdd}
+            style={{background:C.accentDim,border:`1px solid ${C.accent}66`,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,fontWeight:700}}>
+            + Add Rule
+          </button>
+        </div>
       </div>
+
+      {/* Show hidden rule count if any */}
+      {customRules.filter(c => c.active === false).length > 0 && (
+        <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginBottom:10,fontStyle:"italic"}}>
+          {customRules.filter(c => c.active === false).length} suggested rule{customRules.filter(c => c.active === false).length === 1 ? "" : "s"} hidden — use "Reset to defaults" to restore
+        </div>
+      )}
 
       {/* Rule list */}
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -3954,9 +4010,12 @@ const RuleEditor = ({ propAccountId, suggestedRules, customRules, onSaveRule, on
                   </div>
                 </div>
                 <button onClick={()=>startEdit(rule)} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>✏ Edit</button>
-                {rule.isCustom && (
-                  <button onClick={()=>onDeleteRule(propAccountId, rule.id)} style={{background:"transparent",border:"none",cursor:"pointer",color:C.red,fontSize:14,padding:"4px 6px",opacity:0.6}}>✕</button>
-                )}
+                <button 
+                  onClick={()=>rule.isCustom ? onDeleteRule(propAccountId, rule.id) : hideSuggestedRule(rule)}
+                  title={rule.isCustom ? "Delete custom rule" : "Hide this rule for this account"}
+                  style={{background:"transparent",border:"none",cursor:"pointer",color:C.red,fontSize:14,padding:"4px 6px",opacity:0.6}}>
+                  ✕
+                </button>
               </div>
             )}
           </div>
@@ -7090,11 +7149,14 @@ export default function TradingPlatform({ session }) {
           if (curType?.id !== curFirm?.activeType) setFirmAccountType(curFirm?.id, curType?.id);
 
           const profit = acct.balance - acct.startBalance;
-          // Custom rules override suggestions if present
+          // Custom rules override suggestions; hidden custom (active=false) means rule is disabled
           const customDdRule = customRules.find(r => r.rule_type === "drawdown");
-          const ddRuleForCalc = customDdRule 
-            ? { value: customDdRule.value, label: customDdRule.label, params: customDdRule.params || {} }
-            : (curType?.rules||[]).find(r => r.type === "drawdown");
+          const ddRuleHidden = customDdRule && customDdRule.active === false;
+          const ddRuleForCalc = ddRuleHidden
+            ? null  // Drawdown rule explicitly hidden — no DD tracking
+            : customDdRule && customDdRule.active !== false
+              ? { value: customDdRule.value, label: customDdRule.label, params: customDdRule.params || {} }
+              : (curType?.rules||[]).find(r => r.type === "drawdown");
           const ddValue = ddRuleForCalc?.value || 2000;
           // Detect DD type — from custom params first, then label
           const ddType = ddRuleForCalc?.params?.dd_type 
