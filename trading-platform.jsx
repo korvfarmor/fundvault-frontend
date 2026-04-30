@@ -1096,6 +1096,10 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
   const [newGroupTime, setNewGroupTime]   = React.useState("23:00");
   const [newGroupTz, setNewGroupTz]       = React.useState(Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York");
   const [editingMember, setEditingMember] = React.useState(null);
+  const [viewingStudent, setViewingStudent] = React.useState(null); // { membership_id, student_user_id }
+  const [studentDetail, setStudentDetail]   = React.useState(null);
+  const [loadingDetail, setLoadingDetail]   = React.useState(false);
+  const [editingGroup,  setEditingGroup ]   = React.useState(null);  // for editing group settings
   const [memberAlias, setMemberAlias]     = React.useState("");
   const [memberWebhook, setMemberWebhook] = React.useState("");
 
@@ -1187,6 +1191,34 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
       setEditingMember(null);
       loadStudents(activeGroupId);
     } catch(e) { alert("Could not save: " + e.message); }
+  };
+
+  const openStudentDetail = async (student) => {
+    setViewingStudent(student);
+    setLoadingDetail(true);
+    try {
+      const data = await apiCall(`/mentor-groups/${activeGroupId}/students/${student.student_user_id}`);
+      setStudentDetail(data);
+    } catch(e) {
+      alert("Could not load student details: " + e.message);
+      setViewingStudent(null);
+    }
+    setLoadingDetail(false);
+  };
+
+  const updateGroupSettings = async () => {
+    try {
+      await apiCall(`/mentor-groups/${editingGroup.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name:            editingGroup.name,
+          report_time:     editingGroup.report_time,
+          report_timezone: editingGroup.report_timezone,
+        }),
+      });
+      setEditingGroup(null);
+      loadGroups();
+    } catch(e) { alert("Could not update: " + e.message); }
   };
 
   // Gate: not enabled
@@ -1286,6 +1318,7 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
                   navigator.clipboard.writeText(activeGroup.invite_code);
                   alert("Invite code copied!");
                 }} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 14px",cursor:"pointer",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10}}>📋 Copy</button>
+                <button onClick={()=>setEditingGroup({...activeGroup})} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 14px",cursor:"pointer",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10}}>⚙ Settings</button>
                 <button onClick={()=>deleteGroup(activeGroup.id)} style={{background:`${C.red}22`,border:`1px solid ${C.red}66`,borderRadius:8,padding:"8px 14px",cursor:"pointer",color:C.red,fontFamily:"'Space Mono',monospace",fontSize:10}}>Delete</button>
               </div>
 
@@ -1321,12 +1354,16 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
                             {s.today.trade_count} trade{s.today.trade_count === 1 ? "" : "s"}
                           </div>
                         </div>
+                        <button onClick={()=>openStudentDetail(s)} 
+                          style={{background:`${C.purple}22`,border:`1px solid ${C.purple}55`,borderRadius:6,padding:"6px 12px",cursor:"pointer",color:C.purple,fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>
+                          📊 View
+                        </button>
                         <button onClick={()=>{
                           setEditingMember(s);
                           setMemberAlias(s.alias || "");
-                          setMemberWebhook("");  // not returned for security
+                          setMemberWebhook("");
                         }} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"6px 12px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:10}}>
-                          ✏ Settings
+                          ✏ Edit
                         </button>
                         <button onClick={()=>removeMember(s.membership_id)} style={{background:"transparent",border:"none",cursor:"pointer",color:C.red,fontSize:14,opacity:0.6}}>✕</button>
                       </div>
@@ -1370,6 +1407,167 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
           <div style={{fontSize:36,marginBottom:10}}>👨‍🏫</div>
           <div style={{fontFamily:"'Syne',sans-serif",fontSize:18,fontWeight:700}}>No groups yet</div>
           <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginTop:6}}>Create your first group to start mentoring students</div>
+        </div>
+      )}
+
+      {/* Edit group settings modal */}
+      {editingGroup && (
+        <div onClick={()=>setEditingGroup(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:24,maxWidth:440,width:"100%"}}>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,marginBottom:14}}>Edit Group Settings</div>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              <div>
+                <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Group Name</label>
+                <input value={editingGroup.name} onChange={e=>setEditingGroup({...editingGroup, name:e.target.value})}
+                  style={{width:"100%",marginTop:5,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:14,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div style={{display:"flex",gap:10}}>
+                <div style={{flex:1}}>
+                  <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Report Time</label>
+                  <input type="time" value={editingGroup.report_time} onChange={e=>setEditingGroup({...editingGroup, report_time:e.target.value})}
+                    style={{width:"100%",marginTop:5,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:14,outline:"none",boxSizing:"border-box"}}/>
+                </div>
+                <div style={{flex:1.4}}>
+                  <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Timezone</label>
+                  <select value={editingGroup.report_timezone} onChange={e=>setEditingGroup({...editingGroup, report_timezone:e.target.value})}
+                    style={{width:"100%",marginTop:5,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none",cursor:"pointer",boxSizing:"border-box"}}>
+                    <option value="America/New_York">New York (ET)</option>
+                    <option value="America/Chicago">Chicago (CT)</option>
+                    <option value="America/Denver">Denver (MT)</option>
+                    <option value="America/Los_Angeles">Los Angeles (PT)</option>
+                    <option value="Europe/London">London (GMT/BST)</option>
+                    <option value="Europe/Stockholm">Stockholm (CET)</option>
+                    <option value="Europe/Paris">Paris (CET)</option>
+                    <option value="Asia/Tokyo">Tokyo (JST)</option>
+                    <option value="Asia/Singapore">Singapore (SGT)</option>
+                    <option value="Australia/Sydney">Sydney (AEST)</option>
+                    <option value="UTC">UTC</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,fontStyle:"italic"}}>
+                Daily reports will be sent at this time, in this timezone.
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8,marginTop:18}}>
+              <button onClick={()=>setEditingGroup(null)} style={{flex:1,padding:"10px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,cursor:"pointer",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>Cancel</button>
+              <button onClick={updateGroupSettings} style={{flex:2,padding:"10px",background:C.purple,border:"none",borderRadius:8,cursor:"pointer",color:"#000",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700}}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Student detail modal */}
+      {viewingStudent && (
+        <div onClick={()=>{setViewingStudent(null); setStudentDetail(null);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,overflow:"auto"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:0,maxWidth:900,width:"100%",maxHeight:"90vh",overflow:"auto"}}>
+            <div style={{padding:"20px 24px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",position:"sticky",top:0,background:C.card,zIndex:1}}>
+              <div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.purple,letterSpacing:"0.08em",textTransform:"uppercase"}}>Student Detail</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20}}>
+                  {viewingStudent.alias || viewingStudent.email}
+                  {viewingStudent.alias && <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,fontWeight:400,marginLeft:10}}>({viewingStudent.email})</span>}
+                </div>
+              </div>
+              <button onClick={()=>{setViewingStudent(null); setStudentDetail(null);}} style={{background:"transparent",border:"none",color:C.muted,fontSize:22,cursor:"pointer",lineHeight:1}}>×</button>
+            </div>
+
+            {loadingDetail ? (
+              <div style={{padding:60,textAlign:"center",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>LOADING...</div>
+            ) : studentDetail ? (
+              <div style={{padding:20,display:"flex",flexDirection:"column",gap:18}}>
+                {/* Top stats */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>14-DAY P&L</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,color:studentDetail.total_stats.pnl > 0 ? C.green : studentDetail.total_stats.pnl < 0 ? C.red : C.text,marginTop:4}}>
+                      {studentDetail.total_stats.pnl > 0 ? "+" : ""}${studentDetail.total_stats.pnl.toLocaleString()}
+                    </div>
+                  </div>
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>TRADES</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,marginTop:4}}>{studentDetail.total_stats.trade_count}</div>
+                  </div>
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>WIN RATE</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,marginTop:4}}>{studentDetail.total_stats.win_rate}%</div>
+                  </div>
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>ACCOUNTS</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,marginTop:4}}>{studentDetail.prop_accounts.length}</div>
+                  </div>
+                </div>
+
+                {/* Daily stats */}
+                <div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Daily Performance (last 14 days)</div>
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden"}}>
+                    {studentDetail.daily_stats.length === 0 ? (
+                      <div style={{padding:30,textAlign:"center",color:C.muted,fontSize:12}}>No trades in this period</div>
+                    ) : studentDetail.daily_stats.map((d, i) => (
+                      <div key={d.date} style={{padding:"12px 16px",borderBottom:i<studentDetail.daily_stats.length-1?`1px solid ${C.border}`:"none",display:"flex",alignItems:"center",gap:14}}>
+                        <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim,minWidth:90}}>{d.date}</div>
+                        <div style={{flex:1,fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>
+                          {d.trade_count} trade{d.trade_count===1?"":"s"} · {d.win_rate}% WR
+                        </div>
+                        <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:d.pnl > 0 ? C.green : d.pnl < 0 ? C.red : C.muted}}>
+                          {d.pnl > 0 ? "+" : ""}${d.pnl.toLocaleString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Recent trades */}
+                <div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Recent Trades ({studentDetail.recent_trades.length})</div>
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden",maxHeight:300,overflowY:"auto"}}>
+                    {studentDetail.recent_trades.length === 0 ? (
+                      <div style={{padding:30,textAlign:"center",color:C.muted,fontSize:12}}>No trades</div>
+                    ) : (
+                      <table style={{width:"100%",borderCollapse:"collapse"}}>
+                        <thead style={{position:"sticky",top:0,background:C.card,zIndex:1}}>
+                          <tr style={{borderBottom:`1px solid ${C.border}`}}>
+                            {["Date","Symbol","Side","P&L","Tags"].map(h => (
+                              <th key={h} style={{padding:"10px 14px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {studentDetail.recent_trades.map(t => (
+                            <tr key={t.id} style={{borderBottom:`1px solid ${C.border}`}}>
+                              <td style={{padding:"9px 14px",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.textDim,whiteSpace:"nowrap"}}>{t.trade_date}</td>
+                              <td style={{padding:"9px 14px",fontFamily:"'Space Mono',monospace",fontSize:11}}>{t.symbol}</td>
+                              <td style={{padding:"9px 14px",fontFamily:"'Space Mono',monospace",fontSize:10,color:t.side==="long"?C.green:C.red}}>{t.side?.toUpperCase()}</td>
+                              <td style={{padding:"9px 14px",fontFamily:"'Space Mono',monospace",fontSize:11,color:t.pnl>0?C.green:t.pnl<0?C.red:C.muted}}>{t.pnl>0?"+":""}${parseFloat(t.pnl).toFixed(0)}</td>
+                              <td style={{padding:"9px 14px",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>{(t.tags||[]).join(", ")}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+
+                {/* Active rules */}
+                {studentDetail.custom_rules.filter(r => r.active !== false).length > 0 && (
+                  <div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Active Rules ({studentDetail.custom_rules.filter(r => r.active !== false).length})</div>
+                    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:12,display:"flex",flexDirection:"column",gap:6}}>
+                      {studentDetail.custom_rules.filter(r => r.active !== false).map(r => (
+                        <div key={r.id} style={{display:"flex",justifyContent:"space-between",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>
+                          <span style={{color:C.text}}>{r.label}</span>
+                          <span style={{color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:10}}>{r.value != null && r.value > 0 ? `$${Number(r.value).toLocaleString()}` : "—"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{padding:60,textAlign:"center",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim}}>No data</div>
+            )}
+          </div>
         </div>
       )}
     </div>
