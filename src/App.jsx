@@ -56,6 +56,14 @@ export default function App() {
       window.history.replaceState({}, "", window.location.pathname);
     }
 
+    // Mentor invite via URL — capture code, persist through login
+    const invite = params.get("invite");
+    if (invite) {
+      sessionStorage.setItem("fv_pending_invite", invite.toUpperCase());
+      setMsg(`✓ Mentor invite detected: ${invite.toUpperCase()}. Log in or sign up to join.`);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+
     return () => subscription.unsubscribe();
   }, []);
 

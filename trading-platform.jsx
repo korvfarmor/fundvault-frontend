@@ -5510,6 +5510,10 @@ export default function TradingPlatform({ session }) {
   const [selectedTrades, setSelectedTrades] = useState(new Set()); // multi-select for group/delete
   const [groupingMode,   setGroupingMode  ] = useState(false);     // toggles checkboxes in trade list
   const [tradeSort,      setTradeSort    ] = useState({ key: "trade_date", dir: "desc" }); // sort state
+  // Pending mentor invite from URL — captured by App.jsx, processed on first load
+  const [pendingInvite,  setPendingInvite ] = useState(null);  // { code, group_name? }
+  const [inviteWebhook,  setInviteWebhook ] = useState("");
+  const [acceptingInvite, setAcceptingInvite] = useState(false);
 
   const cycleSort = (key) => {
     setTradeSort(s => {
@@ -5842,6 +5846,40 @@ export default function TradingPlatform({ session }) {
     
     return () => clearTimeout(timer);
   }, []);
+
+  // ── Check for pending mentor invite (from URL ?invite=CODE) ─────────────
+  useEffect(() => {
+    const code = sessionStorage.getItem("fv_pending_invite");
+    if (code) setPendingInvite({ code });
+  }, []);
+
+  const acceptInvite = async () => {
+    if (!pendingInvite?.code) return;
+    setAcceptingInvite(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch(`${API}/mentor-groups/join`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session?.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ invite_code: pendingInvite.code, student_discord_webhook: inviteWebhook.trim() || null }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || "Join failed");
+      sessionStorage.removeItem("fv_pending_invite");
+      setPendingInvite(null);
+      setInviteWebhook("");
+      alert(`Joined "${data.group_name}"! Your mentor can now see your trading data.`);
+    } catch(e) {
+      alert("Could not join: " + e.message);
+    }
+    setAcceptingInvite(false);
+  };
+
+  const dismissInvite = () => {
+    sessionStorage.removeItem("fv_pending_invite");
+    setPendingInvite(null);
+    setInviteWebhook("");
+  };
 
   // ── Load rules, habits, check-in, tradovate status on mount ───────────────
   useEffect(() => {
@@ -6653,6 +6691,50 @@ export default function TradingPlatform({ session }) {
       }} C={C}/>}
       {showExport    && <ExportModal onClose={()=>setShowExport(false)} trades={trades} C={C} userName={userName}/>}
       {showEdgeModal && <EdgeModal onClose={()=>{setShowEdgeModal(false);setEditingEdge(null);}} onSave={(e)=>{ if(editingEdge){ saveEdges(edges.map(x=>x.id===editingEdge.id?e:x)); }else{ saveEdges([...edges,{...e,id:Date.now().toString()}]); } setShowEdgeModal(false);setEditingEdge(null); }} existing={editingEdge} C={C}/>}
+      {/* Pending mentor invite modal — triggered by ?invite=CODE URL param */}
+      {pendingInvite && (
+        <div onClick={dismissInvite}
+          style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{background:C.card,border:`1px solid ${C.purple}55`,borderRadius:14,padding:28,maxWidth:460,width:"100%"}}>
+            <div style={{textAlign:"center",fontSize:42,marginBottom:14}}>👨‍🏫</div>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,textAlign:"center",marginBottom:8}}>
+              Mentor Invite
+            </div>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:C.textDim,textAlign:"center",lineHeight:1.55,marginBottom:18}}>
+              You've been invited to join a mentor group with code:
+            </div>
+            <div style={{textAlign:"center",fontFamily:"'Space Mono',monospace",fontSize:22,fontWeight:700,color:C.purple,letterSpacing:"0.15em",marginBottom:18,padding:"12px 16px",background:`${C.purple}11`,borderRadius:10,border:`1px solid ${C.purple}33`}}>
+              {pendingInvite.code}
+            </div>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,lineHeight:1.6,marginBottom:14,padding:14,background:C.surface,borderRadius:8,border:`1px solid ${C.border}`}}>
+              <strong style={{color:C.text}}>What this means:</strong>
+              <br/>• Your mentor will be able to see your trade history and daily P&L (read-only)
+              <br/>• You can leave the group at any time from My Account
+              <br/>• Optionally, daily reports can be sent to a Discord channel of your mentor's choice
+            </div>
+            <div style={{marginBottom:18}}>
+              <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.05em"}}>Discord webhook (optional)</label>
+              <input value={inviteWebhook} onChange={e=>setInviteWebhook(e.target.value)}
+                placeholder="https://discord.com/api/webhooks/..."
+                style={{width:"100%",marginTop:5,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:12,outline:"none",boxSizing:"border-box"}}/>
+              <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.textDim,marginTop:4}}>
+                Your mentor will provide the URL — leave blank if you don't have it yet.
+              </div>
+            </div>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={dismissInvite} disabled={acceptingInvite}
+                style={{flex:1,padding:"12px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:10,cursor:"pointer",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>
+                Decline
+              </button>
+              <button onClick={acceptInvite} disabled={acceptingInvite}
+                style={{flex:2,padding:"12px",background:C.purple,border:`1px solid ${C.purple}`,borderRadius:10,cursor:acceptingInvite?"wait":"pointer",color:"#000",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>
+                {acceptingInvite ? "Joining..." : "Accept Invite"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showAddTrade && <AddTradeModal onClose={()=>setShowAddTrade(false)} onSave={async (t)=>{ await saveTrade({...t,id:"new-"+Date.now()}); setShowAddTrade(false); }} globalRules={rules} C={C} newsBlocker={newsBlocker} calendarEvents={calendarEvents}/>}
       <FlattenWidget tvStatus={tvStatus} appIsDemo={isDemo} C={C}/>
       {showRules && <RuleManager rules={rules} onChange={(newRules)=>{
