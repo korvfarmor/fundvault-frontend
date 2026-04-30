@@ -1085,6 +1085,297 @@ function NewsTab({ econFilter, setEconFilter, C, newsBlocker, saveNewsBlocker, o
 }
 
 // ── My Account Tab ───────────────────────────────────────────────────────────
+// ─── Mentor Tab — manage mentor groups + view students ─────────────────────
+const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
+  const [groups, setGroups]               = React.useState([]);
+  const [activeGroupId, setActiveGroupId] = React.useState(null);
+  const [students, setStudents]           = React.useState([]);
+  const [loading, setLoading]             = React.useState(true);
+  const [showCreate, setShowCreate]       = React.useState(false);
+  const [newGroupName, setNewGroupName]   = React.useState("");
+  const [newGroupTime, setNewGroupTime]   = React.useState("23:00");
+  const [newGroupTz, setNewGroupTz]       = React.useState(Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York");
+  const [editingMember, setEditingMember] = React.useState(null);
+  const [memberAlias, setMemberAlias]     = React.useState("");
+  const [memberWebhook, setMemberWebhook] = React.useState("");
+
+  const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+
+  const apiCall = async (path, opts = {}) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const r = await fetch(`${API}${path}`, {
+      ...opts,
+      headers: {
+        Authorization: `Bearer ${session?.access_token}`,
+        "Content-Type": "application/json",
+        ...(opts.headers || {}),
+      },
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    return data;
+  };
+
+  const loadGroups = async () => {
+    setLoading(true);
+    try {
+      const data = await apiCall("/mentor-groups");
+      setGroups(data);
+      if (data.length && !activeGroupId) setActiveGroupId(data[0].id);
+    } catch(e) {
+      console.error("[Mentor] load groups failed:", e.message);
+    }
+    setLoading(false);
+  };
+
+  const loadStudents = async (groupId) => {
+    if (!groupId) return setStudents([]);
+    try {
+      const data = await apiCall(`/mentor-groups/${groupId}/students`);
+      setStudents(data);
+    } catch(e) {
+      console.error("[Mentor] load students failed:", e.message);
+    }
+  };
+
+  React.useEffect(() => {
+    if (canAccessMentor()) loadGroups();
+    else setLoading(false);
+  }, []);
+
+  React.useEffect(() => {
+    if (activeGroupId) loadStudents(activeGroupId);
+  }, [activeGroupId]);
+
+  const createGroup = async () => {
+    if (!newGroupName.trim()) return;
+    try {
+      const g = await apiCall("/mentor-groups", {
+        method: "POST",
+        body: JSON.stringify({ name: newGroupName.trim(), report_time: newGroupTime, report_timezone: newGroupTz }),
+      });
+      setGroups(gs => [...gs, g]);
+      setActiveGroupId(g.id);
+      setShowCreate(false);
+      setNewGroupName("");
+    } catch(e) { alert("Could not create: " + e.message); }
+  };
+
+  const deleteGroup = async (groupId) => {
+    if (!confirm("Delete this group? All student memberships will be removed.")) return;
+    try {
+      await apiCall(`/mentor-groups/${groupId}`, { method: "DELETE" });
+      setGroups(gs => gs.filter(g => g.id !== groupId));
+      if (activeGroupId === groupId) setActiveGroupId(null);
+    } catch(e) { alert("Could not delete: " + e.message); }
+  };
+
+  const removeMember = async (membershipId) => {
+    if (!confirm("Remove this student from group?")) return;
+    try {
+      await apiCall(`/mentor-groups/membership/${membershipId}`, { method: "DELETE" });
+      loadStudents(activeGroupId);
+    } catch(e) { alert("Could not remove: " + e.message); }
+  };
+
+  const saveMember = async () => {
+    try {
+      await apiCall(`/mentor-groups/membership/${editingMember.membership_id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ alias: memberAlias, student_discord_webhook: memberWebhook }),
+      });
+      setEditingMember(null);
+      loadStudents(activeGroupId);
+    } catch(e) { alert("Could not save: " + e.message); }
+  };
+
+  // Gate: not enabled
+  if (!canAccessMentor()) {
+    return (
+      <div style={{maxWidth:600,margin:"60px auto",padding:32,background:C.card,border:`1px solid ${C.border}`,borderRadius:14,textAlign:"center"}}>
+        <div style={{fontSize:48,marginBottom:14}}>👨‍🏫</div>
+        <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,marginBottom:8}}>Mentor Add-on</div>
+        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:C.textDim,lineHeight:1.6,marginBottom:20}}>
+          Manage student groups, view their daily P&L, and receive automated daily Discord reports for each student.
+          <br/><br/>
+          The Mentor add-on is enabled manually by FundVault. Contact <a href="mailto:support@fundvault.app" style={{color:C.accent}}>support@fundvault.app</a> to request access.
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <div style={{padding:40,textAlign:"center",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>LOADING MENTOR DATA...</div>;
+  }
+
+  const activeGroup = groups.find(g => g.id === activeGroupId);
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:22}}>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:12}}>
+        <div>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.purple,letterSpacing:"0.1em",textTransform:"uppercase"}}>Mentor Add-on</div>
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Student Groups</div>
+        </div>
+        <button onClick={()=>setShowCreate(true)}
+          style={{background:`${C.purple}22`,border:`1px solid ${C.purple}66`,borderRadius:8,padding:"10px 18px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.purple,fontWeight:700}}>
+          + New Group
+        </button>
+      </div>
+
+      {/* Create modal */}
+      {showCreate && (
+        <div onClick={()=>setShowCreate(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:24,maxWidth:440,width:"100%"}}>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,marginBottom:14}}>Create Mentor Group</div>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              <div>
+                <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.05em"}}>Group Name</label>
+                <input value={newGroupName} onChange={e=>setNewGroupName(e.target.value)} placeholder="e.g. Mike's Funded Trading"
+                  style={{width:"100%",marginTop:5,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:14,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div style={{display:"flex",gap:10}}>
+                <div style={{flex:1}}>
+                  <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Daily Report Time</label>
+                  <input type="time" value={newGroupTime} onChange={e=>setNewGroupTime(e.target.value)}
+                    style={{width:"100%",marginTop:5,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:14,outline:"none",boxSizing:"border-box"}}/>
+                </div>
+                <div style={{flex:1.4}}>
+                  <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Timezone</label>
+                  <input value={newGroupTz} onChange={e=>setNewGroupTz(e.target.value)} placeholder="America/New_York"
+                    style={{width:"100%",marginTop:5,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:14,outline:"none",boxSizing:"border-box"}}/>
+                </div>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8,marginTop:18}}>
+              <button onClick={()=>setShowCreate(false)} style={{flex:1,padding:"10px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,cursor:"pointer",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>Cancel</button>
+              <button onClick={createGroup} style={{flex:2,padding:"10px",background:C.purple,border:"none",borderRadius:8,cursor:"pointer",color:"#000",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700}}>Create Group</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Group tabs */}
+      {groups.length > 0 ? (
+        <>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",borderBottom:`1px solid ${C.border}`,paddingBottom:0}}>
+            {groups.map(g => (
+              <button key={g.id} onClick={()=>setActiveGroupId(g.id)}
+                style={{background:"transparent",border:"none",borderBottom:`2px solid ${activeGroupId===g.id?C.purple:"transparent"}`,padding:"10px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:activeGroupId===g.id?C.purple:C.muted,fontWeight:activeGroupId===g.id?700:400}}>
+                {g.name}
+              </button>
+            ))}
+          </div>
+
+          {/* Active group details */}
+          {activeGroup && (
+            <>
+              {/* Invite + settings card */}
+              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:14}}>
+                <div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.05em",marginBottom:4}}>INVITE CODE</div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:20,fontWeight:700,color:C.purple,letterSpacing:"0.1em"}}>{activeGroup.invite_code}</div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.textDim,marginTop:4}}>Share this code with students to join your group</div>
+                </div>
+                <div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.05em",marginBottom:4}}>DAILY REPORT</div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:14,color:C.text}}>{activeGroup.report_time} · {activeGroup.report_timezone}</div>
+                </div>
+                <button onClick={()=>{
+                  navigator.clipboard.writeText(activeGroup.invite_code);
+                  alert("Invite code copied!");
+                }} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 14px",cursor:"pointer",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10}}>📋 Copy</button>
+                <button onClick={()=>deleteGroup(activeGroup.id)} style={{background:`${C.red}22`,border:`1px solid ${C.red}66`,borderRadius:8,padding:"8px 14px",cursor:"pointer",color:C.red,fontFamily:"'Space Mono',monospace",fontSize:10}}>Delete</button>
+              </div>
+
+              {/* Students list */}
+              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
+                <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between"}}>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase"}}>Students ({students.length})</div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Today's stats</div>
+                </div>
+                {students.length === 0 ? (
+                  <div style={{padding:40,textAlign:"center",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim}}>
+                    No students yet. Share invite code <strong>{activeGroup.invite_code}</strong> to get started.
+                  </div>
+                ) : (
+                  <div>
+                    {students.map((s, i) => (
+                      <div key={s.membership_id} style={{padding:"14px 20px",borderBottom:i<students.length-1?`1px solid ${C.border}`:"none",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+                        <div style={{flex:1,minWidth:200}}>
+                          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14}}>
+                            {s.alias || s.email}
+                            {s.alias && <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,fontWeight:400,marginLeft:8}}>({s.email})</span>}
+                          </div>
+                          <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.textDim,marginTop:3}}>
+                            Joined {new Date(s.joined_at).toLocaleDateString()}
+                            {!s.webhook_set && <span style={{color:C.amber,marginLeft:8}}>⚠ no webhook</span>}
+                          </div>
+                        </div>
+                        <div style={{textAlign:"right",minWidth:100}}>
+                          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,color:s.today.pnl > 0 ? C.green : s.today.pnl < 0 ? C.red : C.muted}}>
+                            {s.today.pnl > 0 ? "+" : ""}${s.today.pnl.toLocaleString()}
+                          </div>
+                          <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>
+                            {s.today.trade_count} trade{s.today.trade_count === 1 ? "" : "s"}
+                          </div>
+                        </div>
+                        <button onClick={()=>{
+                          setEditingMember(s);
+                          setMemberAlias(s.alias || "");
+                          setMemberWebhook("");  // not returned for security
+                        }} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"6px 12px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:10}}>
+                          ✏ Settings
+                        </button>
+                        <button onClick={()=>removeMember(s.membership_id)} style={{background:"transparent",border:"none",cursor:"pointer",color:C.red,fontSize:14,opacity:0.6}}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Edit member modal */}
+              {editingMember && (
+                <div onClick={()=>setEditingMember(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+                  <div onClick={e=>e.stopPropagation()} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:24,maxWidth:440,width:"100%"}}>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,marginBottom:14}}>Edit {editingMember.email}</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                      <div>
+                        <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Alias (optional)</label>
+                        <input value={memberAlias} onChange={e=>setMemberAlias(e.target.value)} placeholder="e.g. John Smith"
+                          style={{width:"100%",marginTop:5,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:14,outline:"none",boxSizing:"border-box"}}/>
+                      </div>
+                      <div>
+                        <label style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Discord Webhook URL</label>
+                        <input value={memberWebhook} onChange={e=>setMemberWebhook(e.target.value)} placeholder="https://discord.com/api/webhooks/..."
+                          style={{width:"100%",marginTop:5,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                        <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.textDim,marginTop:4}}>
+                          {editingMember.webhook_set ? "✓ webhook is set (leave blank to keep)" : "⚠ no webhook configured"}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:8,marginTop:18}}>
+                      <button onClick={()=>setEditingMember(null)} style={{flex:1,padding:"10px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,cursor:"pointer",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>Cancel</button>
+                      <button onClick={saveMember} style={{flex:2,padding:"10px",background:C.purple,border:"none",borderRadius:8,cursor:"pointer",color:"#000",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700}}>Save</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      ) : (
+        <div style={{padding:60,textAlign:"center",background:C.card,border:`1px solid ${C.border}`,borderRadius:12}}>
+          <div style={{fontSize:36,marginBottom:10}}>👨‍🏫</div>
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:18,fontWeight:700}}>No groups yet</div>
+          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginTop:6}}>Create your first group to start mentoring students</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase, setTab }) => {
   const PLANS = {
     basic:    { label:"Basic",    color:"#6b859e", price:"$30/mo", features:["Trade logging + CSV import","Dashboard & Analytics","Calendar view","Prop firm tracker","Edge Library","Psychology check-in"] },
@@ -1094,6 +1385,59 @@ const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase,
   const currentPlan = PLANS[plan] || PLANS.basic;
 
   const [profileForm, setProfileForm] = useState({ full_name: profile?.full_name || "" });
+  const [mentorMembership, setMentorMembership] = useState(null);  // { id, group_name, mentor_email, ... }
+  const [joinCode,        setJoinCode       ] = useState("");
+  const [joinWebhook,     setJoinWebhook    ] = useState("");
+  const [joining,         setJoining        ] = useState(false);
+
+  // Load mentor membership status
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const r = await fetch(`${API}/mentor-groups/my-membership`, {
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+        });
+        const data = await r.json().catch(() => []);
+        if (Array.isArray(data) && data.length > 0) setMentorMembership(data[0]);
+      } catch {}
+    };
+    load();
+  }, []);
+
+  const joinMentorGroup = async () => {
+    if (!joinCode.trim()) return;
+    setJoining(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const r = await fetch(`${API}/mentor-groups/join`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session?.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ invite_code: joinCode.trim().toUpperCase(), student_discord_webhook: joinWebhook.trim() || null }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || "Join failed");
+      alert(`Joined "${data.group_name}"!`);
+      setJoinCode(""); setJoinWebhook("");
+      // Reload
+      const r2 = await fetch(`${API}/mentor-groups/my-membership`, { headers: { Authorization: `Bearer ${session?.access_token}` } });
+      const list = await r2.json().catch(() => []);
+      if (Array.isArray(list) && list.length > 0) setMentorMembership(list[0]);
+    } catch(e) { alert("Could not join: " + e.message); }
+    setJoining(false);
+  };
+
+  const leaveMentorGroup = async () => {
+    if (!confirm("Leave this mentor group? Your data will no longer be visible to them.")) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch(`${API}/mentor-groups/membership/${mentorMembership.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      setMentorMembership(null);
+    } catch(e) { alert("Could not leave: " + e.message); }
+  };
   const [emailForm,   setEmailForm  ] = useState({ currentPassword: "", newEmail: "" });
   const [passForm,    setPassForm   ] = useState({ currentPassword: "", password: "", confirm: "" });
   const [saving,      setSaving     ] = useState({});
@@ -1379,6 +1723,37 @@ const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase,
           </div>
           {msg.discord && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:msg.discord.startsWith("✓")?C.green:C.red}}>{msg.discord}</div>}
           <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>A test message will be sent to verify the connection.</div>
+        </div>
+      )}
+    </div>
+
+    {/* ── Mentor Group ── */}
+    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
+      <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.purple,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>Mentor Group</div>
+      
+      {mentorMembership ? (
+        <div>
+          <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:14,marginBottom:12}}>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:C.purple}}>👨‍🏫 {mentorMembership.group_name}</div>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginTop:4}}>
+              Your trading data is shared (read-only) with {mentorMembership.mentor_email}.
+              {mentorMembership.student_discord_webhook ? " Daily reports are being sent to your Discord." : " Add a Discord webhook to receive daily reports."}
+            </div>
+          </div>
+          <button onClick={leaveMentorGroup} style={{...btnS(C.red),maxWidth:200}}>Leave Group</button>
+        </div>
+      ) : (
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim}}>
+            Got an invite code from your mentor? Join their group to share your daily P&L and rule compliance with them.
+          </div>
+          <input value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase())} placeholder="FUND-XXXX"
+            style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:13,outline:"none",letterSpacing:"0.1em"}}/>
+          <input value={joinWebhook} onChange={e=>setJoinWebhook(e.target.value)} placeholder="Discord webhook URL (optional)"
+            style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:12,outline:"none"}}/>
+          <button onClick={joinMentorGroup} disabled={joining || !joinCode.trim()} style={{...btnS(C.purple),maxWidth:200}}>
+            {joining ? "Joining..." : "Join Group"}
+          </button>
         </div>
       )}
     </div>
@@ -4283,6 +4658,7 @@ export default function TradingPlatform({ session }) {
     if (required === "pro")      return isPro;
     return false;
   };
+  const canAccessMentor = () => !!profile?.mentor_addon;
 
   const loadProfile = async () => {
     try {
@@ -4355,7 +4731,7 @@ export default function TradingPlatform({ session }) {
   };
   C = darkMode ? DARK : LIGHT;
   // ── Tab state — persisted in URL hash ────────────────────────────────────────
-  const VALID_TABS = ["dashboard","analytics","calendar","trades","edge","psychology","propfirm","news","accounts","copier","myaccount"];
+  const VALID_TABS = ["dashboard","analytics","calendar","trades","edge","psychology","propfirm","news","accounts","copier","mentor","myaccount"];
   const hashTab = () => {
     const h = window.location.hash.replace("#","");
     return VALID_TABS.includes(h) ? h : "dashboard";
@@ -5862,7 +6238,7 @@ export default function TradingPlatform({ session }) {
 
   const cats=[...new Set(habits.map(h=>h.category))];
 
-  const TABS = ["dashboard","analytics","calendar","trades","edge","psychology","propfirm","news","accounts","copier","myaccount"];
+  const TABS = ["dashboard","analytics","calendar","trades","edge","psychology","propfirm","news","accounts","copier","mentor","myaccount"];
 
 
   // Re-load trades when mode changes
@@ -6077,7 +6453,7 @@ export default function TradingPlatform({ session }) {
           <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.amber,background:"#f59e0b18",border:"1px solid #f59e0b44",borderRadius:4,padding:"2px 8px"}}>PROP FOCUS</span>
         </div>
         <div style={{display:"flex",gap:3}} className={`fv-nav-tabs${mobileMenu?" open":""}`}>
-          {TABS.filter(t=>t!=="myaccount").map(t=><button key={t} onClick={()=>{setTab(t);setMobileMenu(false);}} style={{background:tab===t?C.accentDim:"transparent",border:tab===t?`1px solid ${C.accent}44`:"1px solid transparent",color:tab===t?C.accent:C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.05em",textTransform:"uppercase",transition:"all 0.15s"}}>{t==="propfirm"?"prop firm":t==="myaccount"?"account":t}</button>)}
+          {TABS.filter(t=>t!=="myaccount" && (t!=="mentor" || profile?.mentor_addon)).map(t=><button key={t} onClick={()=>{setTab(t);setMobileMenu(false);}} style={{background:tab===t?C.accentDim:"transparent",border:tab===t?`1px solid ${C.accent}44`:"1px solid transparent",color:tab===t?C.accent:C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.05em",textTransform:"uppercase",transition:"all 0.15s"}}>{t==="propfirm"?"prop firm":t==="myaccount"?"account":t}</button>)}
         </div>
         <div className="fv-nav-right" style={{display:"flex",alignItems:"center",gap:10}}>
           {/* Tradovate Live indicator */}
@@ -8204,6 +8580,7 @@ export default function TradingPlatform({ session }) {
           </div>;
         })()}
 
+        {tab==="mentor" && <MentorTab C={C} canAccessMentor={canAccessMentor} setTab={setTab} supabase={supabase} />}
         {tab==="myaccount" && <MyAccountTab C={C} plan={plan} profile={profile} user={user} userName={userName} loadProfile={loadProfile} supabase={supabase} setTab={setTab} />}
 
         {/* ── TRADE COPIER ────────────────────────────────────────────────────── */}
