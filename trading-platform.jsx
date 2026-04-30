@@ -1086,7 +1086,7 @@ function NewsTab({ econFilter, setEconFilter, C, newsBlocker, saveNewsBlocker, o
 
 // ── My Account Tab ───────────────────────────────────────────────────────────
 // ─── Mentor Tab — manage mentor groups + view students ─────────────────────
-const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
+const MentorTab = ({ C, canAccessMentor, setTab, supabase, profile }) => {
   const [groups, setGroups]               = useState([]);
   const [activeGroupId, setActiveGroupId] = useState(null);
   const [students, setStudents]           = useState([]);
@@ -1143,10 +1143,13 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
     }
   };
 
+  // Wait for profile to load before deciding access. Profile is null until loaded
+  // (race condition on F5: MentorTab mounts before parent's loadProfile completes)
   useEffect(() => {
+    if (!profile) return;  // wait for profile
     if (canAccessMentor()) loadGroups();
     else setLoading(false);
-  }, []);
+  }, [profile]);
 
   useEffect(() => {
     if (activeGroupId) loadStudents(activeGroupId);
@@ -1242,7 +1245,8 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
     );
   }
 
-  if (loading) {
+  // Still waiting for profile or initial load
+  if (!profile || loading) {
     return <div style={{padding:40,textAlign:"center",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>LOADING MENTOR DATA...</div>;
   }
 
@@ -8900,7 +8904,7 @@ export default function TradingPlatform({ session }) {
           </div>;
         })()}
 
-        {tab==="mentor" && <MentorTab C={C} canAccessMentor={canAccessMentor} setTab={setTab} supabase={supabase} />}
+        {tab==="mentor" && <MentorTab C={C} canAccessMentor={canAccessMentor} setTab={setTab} supabase={supabase} profile={profile} />}
         {tab==="myaccount" && <MyAccountTab C={C} plan={plan} profile={profile} user={user} userName={userName} loadProfile={loadProfile} supabase={supabase} setTab={setTab} />}
 
         {/* ── TRADE COPIER ────────────────────────────────────────────────────── */}
