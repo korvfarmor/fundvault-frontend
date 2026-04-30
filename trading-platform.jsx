@@ -1098,6 +1098,7 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
   const [editingMember, setEditingMember] = useState(null);
   const [viewingStudent, setViewingStudent] = useState(null); // { membership_id, student_user_id }
   const [studentDetail, setStudentDetail]   = useState(null);
+  const [detailPeriod,  setDetailPeriod  ]   = useState(14); // days lookback
   const [loadingDetail, setLoadingDetail]   = useState(false);
   const [editingGroup,  setEditingGroup ]   = useState(null);  // for editing group settings
   const [memberAlias, setMemberAlias]     = useState("");
@@ -1193,17 +1194,22 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
     } catch(e) { alert("Could not save: " + e.message); }
   };
 
-  const openStudentDetail = async (student) => {
+  const openStudentDetail = async (student, days = detailPeriod) => {
     setViewingStudent(student);
     setLoadingDetail(true);
     try {
-      const data = await apiCall(`/mentor-groups/${activeGroupId}/students/${student.student_user_id}`);
+      const data = await apiCall(`/mentor-groups/${activeGroupId}/students/${student.student_user_id}?days=${days}`);
       setStudentDetail(data);
     } catch(e) {
       alert("Could not load student details: " + e.message);
       setViewingStudent(null);
     }
     setLoadingDetail(false);
+  };
+  
+  const changePeriod = async (newDays) => {
+    setDetailPeriod(newDays);
+    if (viewingStudent) await openStudentDetail(viewingStudent, newDays);
   };
 
   const updateGroupSettings = async () => {
@@ -1479,7 +1485,7 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
                 {/* Top stats */}
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
                   <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
-                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>14-DAY P&L</div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>{detailPeriod}-DAY P&L</div>
                     <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,color:studentDetail.total_stats.pnl > 0 ? C.green : studentDetail.total_stats.pnl < 0 ? C.red : C.text,marginTop:4}}>
                       {studentDetail.total_stats.pnl > 0 ? "+" : ""}${studentDetail.total_stats.pnl.toLocaleString()}
                     </div>
@@ -1498,9 +1504,20 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
                   </div>
                 </div>
 
+                {/* Period selector */}
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginRight:4}}>Period:</span>
+                  {[7, 14, 30, 90, 180, 365].map(d => (
+                    <button key={d} onClick={()=>changePeriod(d)}
+                      style={{background:detailPeriod===d?C.accentDim:"transparent",border:`1px solid ${detailPeriod===d?C.accent+"55":C.border}`,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:detailPeriod===d?C.accent:C.muted,fontWeight:detailPeriod===d?700:400}}>
+                      {d === 365 ? "1y" : d + "d"}
+                    </button>
+                  ))}
+                </div>
+
                 {/* Daily stats */}
                 <div>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Daily Performance (last 14 days)</div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Daily Performance (last {detailPeriod} days)</div>
                   <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden"}}>
                     {studentDetail.daily_stats.length === 0 ? (
                       <div style={{padding:30,textAlign:"center",color:C.muted,fontSize:12}}>No trades in this period</div>
