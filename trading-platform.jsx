@@ -1310,22 +1310,45 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
           {activeGroup && (
             <>
               {/* Invite + settings card */}
-              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:14}}>
-                <div>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.05em",marginBottom:4}}>INVITE CODE</div>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:20,fontWeight:700,color:C.purple,letterSpacing:"0.1em"}}>{activeGroup.invite_code}</div>
-                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.textDim,marginTop:4}}>Share this code with students to join your group</div>
+              <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20,display:"flex",flexDirection:"column",gap:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:14}}>
+                  <div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.05em",marginBottom:4}}>INVITE CODE</div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:20,fontWeight:700,color:C.purple,letterSpacing:"0.1em"}}>{activeGroup.invite_code}</div>
+                  </div>
+                  <div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.05em",marginBottom:4}}>DAILY REPORT</div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:14,color:C.text}}>{activeGroup.report_time} · {activeGroup.report_timezone}</div>
+                  </div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <button onClick={()=>setEditingGroup({...activeGroup})} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 14px",cursor:"pointer",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10}}>⚙ Settings</button>
+                    <button onClick={()=>deleteGroup(activeGroup.id)} style={{background:`${C.red}22`,border:`1px solid ${C.red}66`,borderRadius:8,padding:"8px 14px",cursor:"pointer",color:C.red,fontFamily:"'Space Mono',monospace",fontSize:10}}>Delete</button>
+                  </div>
                 </div>
-                <div>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.05em",marginBottom:4}}>DAILY REPORT</div>
-                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:14,color:C.text}}>{activeGroup.report_time} · {activeGroup.report_timezone}</div>
+                
+                {/* Invite link — easiest way to share */}
+                <div style={{background:`${C.purple}08`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:8}}>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.purple,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:700}}>📤 Share Invite Link</div>
+                    <div style={{display:"flex",gap:6}}>
+                      <button onClick={()=>{
+                        const url = `${window.location.origin}/?invite=${activeGroup.invite_code}`;
+                        navigator.clipboard.writeText(url);
+                        alert("Invite link copied!\n\nShare it with your student — they'll be prompted to join automatically when they open the link.");
+                      }} style={{background:C.purple,border:`1px solid ${C.purple}`,color:"#000",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>📋 Copy Link</button>
+                      <button onClick={()=>{
+                        navigator.clipboard.writeText(activeGroup.invite_code);
+                        alert("Invite code copied!");
+                      }} style={{background:"transparent",border:`1px solid ${C.border}`,color:C.textDim,borderRadius:6,padding:"6px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10}}>Code only</button>
+                    </div>
+                  </div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim,wordBreak:"break-all",padding:"6px 10px",background:C.bg,borderRadius:6,border:`1px solid ${C.border}`}}>
+                    {window.location.origin}/?invite={activeGroup.invite_code}
+                  </div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.textDim,marginTop:8,lineHeight:1.5}}>
+                    Send this link to a student. When they click it, they'll be prompted to join your group automatically — no need to manually paste a code.
+                  </div>
                 </div>
-                <button onClick={()=>{
-                  navigator.clipboard.writeText(activeGroup.invite_code);
-                  alert("Invite code copied!");
-                }} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 14px",cursor:"pointer",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10}}>📋 Copy</button>
-                <button onClick={()=>setEditingGroup({...activeGroup})} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 14px",cursor:"pointer",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10}}>⚙ Settings</button>
-                <button onClick={()=>deleteGroup(activeGroup.id)} style={{background:`${C.red}22`,border:`1px solid ${C.red}66`,borderRadius:8,padding:"8px 14px",cursor:"pointer",color:C.red,fontFamily:"'Space Mono',monospace",fontSize:10}}>Delete</button>
               </div>
 
               {/* Students list */}
