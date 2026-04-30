@@ -1087,21 +1087,21 @@ function NewsTab({ econFilter, setEconFilter, C, newsBlocker, saveNewsBlocker, o
 // ── My Account Tab ───────────────────────────────────────────────────────────
 // ─── Mentor Tab — manage mentor groups + view students ─────────────────────
 const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
-  const [groups, setGroups]               = React.useState([]);
-  const [activeGroupId, setActiveGroupId] = React.useState(null);
-  const [students, setStudents]           = React.useState([]);
-  const [loading, setLoading]             = React.useState(true);
-  const [showCreate, setShowCreate]       = React.useState(false);
-  const [newGroupName, setNewGroupName]   = React.useState("");
-  const [newGroupTime, setNewGroupTime]   = React.useState("23:00");
-  const [newGroupTz, setNewGroupTz]       = React.useState(Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York");
-  const [editingMember, setEditingMember] = React.useState(null);
-  const [viewingStudent, setViewingStudent] = React.useState(null); // { membership_id, student_user_id }
-  const [studentDetail, setStudentDetail]   = React.useState(null);
-  const [loadingDetail, setLoadingDetail]   = React.useState(false);
-  const [editingGroup,  setEditingGroup ]   = React.useState(null);  // for editing group settings
-  const [memberAlias, setMemberAlias]     = React.useState("");
-  const [memberWebhook, setMemberWebhook] = React.useState("");
+  const [groups, setGroups]               = useState([]);
+  const [activeGroupId, setActiveGroupId] = useState(null);
+  const [students, setStudents]           = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [showCreate, setShowCreate]       = useState(false);
+  const [newGroupName, setNewGroupName]   = useState("");
+  const [newGroupTime, setNewGroupTime]   = useState("23:00");
+  const [newGroupTz, setNewGroupTz]       = useState(Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York");
+  const [editingMember, setEditingMember] = useState(null);
+  const [viewingStudent, setViewingStudent] = useState(null); // { membership_id, student_user_id }
+  const [studentDetail, setStudentDetail]   = useState(null);
+  const [loadingDetail, setLoadingDetail]   = useState(false);
+  const [editingGroup,  setEditingGroup ]   = useState(null);  // for editing group settings
+  const [memberAlias, setMemberAlias]     = useState("");
+  const [memberWebhook, setMemberWebhook] = useState("");
 
   const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
@@ -1142,12 +1142,12 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase }) => {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (canAccessMentor()) loadGroups();
     else setLoading(false);
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (activeGroupId) loadStudents(activeGroupId);
   }, [activeGroupId]);
 
