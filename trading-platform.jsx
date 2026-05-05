@@ -5745,6 +5745,8 @@ export default function TradingPlatform({ session }) {
     const todayPnl = todayTrades.reduce((a,t)=>a+t.pnl,0);
 
     propAccounts.forEach(pa => {
+      // Skip alerts for non-active accounts (breached/passed/retired)
+      if (pa.status && pa.status !== "active") return;
       const firm = firms.find(f=>f.id===pa.firmId);
       const type = firm?.accountTypes.find(t=>t.id===pa.typeId);
       if (!firm || !type) return;
