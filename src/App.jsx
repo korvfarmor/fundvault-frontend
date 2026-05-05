@@ -103,7 +103,7 @@ export default function App() {
 
         {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 36, justifyContent: "center" }}>
-          <img src="/fundvault-dark.svg" alt="FundVault" style={{ height: 56, width: "auto", display: "block" }} />
+          <img src="/fundvault-dark.svg?v=2" alt="FundVault" style={{ height: 56, width: "auto", display: "block" }} />
         </div>
 
         {/* Plan selection step */}

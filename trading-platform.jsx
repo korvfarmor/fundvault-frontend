@@ -6773,7 +6773,7 @@ export default function TradingPlatform({ session }) {
       {/* Nav */}
       <div className="fv-navbar" style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 28px",height:58,borderBottom:`1px solid ${C.border}`,background:C.surface,position:"sticky",top:0,zIndex:100}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <img src={darkMode ? "/fundvault-dark.svg" : "/fundvault-light.svg"} alt="FundVault" height={42} style={{display:"block",width:"auto"}}/>
+          <img src={darkMode ? "/fundvault-dark.svg?v=2" : "/fundvault-light.svg?v=2"} alt="FundVault" height={42} style={{display:"block",width:"auto"}}/>
           <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.amber,background:"#f59e0b18",border:"1px solid #f59e0b44",borderRadius:4,padding:"2px 8px"}}>PROP FOCUS</span>
         </div>
         <div style={{display:"flex",gap:3}} className={`fv-nav-tabs${mobileMenu?" open":""}`}>
@@ -7331,7 +7331,7 @@ export default function TradingPlatform({ session }) {
             }}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <img src={darkMode ? "/fundvault-dark.svg" : "/fundvault-light.svg"} alt="FundVault" height={42} style={{display:"block",width:"auto"}}/>
+                  <img src={darkMode ? "/fundvault-dark.svg?v=2" : "/fundvault-light.svg?v=2"} alt="FundVault" height={42} style={{display:"block",width:"auto"}}/>
                 </div>
                 <div style={{textAlign:"right"}}>
                   <div style={{color:"#4a6080",fontSize:9,letterSpacing:"0.08em",textTransform:"uppercase"}}>{monthLabel}</div>
