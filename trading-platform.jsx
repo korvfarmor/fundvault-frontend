@@ -680,30 +680,10 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false, C: the
                 </div>
               )}
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 2 }}>
-                {selectedIds.length > 0 && (
-                  <button onClick={flattenSelected} disabled={flattening || cancellingOrders} style={{
-                    width: "100%", padding: "8px", borderRadius:8, cursor: "pointer",
-                    background: `${W.amber}22`, border: `1px solid ${W.amber}66`,
-                    color: W.amber, fontFamily: "'Space Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
-                  }}>
-                    {flattening ? "Closing..." : `✕ Close ${selectedIds.length} selected`}
-                  </button>
-                )}
-                <button onClick={() => setConfirmAll("positions")} disabled={flattening || cancellingOrders} style={{
-                  width: "100%", padding: "9px", borderRadius:8, cursor: "pointer",
-                  background: `${W.red}22`, border: `1px solid ${W.red}66`,
-                  color: W.red, fontFamily: "'Space Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
-                }}>
-                  {flattening ? "Closing positions..." : "Flatten ALL — Close all positions"}
-                </button>
-                <button onClick={() => setConfirmAll("orders")} disabled={flattening || cancellingOrders} style={{
-                  width: "100%", padding: "9px", borderRadius:8, cursor: "pointer",
-                  background: `${W.amber}22`, border: `1px solid ${W.amber}66`,
-                  color: W.amber, fontFamily: "'Space Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
-                }}>
-                  {cancellingOrders ? "Cancelling orders..." : "⛔ Cancel ALL — Cancel all pending orders"}
-                </button>
+              <div style={{ marginTop: 4, padding: "8px 10px", background: `${W.muted}11`, border: `1px solid ${W.border}`, borderRadius: 8 }}>
+                <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 9, color: W.textDim, lineHeight: 1.4, textAlign: "center" }}>
+                  View only · Use Tradovate to manage orders
+                </div>
               </div>
             </>
           ) : (
@@ -711,37 +691,6 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false, C: the
               No open positions
             </div>
           )}
-        </div>
-      )}
-
-      {confirmAll && (
-        <div style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ background: W.surface, border: `1px solid ${confirmAll === "positions" ? W.red+"66" : W.amber+"66"}`, borderRadius:14, padding: 32, maxWidth: 340, width: "90%", textAlign: "center" }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>{confirmAll === "positions" ? "🔴" : "⛔"}</div>
-            <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: confirmAll === "positions" ? W.red : W.amber, marginBottom: 8 }}>
-              {confirmAll === "positions" ? "Flatten ALL?" : "Cancel ALL Orders?"}
-            </div>
-            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 14, color: W.textDim, marginBottom: 8 }}>
-              {confirmAll === "positions"
-                ? <>This will close <strong style={{ color: W.text }}>all {positions.length} open positions</strong> immediately with market orders.</>
-                : <>This will cancel <strong style={{ color: W.text }}>all pending limit and stop orders</strong>. Open positions are not affected.</>
-              }
-            </div>
-            {confirmAll === "positions" && (
-              <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 13, color: totalUnrealized >= 0 ? W.green : W.red, marginBottom: 24, fontWeight: 700 }}>
-                Unrealized: {totalUnrealized >= 0 ? "+" : ""}${Math.round(totalUnrealized)}
-              </div>
-            )}
-            <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-              <button onClick={() => setConfirmAll(false)} style={{ flex: 1, padding: "12px", borderRadius:8, cursor: "pointer", background: "transparent", border: `1px solid ${W.border}`, color: W.muted, fontFamily: "'Space Mono',monospace", fontSize: 11 }}>
-                Cancel
-              </button>
-              <button onClick={() => { confirmAll === "positions" ? flattenAll() : cancelAllOrders(); }}
-                style={{ flex: 1, padding: "12px", borderRadius:8, cursor: "pointer", background: confirmAll === "positions" ? `${W.red}22` : `${W.amber}22`, border: `1px solid ${confirmAll === "positions" ? W.red : W.amber}`, color: confirmAll === "positions" ? W.red : W.amber, fontFamily: "'Space Mono',monospace", fontSize: 11, fontWeight: 700 }}>
-                {confirmAll === "positions" ? "Yes, close all" : "Yes, cancel all"}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
