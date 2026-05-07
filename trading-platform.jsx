@@ -8636,7 +8636,25 @@ export default function TradingPlatform({ session }) {
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Connected Accounts</div>
                 <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Accounts</div>
               </div>
-              <div style={{display:"flex",gap:8}}>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {(tvAccounts||[]).length > 0 && (
+                  <button onClick={async () => {
+                    if (!confirm("Reconnect to Tradovate?\n\nThis will refresh your authentication. Use this if your sync stopped working or you got a 'token expired' message. Your account links will be preserved.")) return;
+                    try {
+                      const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
+                      const { data: { session } } = await supabase.auth.getSession();
+                      const res = await fetch(`${API}/tradovate/connect`, {
+                        headers: { Authorization: `Bearer ${session?.access_token}` }
+                      });
+                      const { url, error } = await res.json();
+                      if (error) { alert(error); return; }
+                      window.location.href = url;
+                    } catch(e) { alert("Could not start reconnect: " + e.message); }
+                  }}
+                    style={{background:`${C.amber}22`,border:`1px solid ${C.amber}66`,borderRadius:8,padding:"8px 16px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.amber,fontWeight:700,display:"inline-flex",alignItems:"center",gap:6}}>
+                    <RefreshCw size={13}/> Reconnect
+                  </button>
+                )}
                 <button onClick={async () => {
                   try {
                     const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
@@ -8652,7 +8670,6 @@ export default function TradingPlatform({ session }) {
                   style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"8px 18px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.accent,fontWeight:700}}>
                   + Connect to Tradovate
                 </button>
-
               </div>
             </div>
 
