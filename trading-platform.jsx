@@ -6,6 +6,17 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer,
   ReferenceLine, CartesianGrid, Cell
 } from "recharts";
+import {
+  Check, X, AlertTriangle, Zap, BarChart3, Copy, Star, Pencil,
+  CheckCircle, Link as LinkIcon, Circle, Radio, Target, Settings,
+  Lock, TrendingUp, ArrowUp, ArrowDown, Bell, Brain, Ban,
+  Plus, Camera, Lightbulb, Building2, Trophy, FlaskConical,
+  Eye, EyeOff, Trash2, Search, Filter, Download, Upload,
+  ChevronDown, ChevronRight, ChevronLeft, ChevronUp,
+  Calendar, Clock, DollarSign, Percent, Hash, Mail, Send,
+  RefreshCw, Power, AlertCircle, Info, GraduationCap,
+  Share2, Megaphone, Shield, Activity, FileText
+} from "lucide-react";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const DARK = {
@@ -563,7 +574,7 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false, C: the
       width: mobileMode ? "100%" : (expanded ? 340 : 200),
       background: W.surface,
       border: `2px solid ${demoMode ? W.purple+"66" : hasPositions ? W.red+"66" : W.border}`,
-      borderRadius: 14,
+      borderRadius:14,
       boxShadow: hasPositions ? `0 0 30px ${W.red}22` : "0 8px 32px #00000099",
       transition: "width 0.2s",
       overflow: "hidden",
@@ -615,13 +626,13 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false, C: the
         <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
 
           {demoMode && (
-            <div style={{ background: `${W.purple}15`, border: `1px solid ${W.purple}44`, borderRadius: 6, padding: "6px 10px", fontSize: 10, color: W.purple, fontFamily: "'Space Mono',monospace", textAlign: "center" }}>
+            <div style={{ background: `${W.purple}15`, border: `1px solid ${W.purple}44`, borderRadius:6, padding: "6px 10px", fontSize: 10, color: W.purple, fontFamily: "'Space Mono',monospace", textAlign: "center" }}>
               🎭 DEMO MODE — no real orders sent
             </div>
           )}
 
           {error && (
-            <div style={{ background: `${W.red}15`, border: `1px solid ${W.red}44`, borderRadius: 6, padding: "6px 10px", fontSize: 11, color: W.red }}>
+            <div style={{ background: `${W.red}15`, border: `1px solid ${W.red}44`, borderRadius:6, padding: "6px 10px", fontSize: 11, color: W.red }}>
               ⚠ {error}
             </div>
           )}
@@ -632,7 +643,7 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false, C: the
                 {positions.map(p => (
                   <div key={p.id} onClick={() => toggleSelect(p.id)} style={{
                     display: "flex", alignItems: "center", gap: 8,
-                    padding: "7px 10px", borderRadius: 8, cursor: "pointer",
+                    padding: "7px 10px", borderRadius:8, cursor: "pointer",
                     background: selected[p.id] ? `${W.red}18` : W.card,
                     border: `1px solid ${selected[p.id] ? W.red+"55" : W.border}`,
                     transition: "all 0.12s",
@@ -643,7 +654,7 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false, C: the
                       background: selected[p.id] ? `${W.red}33` : "transparent",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
-                      {selected[p.id] && <span style={{ color: W.red, fontSize: 9 }}>✓</span>}
+                      {selected[p.id] && <span style={{ color: W.red, fontSize: 9 }}><Check size={14}/></span>}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -672,7 +683,7 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false, C: the
               <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 2 }}>
                 {selectedIds.length > 0 && (
                   <button onClick={flattenSelected} disabled={flattening || cancellingOrders} style={{
-                    width: "100%", padding: "8px", borderRadius: 8, cursor: "pointer",
+                    width: "100%", padding: "8px", borderRadius:8, cursor: "pointer",
                     background: `${W.amber}22`, border: `1px solid ${W.amber}66`,
                     color: W.amber, fontFamily: "'Space Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
                   }}>
@@ -680,14 +691,14 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false, C: the
                   </button>
                 )}
                 <button onClick={() => setConfirmAll("positions")} disabled={flattening || cancellingOrders} style={{
-                  width: "100%", padding: "9px", borderRadius: 8, cursor: "pointer",
+                  width: "100%", padding: "9px", borderRadius:8, cursor: "pointer",
                   background: `${W.red}22`, border: `1px solid ${W.red}66`,
                   color: W.red, fontFamily: "'Space Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
                 }}>
-                  {flattening ? "Closing positions..." : "🔴 Flatten ALL — Close all positions"}
+                  {flattening ? "Closing positions..." : "Flatten ALL — Close all positions"}
                 </button>
                 <button onClick={() => setConfirmAll("orders")} disabled={flattening || cancellingOrders} style={{
-                  width: "100%", padding: "9px", borderRadius: 8, cursor: "pointer",
+                  width: "100%", padding: "9px", borderRadius:8, cursor: "pointer",
                   background: `${W.amber}22`, border: `1px solid ${W.amber}66`,
                   color: W.amber, fontFamily: "'Space Mono',monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.05em",
                 }}>
@@ -705,7 +716,7 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false, C: the
 
       {confirmAll && (
         <div style={{ position: "fixed", inset: 0, background: "#00000088", zIndex: 20000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ background: W.surface, border: `1px solid ${confirmAll === "positions" ? W.red+"66" : W.amber+"66"}`, borderRadius: 16, padding: 32, maxWidth: 340, width: "90%", textAlign: "center" }}>
+          <div style={{ background: W.surface, border: `1px solid ${confirmAll === "positions" ? W.red+"66" : W.amber+"66"}`, borderRadius:14, padding: 32, maxWidth: 340, width: "90%", textAlign: "center" }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>{confirmAll === "positions" ? "🔴" : "⛔"}</div>
             <div style={{ fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 20, color: confirmAll === "positions" ? W.red : W.amber, marginBottom: 8 }}>
               {confirmAll === "positions" ? "Flatten ALL?" : "Cancel ALL Orders?"}
@@ -722,11 +733,11 @@ function FlattenWidget({ tvStatus, mobileMode = false, appIsDemo = false, C: the
               </div>
             )}
             <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-              <button onClick={() => setConfirmAll(false)} style={{ flex: 1, padding: "12px", borderRadius: 10, cursor: "pointer", background: "transparent", border: `1px solid ${W.border}`, color: W.muted, fontFamily: "'Space Mono',monospace", fontSize: 11 }}>
+              <button onClick={() => setConfirmAll(false)} style={{ flex: 1, padding: "12px", borderRadius:8, cursor: "pointer", background: "transparent", border: `1px solid ${W.border}`, color: W.muted, fontFamily: "'Space Mono',monospace", fontSize: 11 }}>
                 Cancel
               </button>
               <button onClick={() => { confirmAll === "positions" ? flattenAll() : cancelAllOrders(); }}
-                style={{ flex: 1, padding: "12px", borderRadius: 10, cursor: "pointer", background: confirmAll === "positions" ? `${W.red}22` : `${W.amber}22`, border: `1px solid ${confirmAll === "positions" ? W.red : W.amber}`, color: confirmAll === "positions" ? W.red : W.amber, fontFamily: "'Space Mono',monospace", fontSize: 11, fontWeight: 700 }}>
+                style={{ flex: 1, padding: "12px", borderRadius:8, cursor: "pointer", background: confirmAll === "positions" ? `${W.red}22` : `${W.amber}22`, border: `1px solid ${confirmAll === "positions" ? W.red : W.amber}`, color: confirmAll === "positions" ? W.red : W.amber, fontFamily: "'Space Mono',monospace", fontSize: 11, fontWeight: 700 }}>
                 {confirmAll === "positions" ? "Yes, close all" : "Yes, cancel all"}
               </button>
             </div>
@@ -941,7 +952,7 @@ function NewsTab({ econFilter, setEconFilter, C, newsBlocker, saveNewsBlocker, o
               </div>
               {/* Toggle */}
               <div onClick={()=>saveNewsBlocker({...newsBlocker,enabled:!newsBlocker.enabled})}
-                style={{width:48,height:26,borderRadius:13,background:newsBlocker.enabled?`${C.green}44`:C.surface,border:`1px solid ${newsBlocker.enabled?C.green:C.border}`,cursor:"pointer",position:"relative",transition:"all 0.2s",flexShrink:0}}>
+                style={{width:48,height:26,borderRadius:12,background:newsBlocker.enabled?`${C.green}44`:C.surface,border:`1px solid ${newsBlocker.enabled?C.green:C.border}`,cursor:"pointer",position:"relative",transition:"all 0.2s",flexShrink:0}}>
                 <div style={{position:"absolute",top:3,left:newsBlocker.enabled?24:3,width:18,height:18,borderRadius:"50%",background:newsBlocker.enabled?C.green:C.muted,transition:"left 0.2s",boxShadow:newsBlocker.enabled?`0 0 8px ${C.green}`:"none"}}/>
               </div>
             </div>
@@ -970,7 +981,7 @@ function NewsTab({ econFilter, setEconFilter, C, newsBlocker, saveNewsBlocker, o
                       <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                         {MINS.map(m=>(
                           <button key={m} onClick={()=>saveNewsBlocker({...newsBlocker,[key]:m})}
-                            style={{padding:"6px 12px",borderRadius:7,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:newsBlocker[key]===m?700:400,background:newsBlocker[key]===m?C.accentDim:C.surface,border:`1px solid ${newsBlocker[key]===m?C.accent+"66":C.border}`,color:newsBlocker[key]===m?C.accent:C.muted}}>
+                            style={{padding:"6px 12px",borderRadius:6,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:newsBlocker[key]===m?700:400,background:newsBlocker[key]===m?C.accentDim:C.surface,border:`1px solid ${newsBlocker[key]===m?C.accent+"66":C.border}`,color:newsBlocker[key]===m?C.accent:C.muted}}>
                             {m} min
                           </button>
                         ))}
@@ -980,16 +991,16 @@ function NewsTab({ econFilter, setEconFilter, C, newsBlocker, saveNewsBlocker, o
                 </div>
 
                 {/* Today's blocking windows */}
-                <div style={{background:C.surface,borderRadius:10,padding:"12px 16px"}}>
+                <div style={{background:C.surface,borderRadius:8,padding:"12px 16px"}}>
                   <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Today's Blocking Windows</div>
                   {blockingWindows.length === 0 ? (
                     <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.green,display:"flex",alignItems:"center",gap:7}}>
-                      <span>✓</span> No blocking events today
+                      <span><Check size={14}/></span> No blocking events today
                     </div>
                   ) : (
                     <div style={{display:"flex",flexDirection:"column",gap:6}}>
                       {blockingWindows.map((w,i)=>(
-                        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 12px",borderRadius:7,background:w.active?`${C.red}11`:C.card,border:`1px solid ${w.active?C.red+"44":C.border}`}}>
+                        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 12px",borderRadius:6,background:w.active?`${C.red}11`:C.card,border:`1px solid ${w.active?C.red+"44":C.border}`}}>
                           <div style={{width:8,height:8,borderRadius:"50%",background:w.active?C.red:C.muted,boxShadow:w.active?`0 0 6px ${C.red}`:"none",flexShrink:0,animation:w.active?"pulse 1.5s ease-in-out infinite":"none"}}/>
                           <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:w.active?C.red:C.accent,fontWeight:700}}>{w.startFmt} – {w.endFmt}</span>
                           <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,flex:1}}>{w.name}</span>
@@ -1017,7 +1028,7 @@ function NewsTab({ econFilter, setEconFilter, C, newsBlocker, saveNewsBlocker, o
 
       {!loading && !error && days.length === 0 && (
         <div style={{background:C.card,border:"1px solid #1e2d40",borderRadius:12,padding:40,textAlign:"center",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.muted}}>
-          <div style={{fontSize:32,marginBottom:10}}>📅</div>
+          <Calendar size={32} style={{opacity:0.5,marginBottom:10}}/>
           No upcoming events this week
         </div>
       )}
@@ -1234,7 +1245,7 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase, profile }) => {
   if (!canAccessMentor()) {
     return (
       <div style={{maxWidth:600,margin:"60px auto",padding:32,background:C.card,border:`1px solid ${C.border}`,borderRadius:14,textAlign:"center"}}>
-        <div style={{fontSize:48,marginBottom:14}}>👨‍🏫</div>
+        <GraduationCap size={48} style={{marginBottom:14,opacity:0.6}}/>
         <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,marginBottom:8}}>Mentor Add-on</div>
         <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:C.textDim,lineHeight:1.6,marginBottom:20}}>
           Manage student groups, view their daily P&L, and receive automated daily Discord reports for each student.
@@ -1325,21 +1336,21 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase, profile }) => {
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:14,color:C.text}}>{activeGroup.report_time} · {activeGroup.report_timezone}</div>
                   </div>
                   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                    <button onClick={()=>setEditingGroup({...activeGroup})} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 14px",cursor:"pointer",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10}}>⚙ Settings</button>
+                    <button onClick={()=>setEditingGroup({...activeGroup})} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 14px",cursor:"pointer",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10}}><Settings size={12} style={{display:"inline",verticalAlign:"middle",marginRight:4}}/>Settings</button>
                     <button onClick={()=>deleteGroup(activeGroup.id)} style={{background:`${C.red}22`,border:`1px solid ${C.red}66`,borderRadius:8,padding:"8px 14px",cursor:"pointer",color:C.red,fontFamily:"'Space Mono',monospace",fontSize:10}}>Delete</button>
                   </div>
                 </div>
                 
                 {/* Invite link — easiest way to share */}
-                <div style={{background:`${C.purple}08`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:14}}>
+                <div style={{background:`${C.purple}08`,border:`1px solid ${C.purple}33`,borderRadius:8,padding:14}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:8}}>
-                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.purple,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:700}}>📤 Share Invite Link</div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.purple,letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:700}}><Share2 size={12} style={{display:"inline",verticalAlign:"middle",marginRight:6}}/>Share Invite Link</div>
                     <div style={{display:"flex",gap:6}}>
                       <button onClick={()=>{
                         const url = `${window.location.origin}/?invite=${activeGroup.invite_code}`;
                         navigator.clipboard.writeText(url);
                         alert("Invite link copied!\n\nShare it with your student — they'll be prompted to join automatically when they open the link.");
-                      }} style={{background:C.purple,border:`1px solid ${C.purple}`,color:"#000",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>📋 Copy Link</button>
+                      }} style={{background:C.purple,border:`1px solid ${C.purple}`,color:"#000",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}><Copy size={12} style={{display:"inline",verticalAlign:"middle",marginRight:4}}/>Copy Link</button>
                       <button onClick={()=>{
                         navigator.clipboard.writeText(activeGroup.invite_code);
                         alert("Invite code copied!");
@@ -1376,7 +1387,7 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase, profile }) => {
                           </div>
                           <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.textDim,marginTop:3}}>
                             Joined {new Date(s.joined_at).toLocaleDateString()}
-                            {!s.webhook_set && <span style={{color:C.amber,marginLeft:8}}>⚠ no webhook</span>}
+                            {!s.webhook_set && <span style={{color:C.amber,marginLeft:8,display:"inline-flex",alignItems:"center",gap:3}}><AlertTriangle size={11}/>no webhook</span>}
                           </div>
                         </div>
                         <div style={{textAlign:"right",minWidth:100}}>
@@ -1389,16 +1400,16 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase, profile }) => {
                         </div>
                         <button onClick={()=>openStudentDetail(s)} 
                           style={{background:`${C.purple}22`,border:`1px solid ${C.purple}55`,borderRadius:6,padding:"6px 12px",cursor:"pointer",color:C.purple,fontFamily:"'Space Mono',monospace",fontSize:10,fontWeight:700}}>
-                          📊 View
+                          <BarChart3 size={12} style={{display:"inline",verticalAlign:"middle",marginRight:4}}/>View
                         </button>
                         <button onClick={()=>{
                           setEditingMember(s);
                           setMemberAlias(s.alias || "");
                           setMemberWebhook("");
                         }} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"6px 12px",cursor:"pointer",color:C.textDim,fontFamily:"'Space Mono',monospace",fontSize:10}}>
-                          ✏ Edit
+                          <Pencil size={12} style={{display:"inline",verticalAlign:"middle",marginRight:4}}/>Edit
                         </button>
-                        <button onClick={()=>removeMember(s.membership_id)} style={{background:"transparent",border:"none",cursor:"pointer",color:C.red,fontSize:14,opacity:0.6}}>✕</button>
+                        <button onClick={()=>removeMember(s.membership_id)} style={{background:"transparent",border:"none",cursor:"pointer",color:C.red,fontSize:14,opacity:0.6}}><X size={14}/></button>
                       </div>
                     ))}
                   </div>
@@ -1421,7 +1432,7 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase, profile }) => {
                         <input value={memberWebhook} onChange={e=>setMemberWebhook(e.target.value)} placeholder="https://discord.com/api/webhooks/..."
                           style={{width:"100%",marginTop:5,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
                         <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.textDim,marginTop:4}}>
-                          {editingMember.webhook_set ? "✓ webhook is set (leave blank to keep)" : "⚠ no webhook configured"}
+                          {editingMember.webhook_set ? "✓ webhook is set (leave blank to keep)" : "\u26A0 no webhook configured"}
                         </div>
                       </div>
                     </div>
@@ -1437,7 +1448,7 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase, profile }) => {
         </>
       ) : (
         <div style={{padding:60,textAlign:"center",background:C.card,border:`1px solid ${C.border}`,borderRadius:12}}>
-          <div style={{fontSize:36,marginBottom:10}}>👨‍🏫</div>
+          <GraduationCap size={36} style={{marginBottom:10,opacity:0.6}}/>
           <div style={{fontFamily:"'Syne',sans-serif",fontSize:18,fontWeight:700}}>No groups yet</div>
           <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginTop:6}}>Create your first group to start mentoring students</div>
         </div>
@@ -1511,21 +1522,21 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase, profile }) => {
               <div style={{padding:20,display:"flex",flexDirection:"column",gap:18}}>
                 {/* Top stats */}
                 <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
-                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:14}}>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>{detailPeriod}-DAY P&L</div>
                     <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,color:studentDetail.total_stats.pnl > 0 ? C.green : studentDetail.total_stats.pnl < 0 ? C.red : C.text,marginTop:4}}>
                       {studentDetail.total_stats.pnl > 0 ? "+" : ""}${studentDetail.total_stats.pnl.toLocaleString()}
                     </div>
                   </div>
-                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:14}}>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>TRADES</div>
                     <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,marginTop:4}}>{studentDetail.total_stats.trade_count}</div>
                   </div>
-                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:14}}>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>WIN RATE</div>
                     <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,marginTop:4}}>{studentDetail.total_stats.win_rate}%</div>
                   </div>
-                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:14}}>
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:14}}>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>ACCOUNTS</div>
                     <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,marginTop:4}}>{studentDetail.prop_accounts.length}</div>
                   </div>
@@ -1545,7 +1556,7 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase, profile }) => {
                 {/* Daily stats */}
                 <div>
                   <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Daily Performance (last {detailPeriod} days)</div>
-                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden"}}>
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden"}}>
                     {studentDetail.daily_stats.length === 0 ? (
                       <div style={{padding:30,textAlign:"center",color:C.muted,fontSize:12}}>No trades in this period</div>
                     ) : studentDetail.daily_stats.map((d, i) => (
@@ -1565,7 +1576,7 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase, profile }) => {
                 {/* Recent trades */}
                 <div>
                   <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Recent Trades ({studentDetail.recent_trades.length})</div>
-                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden",maxHeight:300,overflowY:"auto"}}>
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden",maxHeight:300,overflowY:"auto"}}>
                     {studentDetail.recent_trades.length === 0 ? (
                       <div style={{padding:30,textAlign:"center",color:C.muted,fontSize:12}}>No trades</div>
                     ) : (
@@ -1597,7 +1608,7 @@ const MentorTab = ({ C, canAccessMentor, setTab, supabase, profile }) => {
                 {studentDetail.custom_rules.filter(r => r.active !== false).length > 0 && (
                   <div>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:10}}>Active Rules ({studentDetail.custom_rules.filter(r => r.active !== false).length})</div>
-                    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:12,display:"flex",flexDirection:"column",gap:6}}>
+                    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,padding:12,display:"flex",flexDirection:"column",gap:6}}>
                       {studentDetail.custom_rules.filter(r => r.active !== false).map(r => (
                         <div key={r.id} style={{display:"flex",justifyContent:"space-between",fontSize:12,fontFamily:"'DM Sans',sans-serif"}}>
                           <span style={{color:C.text}}>{r.label}</span>
@@ -1772,12 +1783,12 @@ const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase,
         {plan!=="basic" && <button onClick={openPortal} style={{...btnS(C.muted),width:"auto",padding:"8px 16px"}}>Manage billing ↗</button>}
       </div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
-        {currentPlan.features.map(f=><span key={f} style={{background:`${currentPlan.color}18`,border:`1px solid ${currentPlan.color}33`,color:currentPlan.color,borderRadius:20,padding:"3px 12px",fontFamily:"'Space Mono',monospace",fontSize:10}}>✓ {f}</span>)}
+        {currentPlan.features.map(f=><span key={f} style={{background:`${currentPlan.color}18`,border:`1px solid ${currentPlan.color}33`,color:currentPlan.color,borderRadius:16,padding:"3px 12px",fontFamily:"'Space Mono',monospace",fontSize:10}}>✓ {f}</span>)}
       </div>
       {plan!=="pro" && (
         <div style={{display:"grid",gridTemplateColumns:plan==="basic"?"1fr 1fr":"1fr",gap:10,marginTop:4}}>
           {plan==="basic" && (
-            <div style={{background:C.surface,border:`1px solid ${C.accent}44`,borderRadius:10,padding:16}}>
+            <div style={{background:C.surface,border:`1px solid ${C.accent}44`,borderRadius:8,padding:16}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:4}}>
                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:C.accent}}>Advanced</div>
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:12,color:C.accent,fontWeight:700}}>$50/mo</div>
@@ -1786,7 +1797,7 @@ const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase,
               <button onClick={()=>startCheckout("advanced")} style={btnS(C.accent)}>Upgrade to Advanced →</button>
             </div>
           )}
-          <div style={{background:C.surface,border:`1px solid #a78bfa44`,borderRadius:10,padding:16}}>
+          <div style={{background:C.surface,border:`1px solid #a78bfa44`,borderRadius:8,padding:16}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:4}}>
               <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:"#a78bfa"}}>Pro</div>
               <div style={{fontFamily:"'Space Mono',monospace",fontSize:12,color:"#a78bfa",fontWeight:700}}>$90/mo</div>
@@ -1975,8 +1986,8 @@ const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase,
       
       {mentorMembership ? (
         <div>
-          <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:14,marginBottom:12}}>
-            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:C.purple}}>👨‍🏫 {mentorMembership.group_name}</div>
+          <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:8,padding:14,marginBottom:12}}>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:C.purple}}><GraduationCap size={16} style={{display:"inline",verticalAlign:"middle",marginRight:6}}/>{mentorMembership.group_name}</div>
             <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginTop:4}}>
               Your trading data is shared (read-only) with {mentorMembership.mentor_email}.
               {mentorMembership.student_discord_webhook ? " Daily reports are being sent to your Discord." : " Add a Discord webhook to receive daily reports."}
@@ -2006,7 +2017,7 @@ const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase,
       {!showDelete ? (
         <button onClick={()=>setShowDelete(true)} style={{...btnS(C.red),maxWidth:240}}>Delete Account</button>
       ) : (
-        <div style={{background:`${C.red}11`,border:`1px solid ${C.red}44`,borderRadius:10,padding:16}}>
+        <div style={{background:`${C.red}11`,border:`1px solid ${C.red}44`,borderRadius:8,padding:16}}>
           <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,color:C.red,marginBottom:8}}>Are you absolutely sure?</div>
           <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginBottom:16}}>This will permanently delete your account and all trade data. This cannot be undone.</div>
           <div style={{display:"flex",gap:8}}>
@@ -2024,7 +2035,7 @@ const UpgradeGate = ({ plan, feature, desc, C, onUpgrade }) => {
   const planColor = plan === "pro" ? "#a78bfa" : "#00e5ff";
   return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:420,gap:24,textAlign:"center",padding:40}}>
-      <div style={{fontSize:52}}>🔒</div>
+      <Lock size={52} style={{opacity:0.5}}/>
       <div>
         <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:26,marginBottom:8}}>{feature}</div>
         <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,color:C.textDim,maxWidth:420}}>{desc}</div>
@@ -2034,7 +2045,7 @@ const UpgradeGate = ({ plan, feature, desc, C, onUpgrade }) => {
         <span style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:planColor,textTransform:"capitalize"}}>{plan}</span>
       </div>
       <button onClick={onUpgrade}
-        style={{background:`linear-gradient(135deg,${planColor}33,${planColor}11)`,border:`1px solid ${planColor}55`,color:planColor,borderRadius:10,padding:"12px 28px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em"}}>
+        style={{background:`linear-gradient(135deg,${planColor}33,${planColor}11)`,border:`1px solid ${planColor}55`,color:planColor,borderRadius:8,padding:"12px 28px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em"}}>
         View Upgrade Options →
       </button>
     </div>
@@ -2057,8 +2068,8 @@ const tagColor = t => ({
 }[t]||C.muted);
 
 const TagBadge = ({label,onRemove}) => (
-  <span style={{display:"inline-flex",alignItems:"center",gap:4,background:`${tagColor(label)}22`,border:`1px solid ${tagColor(label)}66`,color:tagColor(label),borderRadius:20,padding:"2px 10px",fontSize:11,fontFamily:"'Space Mono',monospace",whiteSpace:"nowrap"}}>
-    {label}{onRemove&&<span onClick={onRemove} style={{cursor:"pointer",opacity:.7,fontSize:10}}>✕</span>}
+  <span style={{display:"inline-flex",alignItems:"center",gap:4,background:`${tagColor(label)}22`,border:`1px solid ${tagColor(label)}66`,color:tagColor(label),borderRadius:16,padding:"2px 10px",fontSize:11,fontFamily:"'Space Mono',monospace",whiteSpace:"nowrap"}}>
+    {label}{onRemove&&<span onClick={onRemove} style={{cursor:"pointer",opacity:.7,fontSize:10}}><X size={14}/></span>}
   </span>
 );
 
@@ -2326,7 +2337,7 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
             <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:mob?16:18,color:trade.pnl>=0?C.green:C.red}}>{trade.pnl>=0?"+":""}${trade.pnl}</span>
             {!mob&&<span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>{trade.entry} → {trade.exit} · {trade.holdMin}m · {tvDate}</span>}
           </div>
-          <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22}}>✕</button>
+          <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22}}><X size={14}/></button>
         </div>
 
         {/* Body — 3 cols desktop, 1 col mobile */}
@@ -2347,7 +2358,7 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
 
             {/* Replay/TradingView chart */}
             {chartTab==="replay" && (
-              <div style={{borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`,position:"relative",background:C.surface,height:mob?220:380}}>
+              <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${C.border}`,position:"relative",background:C.surface,height:mob?220:380}}>
 
                 {/* Loading state */}
                 {chartBars === null && (
@@ -2382,12 +2393,12 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
 
             {/* Screenshot */}
             {chartTab==="screenshot" && (
-              <div style={{borderRadius:10,overflow:"hidden",height:mob?220:380}}>
-                <div style={{border:`2px dashed ${drag?C.accent:C.border}`,borderRadius:10,height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",background:drag?C.accentDim:C.surface,position:"relative"}}
+              <div style={{borderRadius:8,overflow:"hidden",height:mob?220:380}}>
+                <div style={{border:`2px dashed ${drag?C.accent:C.border}`,borderRadius:8,height:"100%",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",background:drag?C.accentDim:C.surface,position:"relative"}}
                   onClick={()=>fileRef.current.click()} onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);handleFile(e.dataTransfer.files[0]);}}>
                   {screenshot
                     ? <><img src={screenshot} alt="trade" style={{width:"100%",height:"100%",objectFit:"cover"}}/><button onClick={e=>{e.stopPropagation();setScreenshot(null);}} style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,.6)",border:"none",color:"#fff",borderRadius:4,padding:"2px 8px",cursor:"pointer",fontSize:11}}>Remove</button></>
-                    : <><div style={{fontSize:28,marginBottom:6}}>📷</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,textAlign:"center"}}>Tap to upload</div></>
+                    : <><Camera size={28} style={{marginBottom:6,opacity:0.5}}/><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,textAlign:"center"}}>Tap to upload</div></>
                   }
                 </div>
                 <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
@@ -2397,7 +2408,7 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
             {/* Trade stats row */}
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
               {[["Entry",trade.entry||"—"],["Exit",trade.exit||"—"],["R:R",`${trade.rr}R`],["Hold",`${trade.holdMin}m`]].map(([l,v])=>(
-                <div key={l} style={{background:C.surface,borderRadius:7,padding:"7px 10px",border:`1px solid ${C.border}`}}>
+                <div key={l} style={{background:C.surface,borderRadius:6,padding:"7px 10px",border:`1px solid ${C.border}`}}>
                   <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,textTransform:"uppercase"}}>{l}</div>
                   <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:13,marginTop:2}}>{v}</div>
                 </div>
@@ -2412,8 +2423,8 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
             <div>
               <div style={{fontSize:10,fontFamily:"'Space Mono',monospace",color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:7}}>Setup Tags</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:6}}>{tags.map(t=><TagBadge key={t} label={t} onRemove={()=>setTags(tags.filter(x=>x!==t))}/>)}</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:6}}>{ALL_TAGS.filter(s=>!tags.includes(s)).slice(0,mob?4:8).map(s=><span key={s} onClick={()=>addTag(s)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.muted,borderRadius:20,padding:"2px 9px",fontSize:10,fontFamily:"'Space Mono',monospace",cursor:"pointer"}}>+ {s}</span>)}</div>
-              <div style={{display:"flex",gap:5}}><input value={tagInput} onChange={e=>setTagInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addTag(tagInput)} placeholder="Custom tag..." style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:7,padding:"6px 10px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:12,outline:"none"}}/><button onClick={()=>addTag(tagInput)} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,borderRadius:7,padding:"6px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10}}>Add</button></div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:6}}>{ALL_TAGS.filter(s=>!tags.includes(s)).slice(0,mob?4:8).map(s=><span key={s} onClick={()=>addTag(s)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.muted,borderRadius:16,padding:"2px 9px",fontSize:10,fontFamily:"'Space Mono',monospace",cursor:"pointer"}}>+ {s}</span>)}</div>
+              <div style={{display:"flex",gap:5}}><input value={tagInput} onChange={e=>setTagInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addTag(tagInput)} placeholder="Custom tag..." style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"6px 10px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:12,outline:"none"}}/><button onClick={()=>addTag(tagInput)} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,borderRadius:6,padding:"6px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10}}>Add</button></div>
             </div>
 
             {/* Rating */}
@@ -2434,9 +2445,9 @@ const TradeModal = ({trade,onClose,onSave,globalRules}) => {
               <div style={{height:3,background:C.border,borderRadius:4,marginBottom:8,overflow:"hidden"}}><div style={{height:"100%",borderRadius:4,width:`${total?((score/total)*100):0}%`,background:score===total?C.green:score>=total*.6?C.accent:C.red,transition:"width 0.3s"}}/></div>
               <div style={{display:"flex",flexDirection:"column",gap:6}}>
                 {globalRules.map((rule,i)=>(
-                  <label key={i} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",padding:"7px 9px",borderRadius:7,background:checks[rule]?`${C.green}0a`:C.surface,border:`1px solid ${checks[rule]?C.green+"33":C.border}`,transition:"all 0.12s"}}>
+                  <label key={i} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",padding:"7px 9px",borderRadius:6,background:checks[rule]?`${C.green}0a`:C.surface,border:`1px solid ${checks[rule]?C.green+"33":C.border}`,transition:"all 0.12s"}}>
                     <div onClick={()=>setChecks(c=>({...c,[rule]:!c[rule]}))} style={{width:17,height:17,borderRadius:4,flexShrink:0,border:`1.5px solid ${checks[rule]?C.green:C.border}`,background:checks[rule]?`${C.green}22`:"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
-                      {checks[rule]&&<span style={{color:C.green,fontSize:10}}>✓</span>}
+                      {checks[rule]&&<span style={{color:C.green,fontSize:10}}><Check size={14}/></span>}
                     </div>
                     <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:checks[rule]?C.text:C.textDim}}>{rule}</span>
                   </label>
@@ -2480,9 +2491,9 @@ const RuleManager = ({rules,onChange,onClose}) => {
   const [nr,setNr]=useState("");
   return (
     <div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,.75)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}} onClick={onClose}>
-      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:480,padding:28}} onClick={e=>e.stopPropagation()}>
-        <div style={{display:"flex",justifyContent:"space-between",marginBottom:20}}><div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20}}>My Trading Rules</div><button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:20}}>✕</button></div>
-        <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>{rules.map((r,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:10,background:C.surface,borderRadius:8,padding:"10px 14px",border:`1px solid ${C.border}`}}><span style={{flex:1,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>{r}</span><button onClick={()=>onChange(rules.filter((_,j)=>j!==i))} style={{background:"transparent",border:"none",color:C.red,cursor:"pointer",fontSize:14,opacity:.7}}>✕</button></div>)}</div>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,width:"100%",maxWidth:480,padding:28}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:20}}><div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20}}>My Trading Rules</div><button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:20}}><X size={14}/></button></div>
+        <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>{rules.map((r,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:10,background:C.surface,borderRadius:8,padding:"10px 14px",border:`1px solid ${C.border}`}}><span style={{flex:1,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>{r}</span><button onClick={()=>onChange(rules.filter((_,j)=>j!==i))} style={{background:"transparent",border:"none",color:C.red,cursor:"pointer",fontSize:14,opacity:.7}}><X size={14}/></button></div>)}</div>
         <div style={{display:"flex",gap:10}}><input value={nr} onChange={e=>setNr(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&nr.trim()){onChange([...rules,nr.trim()]);setNr("");}}} placeholder="Add a new rule..." style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 14px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"}}/><button onClick={()=>{if(nr.trim()){onChange([...rules,nr.trim()]);setNr("");}}} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,borderRadius:8,padding:"10px 18px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:12}}>Add</button></div>
       </div>
     </div>
@@ -2546,7 +2557,7 @@ Respond ONLY with this JSON (no markdown, no preamble):
           {loading?"Analysing...":"✦ Generate Analysis"}
         </button>
       </div>
-      {!feedback&&!loading&&<div style={{padding:40,textAlign:"center",color:C.muted,fontFamily:"'DM Sans',sans-serif",fontSize:14}}><div style={{fontSize:36,marginBottom:12}}>🧠</div>Click "Generate Analysis" to get AI-powered feedback on your trading patterns, best setups, worst habits, and prop firm risks.</div>}
+      {!feedback&&!loading&&<div style={{padding:40,textAlign:"center",color:C.muted,fontFamily:"'DM Sans',sans-serif",fontSize:14}}><Brain size={36} style={{opacity:0.5,marginBottom:12}}/>Click "Generate Analysis" to get AI-powered feedback on your trading patterns, best setups, worst habits, and prop firm risks.</div>}
       {loading&&<div style={{padding:40,textAlign:"center"}}><div style={{width:40,height:40,border:`3px solid ${C.border}`,borderTop:`3px solid ${C.purple}`,borderRadius:"50%",margin:"0 auto 16px",animation:"spin 1s linear infinite"}}/><div style={{fontFamily:"'Space Mono',monospace",fontSize:12,color:C.muted}}>Analysing your trades...</div><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></div>}
       {error&&<div style={{padding:20,color:C.red,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>{error}</div>}
       {feedback&&(
@@ -2558,26 +2569,26 @@ Respond ONLY with this JSON (no markdown, no preamble):
             <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}}>Overall Score /10</div><div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:17}}>{feedback.headline}</div></div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-            <div style={{background:C.surface,borderRadius:10,padding:16,border:`1px solid ${C.green}33`}}>
+            <div style={{background:C.surface,borderRadius:8,padding:16,border:`1px solid ${C.green}33`}}>
               <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.green,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:10}}>✓ Strengths</div>
               {feedback.strengths?.map((s,i)=><div key={i} style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.text,marginBottom:6,paddingLeft:10,borderLeft:`2px solid ${C.green}`}}>{s}</div>)}
             </div>
-            <div style={{background:C.surface,borderRadius:10,padding:16,border:`1px solid ${C.red}33`}}>
+            <div style={{background:C.surface,borderRadius:8,padding:16,border:`1px solid ${C.red}33`}}>
               <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:10}}>✗ Weaknesses</div>
               {feedback.weaknesses?.map((s,i)=><div key={i} style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.text,marginBottom:6,paddingLeft:10,borderLeft:`2px solid ${C.red}`}}>{s}</div>)}
             </div>
           </div>
-          <div style={{background:C.surface,borderRadius:10,padding:16,border:`1px solid ${C.accent}22`,marginBottom:16}}>
+          <div style={{background:C.surface,borderRadius:8,padding:16,border:`1px solid ${C.accent}22`,marginBottom:16}}>
             <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.accent,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:10}}>📊 Key Patterns</div>
             {feedback.patterns?.map((s,i)=><div key={i} style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.text,marginBottom:6,display:"flex",gap:8}}><span style={{color:C.accent,flexShrink:0}}>→</span>{s}</div>)}
           </div>
           {feedback.propFirmWarnings?.length>0&&(
-            <div style={{background:"#f59e0b11",borderRadius:10,padding:16,border:`1px solid ${C.amber}44`,marginBottom:16}}>
+            <div style={{background:"#f59e0b11",borderRadius:8,padding:16,border:`1px solid ${C.amber}44`,marginBottom:16}}>
               <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.amber,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:10}}>⚠ Prop Firm Risks</div>
               {feedback.propFirmWarnings.map((s,i)=><div key={i} style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.text,marginBottom:6,display:"flex",gap:8}}><span style={{color:C.amber,flexShrink:0}}>!</span>{s}</div>)}
             </div>
           )}
-          <div style={{background:`linear-gradient(135deg,${C.purple}22,${C.purple}08)`,borderRadius:10,padding:16,border:`1px solid ${C.purple}44`}}>
+          <div style={{background:`linear-gradient(135deg,${C.purple}22,${C.purple}08)`,borderRadius:8,padding:16,border:`1px solid ${C.purple}44`}}>
             <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.purple,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>🎯 Focus This Week</div>
             <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:C.text}}>{feedback.weekFocus}</div>
           </div>
@@ -2604,7 +2615,7 @@ const PropFirmWizardModal = ({
   const inputS  = {width:"100%",boxSizing:"border-box",background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"11px 14px",color:C.text,fontFamily:"'DM Sans',sans-serif",fontSize:13,outline:"none"};
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",backdropFilter:"blur(4px)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:560,overflow:"hidden"}}>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,width:"100%",maxWidth:560,overflow:"hidden"}}>
         {/* Header */}
         <div style={{padding:"18px 24px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
@@ -2615,7 +2626,7 @@ const PropFirmWizardModal = ({
               {editingPropAcc ? "Edit Account" : "Add Prop Account"}
             </div>
           </div>
-          <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22}}>✕</button>
+          <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22}}><X size={14}/></button>
         </div>
 
         {/* Step indicator */}
@@ -2633,7 +2644,7 @@ const PropFirmWizardModal = ({
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                 {DEFAULT_PROP_FIRMS.map(f=>(
                   <button key={f.id} onClick={()=>setWizardFirmId(f.id)}
-                    style={{padding:"14px 16px",borderRadius:10,cursor:"pointer",textAlign:"left",background:wizardFirmId===f.id?`${f.color}18`:C.surface,border:`2px solid ${wizardFirmId===f.id?f.color:C.border}`,transition:"all 0.15s",position:"relative",overflow:"hidden"}}>
+                    style={{padding:"14px 16px",borderRadius:8,cursor:"pointer",textAlign:"left",background:wizardFirmId===f.id?`${f.color}18`:C.surface,border:`2px solid ${wizardFirmId===f.id?f.color:C.border}`,transition:"all 0.15s",position:"relative",overflow:"hidden"}}>
                     {wizardFirmId===f.id&&<div style={{position:"absolute",top:0,left:0,right:0,height:2,background:f.color}}/>}
                     <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:wizardFirmId===f.id?f.color:C.text}}>{f.name}</div>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:3}}>{f.accountTypes.length} account type{f.accountTypes.length>1?"s":""}</div>
@@ -2641,7 +2652,7 @@ const PropFirmWizardModal = ({
                 ))}
               </div>
               <button onClick={()=>wizardFirmId&&setWizardStep(2)} disabled={!wizardFirmId}
-                style={{width:"100%",padding:"12px",borderRadius:10,cursor:wizardFirmId?"pointer":"not-allowed",background:wizardFirmId?C.accentDim:C.surface,border:`1px solid ${wizardFirmId?C.accent+"55":C.border}`,color:wizardFirmId?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:wizardFirmId?1:0.5}}>
+                style={{width:"100%",padding:"12px",borderRadius:8,cursor:wizardFirmId?"pointer":"not-allowed",background:wizardFirmId?C.accentDim:C.surface,border:`1px solid ${wizardFirmId?C.accent+"55":C.border}`,color:wizardFirmId?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:wizardFirmId?1:0.5}}>
                 Next →
               </button>
             </div>
@@ -2658,7 +2669,7 @@ const PropFirmWizardModal = ({
                   const isActive = wizardTypeId===t.id;
                   return (
                     <button key={t.id} onClick={()=>setWizardTypeId(t.id)}
-                      style={{padding:"14px 16px",borderRadius:10,cursor:"pointer",textAlign:"left",background:isActive?`${wizFirm.color}15`:C.surface,border:`2px solid ${isActive?wizFirm.color:C.border}`,transition:"all 0.15s"}}>
+                      style={{padding:"14px 16px",borderRadius:8,cursor:"pointer",textAlign:"left",background:isActive?`${wizFirm.color}15`:C.surface,border:`2px solid ${isActive?wizFirm.color:C.border}`,transition:"all 0.15s"}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                         <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:isActive?wizFirm.color:C.text}}>{t.label}</span>
                         <span style={{background:isActive?`${wizFirm.color}22`:C.surface,color:isActive?wizFirm.color:C.muted,border:`1px solid ${isActive?wizFirm.color+"44":C.border}`,borderRadius:4,padding:"2px 8px",fontFamily:"'Space Mono',monospace",fontSize:9}}>{t.badge}</span>
@@ -2676,9 +2687,9 @@ const PropFirmWizardModal = ({
                 })}
               </div>
               <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>{setWizardStep(1);setWizardTypeId(null);}} style={{flex:1,padding:"12px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
+                <button onClick={()=>{setWizardStep(1);setWizardTypeId(null);}} style={{flex:1,padding:"12px",borderRadius:8,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
                 <button onClick={()=>wizardTypeId&&setWizardStep(3)} disabled={!wizardTypeId}
-                  style={{flex:2,padding:"12px",borderRadius:10,cursor:wizardTypeId?"pointer":"not-allowed",background:wizardTypeId?C.accentDim:C.surface,border:`1px solid ${wizardTypeId?C.accent+"55":C.border}`,color:wizardTypeId?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:wizardTypeId?1:0.5}}>
+                  style={{flex:2,padding:"12px",borderRadius:8,cursor:wizardTypeId?"pointer":"not-allowed",background:wizardTypeId?C.accentDim:C.surface,border:`1px solid ${wizardTypeId?C.accent+"55":C.border}`,color:wizardTypeId?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:wizardTypeId?1:0.5}}>
                   Next →
                 </button>
               </div>
@@ -2688,7 +2699,7 @@ const PropFirmWizardModal = ({
           {/* Step 3 — Balance + nickname */}
           {wizardStep===3 && wizFirm && wizType && (
             <div style={{display:"flex",flexDirection:"column",gap:16}}>
-              <div style={{background:`${wizFirm.color}10`,border:`1px solid ${wizFirm.color}33`,borderRadius:10,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{background:`${wizFirm.color}10`,border:`1px solid ${wizFirm.color}33`,borderRadius:8,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div>
                   <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:wizFirm.color}}>{wizFirm.name}</div>
                   <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:2}}>{wizType.label} · {wizType.payoutSplit}% split</div>
@@ -2739,9 +2750,9 @@ const PropFirmWizardModal = ({
                 </div>
               )}
               <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>setWizardStep(2)} style={{flex:1,padding:"12px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
+                <button onClick={()=>setWizardStep(2)} style={{flex:1,padding:"12px",borderRadius:8,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
                 <button onClick={addPropAccount}
-                  style={{flex:2,padding:"12px",borderRadius:10,cursor:"pointer",background:C.accentDim,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
+                  style={{flex:2,padding:"12px",borderRadius:8,cursor:"pointer",background:C.accentDim,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
                   {editingPropAcc ? "Save Changes" : "✓ Add Account"}
                 </button>
               </div>
@@ -2923,7 +2934,7 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
             <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Manual Entry</div>
             <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginTop:2}}>+ New Trade</div>
           </div>
-          <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22,lineHeight:1}}>✕</button>
+          <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22,lineHeight:1}}><X size={14}/></button>
         </div>
 
         <div className="fv-modal-cols" style={{display:"grid",gridTemplateColumns:"1fr",flex:1}}>
@@ -3063,7 +3074,7 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
               <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}}>
                 {ADD_TAGS.map(t=>(
                   <button key={t} onClick={()=>toggleTag(t)}
-                    style={{borderRadius:20,padding:"3px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,background:form.tags.includes(t)?`${tagColor(t)}22`:C.surface,border:`1px solid ${form.tags.includes(t)?tagColor(t)+"66":C.border}`,color:form.tags.includes(t)?tagColor(t):C.muted}}>
+                    style={{borderRadius:16,padding:"3px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,background:form.tags.includes(t)?`${tagColor(t)}22`:C.surface,border:`1px solid ${form.tags.includes(t)?tagColor(t)+"66":C.border}`,color:form.tags.includes(t)?tagColor(t):C.muted}}>
                     {form.tags.includes(t)?"✓ ":""}{t}
                   </button>
                 ))}
@@ -3081,14 +3092,14 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
             {/* Screenshot */}
             <div>
               <label style={labelStyle}>Chart Screenshot</label>
-              <div style={{border:`2px dashed ${drag?C.accent:C.border}`,borderRadius:10,minHeight:180,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",background:drag?C.accentDim:C.surface,position:"relative",transition:"all 0.15s"}}
+              <div style={{border:`2px dashed ${drag?C.accent:C.border}`,borderRadius:8,minHeight:180,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",background:drag?C.accentDim:C.surface,position:"relative",transition:"all 0.15s"}}
                 onClick={()=>fileRef.current.click()}
                 onDragOver={e=>{e.preventDefault();setDrag(true);}}
                 onDragLeave={()=>setDrag(false)}
                 onDrop={e=>{e.preventDefault();setDrag(false);handleFile(e.dataTransfer.files[0]);}}>
                 {form.screenshot
                   ? <><img src={form.screenshot} alt="trade" style={{width:"100%",objectFit:"cover",borderRadius:8}}/><button onClick={e=>{e.stopPropagation();set("screenshot",null);}} style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,.6)",border:"none",color:"#fff",borderRadius:4,padding:"2px 8px",cursor:"pointer",fontSize:11}}>Remove</button></>
-                  : <><div style={{fontSize:32,marginBottom:8}}>📷</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,textAlign:"center"}}>Drag & drop or click to upload</div></>
+                  : <><Camera size={32} style={{marginBottom:8,opacity:0.5}}/><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,textAlign:"center"}}>Drag & drop or click to upload</div></>
                 }
               </div>
               <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>handleFile(e.target.files[0])}/>
@@ -3119,14 +3130,14 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
                   const checked = (form.checks||{})[rule];
                   return (
                     <label key={i} onClick={()=>set("checks",{...(form.checks||{}),[rule]:!checked})}
-                      style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"6px 10px",borderRadius:7,
+                      style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"6px 10px",borderRadius:6,
                         background:checked?`${C.green}0a`:C.surface,
                         border:`1px solid ${checked?C.green+"33":C.border}`,transition:"all 0.12s"}}>
                       <div style={{width:16,height:16,borderRadius:4,flexShrink:0,
                         border:`1.5px solid ${checked?C.green:C.border}`,
                         background:checked?`${C.green}22`:"transparent",
                         display:"flex",alignItems:"center",justifyContent:"center"}}>
-                        {checked&&<span style={{color:C.green,fontSize:10}}>✓</span>}
+                        {checked&&<span style={{color:C.green,fontSize:10}}><Check size={14}/></span>}
                       </div>
                       <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:checked?C.text:C.textDim}}>{rule}</span>
                     </label>
@@ -3143,7 +3154,7 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
 
             {/* News Blocker Warning */}
             {newsWarning && (
-              <div style={{background:`${C.red}11`,border:`2px solid ${C.red}44`,borderRadius:10,padding:"12px 14px",display:"flex",flexDirection:"column",gap:8}}>
+              <div style={{background:`${C.red}11`,border:`2px solid ${C.red}44`,borderRadius:8,padding:"12px 14px",display:"flex",flexDirection:"column",gap:8}}>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <span style={{fontSize:18}}>🚨</span>
                   <div>
@@ -3163,7 +3174,7 @@ const AddTradeModal = ({onClose, onSave, globalRules, C, newsBlocker, calendarEv
 
             {/* Save */}
             <button onClick={handleSave} disabled={!canSave || blockedByNews || saving}
-              style={{width:"100%",padding:"14px",borderRadius:10,cursor:canSave&&!blockedByNews&&!saving?"pointer":"not-allowed",background:canSave&&!blockedByNews?`linear-gradient(135deg,${C.accent}33,${C.accent}11)`:C.surface,border:`1px solid ${canSave&&!blockedByNews?C.accent+"55":C.border}`,color:canSave&&!blockedByNews?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:canSave&&!blockedByNews?1:0.5,transition:"all 0.15s"}}>
+              style={{width:"100%",padding:"14px",borderRadius:8,cursor:canSave&&!blockedByNews&&!saving?"pointer":"not-allowed",background:canSave&&!blockedByNews?`linear-gradient(135deg,${C.accent}33,${C.accent}11)`:C.surface,border:`1px solid ${canSave&&!blockedByNews?C.accent+"55":C.border}`,color:canSave&&!blockedByNews?C.accent:C.muted,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:canSave&&!blockedByNews?1:0.5,transition:"all 0.15s"}}>
               {saving ? "Saving..." : "+ SAVE TRADE"}
             </button>
             {saveErr && <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.red,textAlign:"center",marginTop:4}}>{saveErr}</div>}
@@ -3261,7 +3272,7 @@ const CSVImportModal = ({onClose, onImport, C}) => {
 
   return (
     <div style={{position:"fixed",inset:0,zIndex:1100,background:"rgba(0,0,0,0.8)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:720,maxHeight:"90vh",overflow:"hidden",display:"flex",flexDirection:"column"}}>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,width:"100%",maxWidth:720,maxHeight:"90vh",overflow:"hidden",display:"flex",flexDirection:"column"}}>
 
         {/* Header */}
         <div style={{padding:"18px 24px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
@@ -3269,7 +3280,7 @@ const CSVImportModal = ({onClose, onImport, C}) => {
             <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Step {step} of 3 — {step===1?"Upload File":step===2?"Map Columns":"Preview & Import"}</div>
             <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginTop:2}}>⬆ Import CSV</div>
           </div>
-          <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22}}>✕</button>
+          <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22}}><X size={14}/></button>
         </div>
 
         <div style={{padding:24,overflowY:"auto",flex:1}}>
@@ -3287,14 +3298,14 @@ const CSVImportModal = ({onClose, onImport, C}) => {
                 onMouseEnter={e=>e.currentTarget.style.borderColor=C.accent}
                 onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}
               >
-                <div style={{fontSize:40,marginBottom:12}}>📄</div>
+                <FileText size={40} style={{opacity:0.5,marginBottom:12}}/>
                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,marginBottom:6}}>Click to upload CSV</div>
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>or drag and drop</div>
               </div>
               <input ref={fileRef} type="file" accept=".csv,.txt" style={{display:"none"}}
                 onChange={e=>handleFile(e.target.files[0])}/>
               {error && <div style={{background:`${C.red}15`,border:`1px solid ${C.red}33`,borderRadius:8,padding:"10px 14px",color:C.red,fontFamily:"'Space Mono',monospace",fontSize:11}}>⚠ {error}</div>}
-              <div style={{background:C.surface,borderRadius:10,padding:14,fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,lineHeight:1.8}}>
+              <div style={{background:C.surface,borderRadius:8,padding:14,fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,lineHeight:1.8}}>
                 <div style={{color:C.text,marginBottom:6,fontWeight:700}}>TRADOVATE EXPORT:</div>
                 <div>Account → Trade History → Export → CSV</div>
                 <div style={{marginTop:8,color:C.text,fontWeight:700}}>COLUMNS DETECTED:</div>
@@ -3329,9 +3340,9 @@ const CSVImportModal = ({onClose, onImport, C}) => {
                 ))}
               </div>
               <div style={{display:"flex",gap:8,marginTop:8}}>
-                <button onClick={()=>setStep(1)} style={{flex:1,padding:"11px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
+                <button onClick={()=>setStep(1)} style={{flex:1,padding:"11px",borderRadius:8,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>← Back</button>
                 <button onClick={buildPreview} disabled={!mapping.symbol||!mapping.pnl}
-                  style={{flex:2,padding:"11px",borderRadius:10,cursor:"pointer",background:C.accentDim,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:!mapping.symbol||!mapping.pnl?0.5:1}}>
+                  style={{flex:2,padding:"11px",borderRadius:8,cursor:"pointer",background:C.accentDim,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:!mapping.symbol||!mapping.pnl?0.5:1}}>
                   Preview Import →
                 </button>
               </div>
@@ -3351,7 +3362,7 @@ const CSVImportModal = ({onClose, onImport, C}) => {
                   </span>
                 </div>
               </div>
-              <div style={{maxHeight:340,overflowY:"auto",border:`1px solid ${C.border}`,borderRadius:10,overflow:"hidden"}}>
+              <div style={{maxHeight:340,overflowY:"auto",border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden"}}>
                 <table style={{width:"100%",borderCollapse:"collapse"}}>
                   <thead><tr style={{background:C.surface}}>{["Date","Symbol","Side","P&L","Entry","Exit"].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",fontWeight:400}}>{h}</th>)}</tr></thead>
                   <tbody>{preview.slice(0,50).map((t,i)=>(
@@ -3379,13 +3390,13 @@ const CSVImportModal = ({onClose, onImport, C}) => {
                   </div>
                 )}
                 <div style={{display:"flex",gap:8}}>
-                  <button onClick={()=>setStep(2)} disabled={importing} style={{flex:1,padding:"11px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,opacity:importing?0.4:1}}>← Back</button>
+                  <button onClick={()=>setStep(2)} disabled={importing} style={{flex:1,padding:"11px",borderRadius:8,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11,opacity:importing?0.4:1}}>← Back</button>
                   <button onClick={async ()=>{
                     setImporting(true); setImportProgress(0);
                     try { await onImport(preview, setImportProgress); } catch(e) { console.error("Import error:",e); }
                     setImporting(false);
                   }} disabled={importing}
-                    style={{flex:2,padding:"11px",borderRadius:10,cursor:importing?"wait":"pointer",background:importing?C.surface:`linear-gradient(135deg,${C.green}33,${C.green}11)`,border:`1px solid ${C.green}55`,color:C.green,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:importing?0.6:1}}>
+                    style={{flex:2,padding:"11px",borderRadius:8,cursor:importing?"wait":"pointer",background:importing?C.surface:`linear-gradient(135deg,${C.green}33,${C.green}11)`,border:`1px solid ${C.green}55`,color:C.green,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:importing?0.6:1}}>
                     {importing ? "Saving..." : `✓ Import ${preview.length} Trades`}
                   </button>
                 </div>
@@ -3725,7 +3736,7 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
 
   return (
     <div style={{position:"fixed",inset:0,zIndex:1200,background:"rgba(0,0,0,0.8)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={onClose}>
-      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:700,maxHeight:"92vh",overflowY:"auto",display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,width:"100%",maxWidth:700,maxHeight:"92vh",overflowY:"auto",display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
 
         {/* Header */}
         <div style={{padding:"16px 24px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0,position:"sticky",top:0,background:C.card,zIndex:10}}>
@@ -3739,7 +3750,7 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
             <div style={{display:"flex",gap:6}}>
               {[1,2,3].map(s=><div key={s} style={{width:s===step?20:7,height:7,borderRadius:4,background:s===step?C.accent:s<step?`${C.accent}55`:C.border,transition:"all 0.3s"}}/>)}
             </div>
-            <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:20}}>✕</button>
+            <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:20}}><X size={14}/></button>
           </div>
         </div>
 
@@ -3750,8 +3761,8 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
               <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim}}>{selected.size} of {trades.length} trades selected</div>
               <div style={{display:"flex",gap:7}}>
-                <button onClick={()=>setSelected(new Set(trades.map(t=>t.id)))} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Select all</button>
-                <button onClick={()=>setSelected(new Set())} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Clear</button>
+                <button onClick={()=>setSelected(new Set(trades.map(t=>t.id)))} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Select all</button>
+                <button onClick={()=>setSelected(new Set())} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>Clear</button>
               </div>
             </div>
             <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden",marginBottom:16}}>
@@ -3760,12 +3771,12 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
                 : trades.map((t,i)=>(
                   <div key={t.id} onClick={()=>toggleTrade(t.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderBottom:i<trades.length-1?`1px solid ${C.border}`:"none",cursor:"pointer",background:selected.has(t.id)?`${C.accent}08`:"transparent",transition:"background 0.1s"}}>
                     <div style={{width:16,height:16,borderRadius:4,flexShrink:0,border:`1.5px solid ${selected.has(t.id)?C.accent:C.border}`,background:selected.has(t.id)?C.accentDim:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                      {selected.has(t.id)&&<span style={{color:C.accent,fontSize:10}}>✓</span>}
+                      {selected.has(t.id)&&<span style={{color:C.accent,fontSize:10}}><Check size={14}/></span>}
                     </div>
                     <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,minWidth:36,color:C.text}}>{t.symbol}</span>
                     <span style={{background:t.side==="Long"?`${C.green}18`:`${C.red}18`,color:t.side==="Long"?C.green:C.red,borderRadius:4,padding:"2px 7px",fontFamily:"'Space Mono',monospace",fontSize:10}}>{t.side}</span>
                     <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted}}>{t.trade_date||""}</span>
-                    <div style={{display:"flex",gap:4,flex:1}}>{(t.tags||[]).slice(0,2).map(tag=><span key={tag} style={{background:`${tagColor(tag)}18`,color:tagColor(tag),border:`1px solid ${tagColor(tag)}44`,borderRadius:20,padding:"1px 8px",fontSize:10,fontFamily:"'Space Mono',monospace"}}>{tag}</span>)}</div>
+                    <div style={{display:"flex",gap:4,flex:1}}>{(t.tags||[]).slice(0,2).map(tag=><span key={tag} style={{background:`${tagColor(tag)}18`,color:tagColor(tag),border:`1px solid ${tagColor(tag)}44`,borderRadius:16,padding:"1px 8px",fontSize:10,fontFamily:"'Space Mono',monospace"}}>{tag}</span>)}</div>
                     {t.rating>0&&<span style={{color:C.amber,fontSize:11}}>{"★".repeat(t.rating)}</span>}
                     <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:t.pnl>=0?C.green:C.red,marginLeft:"auto",minWidth:64,textAlign:"right"}}>{t.pnl>=0?"+":""}${t.pnl}</span>
                   </div>
@@ -3787,7 +3798,7 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
                 {id:"full",    title:"Full report",  desc:"Stats, each trade with tags, rating, reviews and screenshots"},
                 {id:"summary", title:"Summary only", desc:"Aggregated stats + trade table — ideal for AI analysis"},
               ].map(opt=>(
-                <div key={opt.id} onClick={()=>setFormat(opt.id)} style={{border:`${format===opt.id?"2px":"1px"} solid ${format===opt.id?C.accent+"55":C.border}`,borderRadius:10,padding:"14px",cursor:"pointer",background:format===opt.id?C.accentDim:"transparent",transition:"all 0.15s"}}>
+                <div key={opt.id} onClick={()=>setFormat(opt.id)} style={{border:`${format===opt.id?"2px":"1px"} solid ${format===opt.id?C.accent+"55":C.border}`,borderRadius:8,padding:"14px",cursor:"pointer",background:format===opt.id?C.accentDim:"transparent",transition:"all 0.15s"}}>
                   <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,marginBottom:4,color:C.text}}>{opt.title}</div>
                   <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim}}>{opt.desc}</div>
                 </div>
@@ -3805,7 +3816,7 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
               ].map((s,i,arr)=>(
                 <div key={s.key} onClick={()=>setSections(x=>({...x,[s.key]:!x[s.key]}))} style={{display:"flex",alignItems:"center",gap:12,padding:"9px 0",borderBottom:i<arr.length-1?`1px solid ${C.border}`:"none",cursor:"pointer"}}>
                   <div style={{width:18,height:18,borderRadius:4,flexShrink:0,border:`1.5px solid ${sections[s.key]?C.green:C.border}`,background:sections[s.key]?`${C.green}22`:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                    {sections[s.key]&&<span style={{color:C.green,fontSize:11}}>✓</span>}
+                    {sections[s.key]&&<span style={{color:C.green,fontSize:11}}><Check size={14}/></span>}
                   </div>
                   <div style={{flex:1}}>
                     <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.text}}>{s.label}</div>
@@ -3870,7 +3881,7 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
             </div>
             <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:18}}>
               {Object.entries(sections).filter(([,v])=>v).map(([k])=>(
-                <span key={k} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,borderRadius:20,padding:"3px 10px",fontFamily:"'Space Mono',monospace",fontSize:10}}>
+                <span key={k} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,borderRadius:16,padding:"3px 10px",fontFamily:"'Space Mono',monospace",fontSize:10}}>
                   {SECTION_LABELS[k]}
                 </span>
               ))}
@@ -3906,10 +3917,10 @@ const EdgeModal = ({onClose, onSave, existing, C}) => {
 
   return (
     <div style={{position:"fixed",inset:0,zIndex:1200,background:"rgba(0,0,0,0.8)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:520,maxHeight:"90vh",overflow:"hidden",display:"flex",flexDirection:"column"}}>
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,width:"100%",maxWidth:520,maxHeight:"90vh",overflow:"hidden",display:"flex",flexDirection:"column"}}>
         <div style={{padding:"18px 24px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
           <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20}}>{existing?"Edit Edge":"New Edge"}</div>
-          <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22}}>✕</button>
+          <button onClick={onClose} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:22}}><X size={14}/></button>
         </div>
         <div style={{padding:24,overflowY:"auto",display:"flex",flexDirection:"column",gap:16}}>
 
@@ -3938,8 +3949,8 @@ const EdgeModal = ({onClose, onSave, existing, C}) => {
           <div>
             <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:6}}>Trade Tags (auto-link trades with these tags)</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}}>
-              {form.tags.map(t=><span key={t} style={{background:`${form.color}22`,border:`1px solid ${form.color}44`,color:form.color,borderRadius:20,padding:"2px 10px",fontFamily:"'Space Mono',monospace",fontSize:10,display:"flex",alignItems:"center",gap:4}}>
-                {t}<span onClick={()=>set("tags",form.tags.filter(x=>x!==t))} style={{cursor:"pointer",opacity:.7,fontSize:10}}>✕</span>
+              {form.tags.map(t=><span key={t} style={{background:`${form.color}22`,border:`1px solid ${form.color}44`,color:form.color,borderRadius:16,padding:"2px 10px",fontFamily:"'Space Mono',monospace",fontSize:10,display:"flex",alignItems:"center",gap:4}}>
+                {t}<span onClick={()=>set("tags",form.tags.filter(x=>x!==t))} style={{cursor:"pointer",opacity:.7,fontSize:10}}><X size={14}/></span>
               </span>)}
             </div>
             <div style={{display:"flex",gap:6}}>
@@ -3956,7 +3967,7 @@ const EdgeModal = ({onClose, onSave, existing, C}) => {
                 <div key={i} style={{display:"flex",gap:7,alignItems:"center"}}>
                   <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:form.color,flexShrink:0}}>{i+1}.</span>
                   <input value={r} onChange={e=>setRule(i,e.target.value)} placeholder={`Rule ${i+1}...`} style={{...inputS,flex:1}}/>
-                  {form.rules.length>1 && <button onClick={()=>removeRule(i)} style={{background:"transparent",border:"none",color:C.red,cursor:"pointer",fontSize:14,opacity:.6,flexShrink:0}}>✕</button>}
+                  {form.rules.length>1 && <button onClick={()=>removeRule(i)} style={{background:"transparent",border:"none",color:C.red,cursor:"pointer",fontSize:14,opacity:.6,flexShrink:0}}><X size={14}/></button>}
                 </div>
               ))}
               <button onClick={addRule} style={{background:"transparent",border:`1px dashed ${C.border}`,borderRadius:8,padding:"8px",cursor:"pointer",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>+ Add Rule</button>
@@ -3964,7 +3975,7 @@ const EdgeModal = ({onClose, onSave, existing, C}) => {
           </div>
 
           <button onClick={()=>form.name.trim()&&onSave(form)} disabled={!form.name.trim()}
-            style={{width:"100%",padding:"13px",borderRadius:10,cursor:form.name.trim()?"pointer":"not-allowed",background:`${form.color}22`,border:`1px solid ${form.color}55`,color:form.color,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:form.name.trim()?1:0.5}}>
+            style={{width:"100%",padding:"13px",borderRadius:8,cursor:form.name.trim()?"pointer":"not-allowed",background:`${form.color}22`,border:`1px solid ${form.color}55`,color:form.color,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",opacity:form.name.trim()?1:0.5}}>
             {existing?"Save Changes":"✓ Create Edge"}
           </button>
         </div>
@@ -4201,7 +4212,7 @@ const CreateCopierGroupPanel = ({ tvAccounts, onCreate, C }) => {
 
   if (!open) return (
     <button onClick={()=>setOpen(true)}
-      style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:10,padding:"12px 20px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.accent,fontWeight:700,alignSelf:"flex-start"}}>
+      style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:8,padding:"12px 20px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,color:C.accent,fontWeight:700,alignSelf:"flex-start"}}>
       + New Copy Group
     </button>
   );
@@ -4213,7 +4224,7 @@ const CreateCopierGroupPanel = ({ tvAccounts, onCreate, C }) => {
     <div style={{background:C.card,border:`1px solid ${C.accent}44`,borderRadius:12,padding:mob?16:24,display:"flex",flexDirection:"column",gap:16}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:18}}>New Copy Group</div>
-        <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:18}}>✕</button>
+        <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:18}}><X size={14}/></button>
       </div>
       <div>
         <label style={labelS}>Group Name</label>
@@ -4273,7 +4284,7 @@ const CreateCopierGroupPanel = ({ tvAccounts, onCreate, C }) => {
         {sizeMode==="ratio" && <input type="number" min="0.1" step="0.1" value={ratio} onChange={e=>setRatio(parseFloat(e.target.value)||1)} style={{...inputS,marginTop:8,width:120}} placeholder="e.g. 0.5"/>}
       </div>
       <div style={{display:"flex",gap:10,flexDirection:mob?"column-reverse":"row"}}>
-        <button onClick={()=>setOpen(false)} style={{flex:1,padding:"12px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>Cancel</button>
+        <button onClick={()=>setOpen(false)} style={{flex:1,padding:"12px",borderRadius:8,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>Cancel</button>
         <button disabled={!masterId||!slaveIds.length||creating}
           onClick={async()=>{
             setCreating(true);
@@ -4282,7 +4293,7 @@ const CreateCopierGroupPanel = ({ tvAccounts, onCreate, C }) => {
             await onCreate(master,slaves,name,sizeMode,fixedQty,ratio,dryRun);
             setOpen(false);setMasterId("");setSlaveIds([]);setName("My Copy Group");setCreating(false);
           }}
-          style={{flex:2,padding:"12px",borderRadius:10,cursor:"pointer",background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:!masterId||!slaveIds.length?0.4:1}}>
+          style={{flex:2,padding:"12px",borderRadius:8,cursor:"pointer",background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:!masterId||!slaveIds.length?0.4:1}}>
           {creating?"Creating...":"Create Group →"}
         </button>
       </div>
@@ -4358,7 +4369,7 @@ const DrawdownWidget = ({ acct, ddRule, ddValue, ddFloor, ddRemaining, ddTypeLab
         <>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12}}>
             {/* Main — actual or calculated */}
-            <div style={{background:C.surface,borderRadius:10,padding:14,border:`1px solid ${mainColor}55`}}>
+            <div style={{background:C.surface,borderRadius:8,padding:14,border:`1px solid ${mainColor}55`}}>
               <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:mainColor,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6,fontWeight:700}}>
                 {useActual ? "✓ From Prop Firm" : "Calculated"}
               </div>
@@ -4375,7 +4386,7 @@ const DrawdownWidget = ({ acct, ddRule, ddValue, ddFloor, ddRemaining, ddTypeLab
 
             {/* Calculated reference (when actual exists) */}
             {useActual && (
-              <div style={{background:C.surface,borderRadius:10,padding:14,border:`1px solid ${C.border}`,opacity:0.7}}>
+              <div style={{background:C.surface,borderRadius:8,padding:14,border:`1px solid ${C.border}`,opacity:0.7}}>
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>Calculated</div>
                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:20,color:C.textDim}}>
                   ${Math.round(ddRemaining || 0).toLocaleString()}
@@ -4390,7 +4401,7 @@ const DrawdownWidget = ({ acct, ddRule, ddValue, ddFloor, ddRemaining, ddTypeLab
             )}
 
             {/* Floor */}
-            <div style={{background:C.surface,borderRadius:10,padding:14,border:`1px solid ${C.border}`}}>
+            <div style={{background:C.surface,borderRadius:8,padding:14,border:`1px solid ${C.border}`}}>
               <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>Floor</div>
               <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:20}}>
                 ${Math.round(useActual ? lastSnap.actual_floor || 0 : ddFloor).toLocaleString()}
@@ -4842,7 +4853,7 @@ const RuleEditor = ({ propAccountId, suggestedRules, customRules, onSaveRule, on
                     {rule.params?.floor_locks_at_profit > 0 && ` · locks at +$${rule.params.floor_locks_at_profit}`}
                   </div>
                 </div>
-                <button onClick={()=>startEdit(rule)} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}>✏ Edit</button>
+                <button onClick={()=>startEdit(rule)} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted}}><Pencil size={12} style={{display:"inline",verticalAlign:"middle",marginRight:4}}/>Edit</button>
                 <button 
                   onClick={()=>rule.isCustom ? onDeleteRule(propAccountId, rule.id) : hideSuggestedRule(rule)}
                   title={rule.isCustom ? "Delete custom rule" : "Hide this rule for this account"}
@@ -6617,7 +6628,7 @@ export default function TradingPlatform({ session }) {
           position:"fixed", bottom:32, left:28, zIndex:3000,
             width:300, background:C.card,
             border:`1px solid ${C.accent}55`,
-            borderRadius:16, overflow:"hidden",
+            borderRadius:14, overflow:"hidden",
             boxShadow:`0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px ${C.accent}22`,
             animation:"slideIn 0.25s ease",
           }}>
@@ -6633,7 +6644,7 @@ export default function TradingPlatform({ session }) {
                   Step {onboardStep+1} of {STEPS.length}
                 </div>
                 <button onClick={()=>{localStorage.setItem("fv_onboarded","1");setShowOnboarding(false);}}
-                  style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:16,lineHeight:1,padding:"0 2px"}}>✕</button>
+                  style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:16,lineHeight:1,padding:"0 2px"}}><X size={14}/></button>
               </div>
 
               {/* Icon + title */}
@@ -6675,16 +6686,16 @@ export default function TradingPlatform({ session }) {
       {showAlerts && (
         <div style={{position:"fixed",top:64,right:16,zIndex:2000,width:360,maxHeight:"80vh",display:"flex",flexDirection:"column",background:C.card,border:`1px solid ${C.border}`,borderRadius:14,boxShadow:"0 8px 32px rgba(0,0,0,0.4)",overflow:"hidden",animation:"slideIn 0.2s ease"}}>
           <div style={{padding:"14px 18px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
-            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>🔔 Alerts {unreadCount>0&&<span style={{background:C.red,color:"#fff",borderRadius:20,padding:"1px 7px",fontFamily:"'Space Mono',monospace",fontSize:10,marginLeft:6}}>{unreadCount}</span>}</div>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>🔔 Alerts {unreadCount>0&&<span style={{background:C.red,color:"#fff",borderRadius:16,padding:"1px 7px",fontFamily:"'Space Mono',monospace",fontSize:10,marginLeft:6}}>{unreadCount}</span>}</div>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
               {unreadCount>0&&<button onClick={markAllRead} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10}}>Mark all read</button>}
-              <button onClick={()=>setShowAlerts(false)} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:18}}>✕</button>
+              <button onClick={()=>setShowAlerts(false)} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:18}}><X size={14}/></button>
             </div>
           </div>
           <div style={{overflowY:"auto",flex:1}}>
             {alerts.length===0 ? (
               <div style={{padding:"40px 20px",textAlign:"center",color:C.muted,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
-                <div style={{fontSize:32,marginBottom:8}}>✅</div>
+                <CheckCircle size={32} style={{opacity:0.5,marginBottom:8}}/>
                 No alerts — everything looks good!
               </div>
             ) : (
@@ -6696,7 +6707,7 @@ export default function TradingPlatform({ session }) {
                     <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,lineHeight:1.5}}>{alert.body}</div>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,marginTop:6}}>{new Date(alert.ts).toLocaleString("en-US",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}</div>
                   </div>
-                  <button onClick={()=>dismissAlert(alert.id)} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:14,flexShrink:0,opacity:.6,padding:"2px 4px"}}>✕</button>
+                  <button onClick={()=>dismissAlert(alert.id)} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:14,flexShrink:0,opacity:.6,padding:"2px 4px"}}><X size={14}/></button>
                 </div>
               ))
             )}
@@ -6726,14 +6737,14 @@ export default function TradingPlatform({ session }) {
           style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
           <div onClick={e=>e.stopPropagation()}
             style={{background:C.card,border:`1px solid ${C.purple}55`,borderRadius:14,padding:28,maxWidth:460,width:"100%"}}>
-            <div style={{textAlign:"center",fontSize:42,marginBottom:14}}>👨‍🏫</div>
+            <div style={{textAlign:"center",marginBottom:14}}><GraduationCap size={42} style={{opacity:0.7}}/></div>
             <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,textAlign:"center",marginBottom:8}}>
               Mentor Invite
             </div>
             <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:C.textDim,textAlign:"center",lineHeight:1.55,marginBottom:18}}>
               You've been invited to join a mentor group with code:
             </div>
-            <div style={{textAlign:"center",fontFamily:"'Space Mono',monospace",fontSize:22,fontWeight:700,color:C.purple,letterSpacing:"0.15em",marginBottom:18,padding:"12px 16px",background:`${C.purple}11`,borderRadius:10,border:`1px solid ${C.purple}33`}}>
+            <div style={{textAlign:"center",fontFamily:"'Space Mono',monospace",fontSize:22,fontWeight:700,color:C.purple,letterSpacing:"0.15em",marginBottom:18,padding:"12px 16px",background:`${C.purple}11`,borderRadius:8,border:`1px solid ${C.purple}33`}}>
               {pendingInvite.code}
             </div>
             <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,lineHeight:1.6,marginBottom:14,padding:14,background:C.surface,borderRadius:8,border:`1px solid ${C.border}`}}>
@@ -6753,11 +6764,11 @@ export default function TradingPlatform({ session }) {
             </div>
             <div style={{display:"flex",gap:10}}>
               <button onClick={dismissInvite} disabled={acceptingInvite}
-                style={{flex:1,padding:"12px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:10,cursor:"pointer",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>
+                style={{flex:1,padding:"12px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,cursor:"pointer",color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>
                 Decline
               </button>
               <button onClick={acceptInvite} disabled={acceptingInvite}
-                style={{flex:2,padding:"12px",background:C.purple,border:`1px solid ${C.purple}`,borderRadius:10,cursor:acceptingInvite?"wait":"pointer",color:"#000",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>
+                style={{flex:2,padding:"12px",background:C.purple,border:`1px solid ${C.purple}`,borderRadius:8,cursor:acceptingInvite?"wait":"pointer",color:"#000",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,letterSpacing:"0.05em"}}>
                 {acceptingInvite ? "Joining..." : "Accept Invite"}
               </button>
             </div>
@@ -6931,14 +6942,14 @@ export default function TradingPlatform({ session }) {
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Equity Curve</div>
                 {LIVE_EQUITY.length ? (
                   <LWEquityChart data={LIVE_EQUITY} darkMode={darkMode} accentColor={C.accent}/>
-                ) : <div style={{height:180,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:C.muted,gap:8}}><div style={{fontSize:28}}>📈</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11}}>No trades yet</div></div>}
+                ) : <div style={{height:180,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:C.muted,gap:8}}><TrendingUp size={28} style={{opacity:0.5}}/><div style={{fontFamily:"'Space Mono',monospace",fontSize:11}}>No trades yet</div></div>}
               </div>
               {/* Daily P&L — Lightweight Charts */}
               <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
                 <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>Daily P&L</div>
                 {LIVE_PNL_DATA.length ? (
                   <LWPnlChart data={LIVE_PNL_DATA} darkMode={darkMode} green={C.green} red={C.red}/>
-                ) : <div style={{height:180,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:C.muted,gap:8}}><div style={{fontSize:28}}>📊</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11}}>No trades yet</div></div>}
+                ) : <div style={{height:180,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",color:C.muted,gap:8}}><BarChart3 size={28} style={{opacity:0.5}}/><div style={{fontFamily:"'Space Mono',monospace",fontSize:11}}>No trades yet</div></div>}
               </div>
             </div>
             <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
@@ -6981,7 +6992,7 @@ export default function TradingPlatform({ session }) {
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {tagStats.map(s=>(
                     isMobile ? (
-                      <div key={s.tag} style={{background:C.surface,borderRadius:10,padding:"12px 14px",border:`1px solid ${C.border}`}}>
+                      <div key={s.tag} style={{background:C.surface,borderRadius:8,padding:"12px 14px",border:`1px solid ${C.border}`}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                           <TagBadge label={s.tag}/>
                           <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:s.pnl>=0?C.green:C.red}}>{s.pnl>=0?"+":""}${s.pnl}</span>
@@ -6994,7 +7005,7 @@ export default function TradingPlatform({ session }) {
                         </div>
                       </div>
                     ) : (
-                      <div key={s.tag} style={{display:"grid",gridTemplateColumns:"150px 1fr 80px 80px 80px",alignItems:"center",gap:12,padding:"11px 16px",background:C.surface,borderRadius:10,border:`1px solid ${C.border}`}}>
+                      <div key={s.tag} style={{display:"grid",gridTemplateColumns:"150px 1fr 80px 80px 80px",alignItems:"center",gap:12,padding:"11px 16px",background:C.surface,borderRadius:8,border:`1px solid ${C.border}`}}>
                         <TagBadge label={s.tag}/>
                         <div style={{position:"relative",height:7,background:C.border,borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",width:`${s.winRate}%`,background:s.winRate>=60?C.green:s.winRate>=40?C.accent:C.red,borderRadius:4,transition:"width 0.5s"}}/></div>
                         <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.textDim,textAlign:"center"}}>{s.winRate}% WR</div>
@@ -7040,7 +7051,7 @@ export default function TradingPlatform({ session }) {
                     </BarChart>
                   </ResponsiveContainer>
                   <div style={{display:"flex",justifyContent:"center",gap:8,marginTop:10,flexWrap:"wrap"}}>
-                    {["London Kill Zone (08-10)","NY Kill Zone (14-16)"].map(z=><span key={z} style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.amber,background:"#f59e0b11",border:"1px solid #f59e0b33",borderRadius:20,padding:"3px 10px"}}>⚡ {z}</span>)}
+                    {["London Kill Zone (08-10)","NY Kill Zone (14-16)"].map(z=><span key={z} style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.amber,background:"#f59e0b11",border:"1px solid #f59e0b33",borderRadius:16,padding:"3px 10px"}}>⚡ {z}</span>)}
                   </div>
                 </div>
                 <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:20}}>
@@ -7328,7 +7339,7 @@ export default function TradingPlatform({ session }) {
             {/* ── Hidden Share Card — rendered off-screen by html2canvas ── */}
             <div id="fv-share-card" style={{
               display:"none", position:"fixed", left:-9999, top:-9999,
-              background:"#0d1420", borderRadius:16, padding:28, width:520,
+              background:"#0d1420", borderRadius:14, padding:28, width:520,
               fontFamily:"'Space Mono',monospace",
             }}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
@@ -7417,7 +7428,7 @@ export default function TradingPlatform({ session }) {
                   <button onClick={()=>setShowAddTrade(true)} style={{background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700}}>+ Add</button>
                   <button onClick={()=>setShowImportCSV(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⬆ CSV</button>
                   <button onClick={()=>canAccess("advanced")?setShowExport(true):setTab("myaccount")} style={{background:C.surface,border:`1px solid ${C.border}`,color:canAccess("advanced")?C.textDim:C.muted,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,opacity:canAccess("advanced")?1:0.5}}>⬇ PDF {!canAccess("advanced")&&"🔒"}</button>
-                  <button onClick={()=>setShowRules(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}>⚙</button>
+                  <button onClick={()=>setShowRules(true)} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.textDim,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11}}><Settings size={14}/></button>
                 </div>
               ) : (
                 <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
@@ -7446,7 +7457,7 @@ export default function TradingPlatform({ session }) {
                   <div style={{position:"relative"}} className="fv-filter-menu">
                     <button onClick={()=>setShowFilterMenu(m=>!m)}
                       style={{background:(tagFilter!=="All"||symbolFilter!=="All")?C.accentDim:C.surface,border:`1px solid ${(tagFilter!=="All"||symbolFilter!=="All")?C.accent+"55":C.border}`,color:(tagFilter!=="All"||symbolFilter!=="All")?C.accent:C.textDim,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:11,display:"flex",alignItems:"center",gap:6}}>
-                      ⚙ Filter {(tagFilter!=="All"||symbolFilter!=="All") && <span style={{background:C.accent,color:C.bg,borderRadius:10,padding:"1px 6px",fontSize:9,fontWeight:700}}>ON</span>}
+                      ⚙ Filter {(tagFilter!=="All"||symbolFilter!=="All") && <span style={{background:C.accent,color:C.bg,borderRadius:8,padding:"1px 6px",fontSize:9,fontWeight:700}}>ON</span>}
                     </button>
                     {showFilterMenu && (
                       <div onClick={e=>e.stopPropagation()} style={{position:"absolute",top:"calc(100% + 6px)",right:0,zIndex:500,background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:16,width:260,boxShadow:"0 8px 32px #00000066"}}>
@@ -7477,7 +7488,7 @@ export default function TradingPlatform({ session }) {
                         {/* Reset */}
                         {(tagFilter!=="All"||symbolFilter!=="All") && (
                           <button onClick={()=>{setTagFilter("All");setSymbolFilter("All");}}
-                            style={{width:"100%",padding:"7px",borderRadius:7,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:10}}>
+                            style={{width:"100%",padding:"7px",borderRadius:6,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:10}}>
                             ✕ Clear filters
                           </button>
                         )}
@@ -7493,14 +7504,14 @@ export default function TradingPlatform({ session }) {
             {isMobile && (
               <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4,WebkitOverflowScrolling:"touch"}}>
                 <button onClick={()=>{setTagFilter("All");setSymbolFilter("All");}}
-                  style={{flexShrink:0,background:(tagFilter==="All"&&symbolFilter==="All")?C.accentDim:C.surface,border:`1px solid ${(tagFilter==="All"&&symbolFilter==="All")?C.accent+"55":C.border}`,color:(tagFilter==="All"&&symbolFilter==="All")?C.accent:C.muted,borderRadius:20,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10}}>All</button>
+                  style={{flexShrink:0,background:(tagFilter==="All"&&symbolFilter==="All")?C.accentDim:C.surface,border:`1px solid ${(tagFilter==="All"&&symbolFilter==="All")?C.accent+"55":C.border}`,color:(tagFilter==="All"&&symbolFilter==="All")?C.accent:C.muted,borderRadius:16,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10}}>All</button>
                 {allSymbols.map(s=>(
                   <button key={s} onClick={()=>setSymbolFilter(symbolFilter===s?"All":s)}
-                    style={{flexShrink:0,background:symbolFilter===s?C.accentDim:C.surface,border:`1px solid ${symbolFilter===s?C.accent+"55":C.border}`,color:symbolFilter===s?C.accent:C.muted,borderRadius:20,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,whiteSpace:"nowrap"}}>{s}</button>
+                    style={{flexShrink:0,background:symbolFilter===s?C.accentDim:C.surface,border:`1px solid ${symbolFilter===s?C.accent+"55":C.border}`,color:symbolFilter===s?C.accent:C.muted,borderRadius:16,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,whiteSpace:"nowrap"}}>{s}</button>
                 ))}
                 {allFilterTags.map(f=>(
                   <button key={f} onClick={()=>setTagFilter(tagFilter===f?"All":f)}
-                    style={{flexShrink:0,background:tagFilter===f?`${tagColor(f)}22`:C.surface,border:`1px solid ${tagFilter===f?tagColor(f)+"66":C.border}`,color:tagFilter===f?tagColor(f):C.muted,borderRadius:20,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,whiteSpace:"nowrap"}}>{f}</button>
+                    style={{flexShrink:0,background:tagFilter===f?`${tagColor(f)}22`:C.surface,border:`1px solid ${tagFilter===f?tagColor(f)+"66":C.border}`,color:tagFilter===f?tagColor(f):C.muted,borderRadius:16,padding:"4px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,whiteSpace:"nowrap"}}>{f}</button>
                 ))}
               </div>
             )}
@@ -7513,7 +7524,7 @@ export default function TradingPlatform({ session }) {
                   {label:"Win Rate", value:`${Math.round(filteredTrades.filter(t=>t.pnl>0).length/filteredTrades.length*100)}%`, color:C.green},
                   {label:"Net P&L", value:`${filteredTrades.reduce((a,t)=>a+t.pnl,0)>=0?"+":""}$${Math.abs(filteredTrades.reduce((a,t)=>a+t.pnl,0)).toLocaleString()}`, color:filteredTrades.reduce((a,t)=>a+t.pnl,0)>=0?C.green:C.red},
                 ].map(s=>(
-                  <div key={s.label} style={{background:C.card,borderRadius:10,padding:"10px 12px",border:`1px solid ${C.border}`,textAlign:"center"}}>
+                  <div key={s.label} style={{background:C.card,borderRadius:8,padding:"10px 12px",border:`1px solid ${C.border}`,textAlign:"center"}}>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,textTransform:"uppercase",marginBottom:4}}>{s.label}</div>
                     <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,color:s.color}}>{s.value}</div>
                   </div>
@@ -7533,7 +7544,7 @@ export default function TradingPlatform({ session }) {
                     style={{background:C.card,border:`1px solid ${t.pnl>=0?C.green+"33":C.red+"33"}`,borderRadius:12,padding:"14px 16px",cursor:"pointer",position:"relative",overflow:"hidden"}}>
                     <button onClick={e=>{e.stopPropagation(); if(window.confirm(`Delete ${t.symbol} trade?`)) deleteTrade(t.id);}}
                       style={{position:"absolute",top:10,right:10,background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:14,opacity:0.5,padding:"2px 6px",zIndex:1}}
-                      title="Delete">✕</button>
+                      title="Delete"><X size={14}/></button>
                     <div style={{position:"absolute",left:0,top:0,bottom:0,width:3,background:t.pnl>=0?C.green:C.red,borderRadius:"12px 0 0 12px"}}/>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -7620,7 +7631,7 @@ export default function TradingPlatform({ session }) {
                         <td style={{padding:"11px 14px",fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:t.pnl>=0?C.green:C.red}}>{t.pnl>=0?"+":""}${t.pnl}</td>
                         <td style={{padding:"11px 14px"}}>{rs!==null?<span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:rs===rules.length?C.green:C.accent}}>{rs}/{rules.length} ✓</span>:<span style={{color:C.muted,fontSize:10}}>–</span>}</td>
                         <td style={{padding:"11px 14px"}}><button onClick={()=>setSelTrade(t)} style={{background:C.accentDim,border:`1px solid ${C.accent}33`,color:C.accent,borderRadius:6,padding:"4px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10}}>Review →</button></td>
-                        <td style={{padding:"11px 14px"}}><button onClick={()=>{ if(window.confirm(`Delete ${t.symbol} trade?`)) deleteTrade(t.id); }} style={{background:"transparent",border:`1px solid ${C.red}33`,color:C.red,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:12,opacity:0.6}} title="Delete trade">✕</button></td>
+                        <td style={{padding:"11px 14px"}}><button onClick={()=>{ if(window.confirm(`Delete ${t.symbol} trade?`)) deleteTrade(t.id); }} style={{background:"transparent",border:`1px solid ${C.red}33`,color:C.red,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:12,opacity:0.6}} title="Delete trade"><X size={14}/></button></td>
                       </tr>;
                     })}</tbody>
                   </table>
@@ -7675,14 +7686,14 @@ export default function TradingPlatform({ session }) {
             </div>
 
             {edges.length===0 && (
-              <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:16,padding:"60px 40px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
-                <div style={{fontSize:48}}>⚡</div>
+              <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:14,padding:"60px 40px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
+                <Zap size={48} style={{opacity:0.5}}/>
                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22}}>Define your trading edge</div>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:C.textDim,maxWidth:460,lineHeight:1.7}}>
                   Every profitable trader has a specific edge — a repeatable setup with clear rules. Create your first Edge and FundVault will automatically track its win rate, compliance, and performance over time.
                 </div>
                 <button onClick={()=>{setEditingEdge(null);setShowEdgeModal(true);}}
-                  style={{marginTop:8,padding:"14px 32px",borderRadius:10,cursor:"pointer",background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
+                  style={{marginTop:8,padding:"14px 32px",borderRadius:8,cursor:"pointer",background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
                   + Create First Edge
                 </button>
               </div>
@@ -7704,7 +7715,7 @@ export default function TradingPlatform({ session }) {
                           <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:14,color:isActive?e.color:C.text,paddingLeft:isActive?8:0}}>{e.name}</div>
                           <div style={{display:"flex",gap:4}}>
                             <button onClick={ev=>{ev.stopPropagation();setEditingEdge(e);setShowEdgeModal(true);}} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:12,padding:"2px 4px"}}>✏</button>
-                            <button onClick={ev=>{ev.stopPropagation();saveEdges(edges.filter(x=>x.id!==e.id));if(selectedEdge===e.id)setSelectedEdge(null);}} style={{background:"transparent",border:"none",color:C.red,cursor:"pointer",fontSize:12,padding:"2px 4px",opacity:.6}}>✕</button>
+                            <button onClick={ev=>{ev.stopPropagation();saveEdges(edges.filter(x=>x.id!==e.id));if(selectedEdge===e.id)setSelectedEdge(null);}} style={{background:"transparent",border:"none",color:C.red,cursor:"pointer",fontSize:12,padding:"2px 4px",opacity:.6}}><X size={14}/></button>
                           </div>
                         </div>
                         {s ? (
@@ -7718,7 +7729,7 @@ export default function TradingPlatform({ session }) {
                         )}
                         {e.tags.length>0 && (
                           <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:7}}>
-                            {e.tags.slice(0,3).map(t=><span key={t} style={{background:`${e.color}18`,border:`1px solid ${e.color}33`,color:e.color,borderRadius:20,padding:"1px 8px",fontFamily:"'Space Mono',monospace",fontSize:9}}>{t}</span>)}
+                            {e.tags.slice(0,3).map(t=><span key={t} style={{background:`${e.color}18`,border:`1px solid ${e.color}33`,color:e.color,borderRadius:16,padding:"1px 8px",fontFamily:"'Space Mono',monospace",fontSize:9}}>{t}</span>)}
                           </div>
                         )}
                       </div>
@@ -7760,7 +7771,7 @@ export default function TradingPlatform({ session }) {
                             {label:"Avg Win",     value:`+$${activeStats.avgWin}`, color:C.green},
                             {label:"Avg Loss",    value:`-$${activeStats.avgLoss}`, color:C.red},
                           ].map(({label,value,color})=>(
-                            <div key={label} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:"14px 16px",position:"relative",overflow:"hidden"}}>
+                            <div key={label} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"14px 16px",position:"relative",overflow:"hidden"}}>
                               <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:color}}/>
                               <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:6}}>{label}</div>
                               <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,color}}>{value}</div>
@@ -7940,7 +7951,7 @@ export default function TradingPlatform({ session }) {
                       <span style={{fontSize:14}}>{h.icon}</span>
                       <span style={{flex:1,fontFamily:"'DM Sans',sans-serif",fontSize:13,color:hChecks[h.id]?C.text:C.textDim}}>{h.label}</span>
                       <div style={{width:18,height:18,borderRadius:4,border:`1.5px solid ${hChecks[h.id]?C.green:C.border}`,background:hChecks[h.id]?`${C.green}22`:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                        {hChecks[h.id]&&<span style={{color:C.green,fontSize:11}}>✓</span>}
+                        {hChecks[h.id]&&<span style={{color:C.green,fontSize:11}}><Check size={14}/></span>}
                       </div>
                     </label>
                   ))}
@@ -7962,7 +7973,7 @@ export default function TradingPlatform({ session }) {
                         <div key={h.id} style={{display:"flex",alignItems:"center",gap:10,background:C.surface,borderRadius:8,padding:"7px 12px",border:`1px solid ${C.border}`}}>
                           <span style={{fontSize:14}}>{h.icon}</span>
                           <span style={{flex:1,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>{h.label}</span>
-                          <button onClick={()=>setHabits(hh=>hh.filter(x=>x.id!==h.id))} style={{background:"transparent",border:"none",color:C.red,cursor:"pointer",fontSize:13,opacity:.6}}>✕</button>
+                          <button onClick={()=>setHabits(hh=>hh.filter(x=>x.id!==h.id))} style={{background:"transparent",border:"none",color:C.red,cursor:"pointer",fontSize:13,opacity:.6}}><X size={14}/></button>
                         </div>
                       ))}
                     </div>
@@ -8081,7 +8092,7 @@ export default function TradingPlatform({ session }) {
 
           // ── Disclaimer banner ─────────────────────────────────────────────────
           const RuleDisclaimer = () => (
-            <div style={{background:`${C.amber}0d`,border:`1px solid ${C.amber}44`,borderRadius:10,padding:"12px 16px",display:"flex",gap:10,alignItems:"flex-start"}}>
+            <div style={{background:`${C.amber}0d`,border:`1px solid ${C.amber}44`,borderRadius:8,padding:"12px 16px",display:"flex",gap:10,alignItems:"flex-start"}}>
               <span style={{fontSize:16,flexShrink:0}}>⚠️</span>
               <div>
                 <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.amber,fontWeight:700}}>RULES VERIFIED MARCH 2026 — </span>
@@ -8117,19 +8128,19 @@ export default function TradingPlatform({ session }) {
             onClose={()=>{setShowPropWizard(false);setWizardStep(1);setWizardFirmId(null);setWizardTypeId(null);setWizardBalance("");setWizardNickname("");setWizardTvAccId("");setEditingPropAcc(null);}}
           />}
               <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.amber,letterSpacing:"0.1em",textTransform:"uppercase"}}>Live Tracking</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Prop Firm Tracker</div></div>
-              <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:16,padding:"60px 40px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
-                <div style={{fontSize:48}}>🏢</div>
+              <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:14,padding:"60px 40px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
+                <Building2 size={48} style={{opacity:0.5}}/>
                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22}}>No prop accounts yet</div>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:C.textDim,maxWidth:420,lineHeight:1.6}}>
                   Add your prop firm account to start tracking drawdown, payout progress, consistency rules, and more — specific to your firm's exact rules.
                 </div>
                 <button onClick={()=>setShowPropWizard(true)}
-                  style={{marginTop:8,padding:"14px 32px",borderRadius:10,cursor:"pointer",background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
+                  style={{marginTop:8,padding:"14px 32px",borderRadius:8,cursor:"pointer",background:`linear-gradient(135deg,${C.accent}33,${C.accent}11)`,border:`1px solid ${C.accent}55`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:12,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>
                   + Add My First Account
                 </button>
                 <div style={{display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",marginTop:4}}>
                   {DEFAULT_PROP_FIRMS.map(f=>(
-                    <span key={f.id} style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:f.color,background:`${f.color}18`,border:`1px solid ${f.color}33`,borderRadius:20,padding:"3px 12px"}}>{f.name}</span>
+                    <span key={f.id} style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:f.color,background:`${f.color}18`,border:`1px solid ${f.color}33`,borderRadius:16,padding:"3px 12px"}}>{f.name}</span>
                   ))}
                 </div>
               </div>
@@ -8301,7 +8312,7 @@ export default function TradingPlatform({ session }) {
               const sm = STATUS_META[curStatus];
               return (
                 <div style={{background:C.card,border:`2px solid ${sm.color}44`,borderRadius:12,padding:"16px 20px",display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
-                  <div style={{width:44,height:44,borderRadius:10,background:`${curFirm?.color||C.accent}18`,border:`1px solid ${curFirm?.color||C.accent}33`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:16,color:curFirm?.color||C.accent,flexShrink:0}}>
+                  <div style={{width:44,height:44,borderRadius:8,background:`${curFirm?.color||C.accent}18`,border:`1px solid ${curFirm?.color||C.accent}33`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:16,color:curFirm?.color||C.accent,flexShrink:0}}>
                     {curFirm?.name?.slice(0,2).toUpperCase()}
                   </div>
                   <div style={{flex:1,minWidth:160}}>
@@ -8320,7 +8331,7 @@ export default function TradingPlatform({ session }) {
                             if (confirm("Unlink this prop account from Tradovate? New trades won't auto-link to this account.")) {
                               await savePropAccountDB({...curAcc, tradovateAccountId: null, tradovateAccountSpec: null}, false);
                             }
-                          }} style={{background:"transparent",border:"none",cursor:"pointer",color:C.muted,fontSize:10,padding:"0 4px",marginLeft:2}} title="Unlink">✕</button>
+                          }} style={{background:"transparent",border:"none",cursor:"pointer",color:C.muted,fontSize:10,padding:"0 4px",marginLeft:2}} title="Unlink"><X size={14}/></button>
                         </span>
                       ) : tvAccounts.length > 0 && curStatus === "active" ? (
                         <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
@@ -8384,7 +8395,7 @@ export default function TradingPlatform({ session }) {
                       setWizardTvAccId(curAcc.tradovateAccountId || "");
                       setWizardStep(3);
                       setShowPropWizard(true);
-                    }} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}>✏ Edit</button>
+                    }} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted}}><Pencil size={12} style={{display:"inline",verticalAlign:"middle",marginRight:4}}/>Edit</button>
                     <button onClick={()=>deletePropAccountDB(curAcc.id)}
                       style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red}}>✕ Delete</button>
                   </div>
@@ -8440,8 +8451,8 @@ export default function TradingPlatform({ session }) {
                         onKeyDown={e=>{if(e.key==="Enter")saveStartBalance(activeFirm,editBalVal);if(e.key==="Escape")setEditingBalance(null);}}
                         style={{width:80,background:C.bg,border:`1px solid ${C.accent}44`,borderRadius:4,padding:"2px 6px",color:C.text,fontFamily:"'Space Mono',monospace",fontSize:10,outline:"none"}}
                         placeholder={String(curAcc?.startBalance||50000)}/>
-                      <button onClick={()=>saveStartBalance(activeFirm,editBalVal)} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:4,padding:"2px 8px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.accent}}>✓</button>
-                      <button onClick={()=>setEditingBalance(null)} style={{background:"transparent",border:"none",cursor:"pointer",color:C.muted,fontSize:12}}>✕</button>
+                      <button onClick={()=>saveStartBalance(activeFirm,editBalVal)} style={{background:C.accentDim,border:`1px solid ${C.accent}44`,borderRadius:4,padding:"2px 8px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:9,color:C.accent}}><Check size={14}/></button>
+                      <button onClick={()=>setEditingBalance(null)} style={{background:"transparent",border:"none",cursor:"pointer",color:C.muted,fontSize:12}}><X size={14}/></button>
                     </span>
                   : <span style={{cursor:"pointer",color:C.muted,fontSize:10,fontFamily:"'Space Mono',monospace"}} onClick={()=>{setEditingBalance(activeFirm);setEditBalVal(String(acct.startBalance));}}>
                       Start: ${acct.startBalance.toLocaleString()} ✏
@@ -8486,21 +8497,21 @@ export default function TradingPlatform({ session }) {
                   {canPayout&&<div style={{background:C.green+"22",border:`1px solid ${C.green}55`,borderRadius:8,padding:"8px 16px",fontFamily:"'Space Mono',monospace",fontSize:12,color:C.green,fontWeight:700}}>🎉 READY</div>}
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:20}}>
-                  <div style={{background:C.surface,borderRadius:10,padding:16,border:`1px solid ${cycPct>=1?C.green+"44":C.border}`}}>
+                  <div style={{background:C.surface,borderRadius:8,padding:16,border:`1px solid ${cycPct>=1?C.green+"44":C.border}`}}>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Cycle Profit</div>
                     <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:cycPct>=1?C.green:C.text}}>${(acct.cycleProfit||0).toLocaleString()}</div>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:2}}>target ${po.cycleTarget.toLocaleString()} · your cut ~${Math.round((acct.cycleProfit||0)*(curType?.payoutSplit||90)/100).toLocaleString()}</div>
                     <div style={{height:4,background:C.border,borderRadius:2,marginTop:10,overflow:"hidden"}}><div style={{height:"100%",width:`${cycPct*100}%`,background:cycPct>=1?C.green:curFirm?.color||C.accent,borderRadius:2,transition:"width 0.5s"}}/></div>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:cycPct>=1?C.green:C.textDim,marginTop:5}}>{Math.round(cycPct*100)}% of target</div>
                   </div>
-                  <div style={{background:C.surface,borderRadius:10,padding:16,border:`1px solid ${daysPct>=1?C.green+"44":C.border}`}}>
+                  <div style={{background:C.surface,borderRadius:8,padding:16,border:`1px solid ${daysPct>=1?C.green+"44":C.border}`}}>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Qualifying Days</div>
                     <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:daysPct>=1?C.green:C.text}}>{acct.cycleWinDays||0}<span style={{fontSize:14,color:C.muted,fontWeight:400}}> / {po.minDays}</span></div>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:2}}>{po.minProfit>0?`$${po.minProfit}+ profit each`:"profitable days"}</div>
                     <div style={{display:"flex",gap:4,marginTop:10}}>{Array.from({length:Math.max(po.minDays,1)},(_,i)=><div key={i} style={{flex:1,height:8,borderRadius:3,background:i<(acct.cycleWinDays||0)?C.green:C.border}}/>)}</div>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:daysPct>=1?C.green:C.textDim,marginTop:5}}>{po.minDays-(acct.cycleWinDays||0)>0?`${po.minDays-(acct.cycleWinDays||0)} more needed`:"✓ Met"}</div>
                   </div>
-                  <div style={{background:C.surface,borderRadius:10,padding:16,border:`1px solid ${noConsist?"#34d39933":consistOk?C.green+"44":C.red+"55"}`}}>
+                  <div style={{background:C.surface,borderRadius:8,padding:16,border:`1px solid ${noConsist?"#34d39933":consistOk?C.green+"44":C.red+"55"}`}}>
                     <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Consistency Rule</div>
                     {noConsist
                       ? <><div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:18,color:"#34d399"}}>No Rule ✓</div><div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginTop:4}}>No consistency restriction on this plan</div></>
@@ -8545,7 +8556,7 @@ export default function TradingPlatform({ session }) {
 
                   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:14}}>
                     {target > 0 && (
-                      <div style={{background:C.surface,borderRadius:10,padding:16,border:`1px solid ${progress>=1?C.green+"44":C.border}`}}>
+                      <div style={{background:C.surface,borderRadius:8,padding:16,border:`1px solid ${progress>=1?C.green+"44":C.border}`}}>
                         <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Profit Target</div>
                         <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:progress>=1?C.green:C.text}}>
                           ${Math.round(profit).toLocaleString()}<span style={{fontSize:14,color:C.muted,fontWeight:400}}> / ${target.toLocaleString()}</span>
@@ -8559,7 +8570,7 @@ export default function TradingPlatform({ session }) {
                       </div>
                     )}
 
-                    <div style={{background:C.surface,borderRadius:10,padding:16,border:`1px solid ${C.border}`}}>
+                    <div style={{background:C.surface,borderRadius:8,padding:16,border:`1px solid ${C.border}`}}>
                       <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Trading Days</div>
                       <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22}}>{acct.tradingDays||0}</div>
                       <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.muted,marginTop:5}}>
@@ -8567,7 +8578,7 @@ export default function TradingPlatform({ session }) {
                       </div>
                     </div>
 
-                    <div style={{background:C.surface,borderRadius:10,padding:16,border:`1px solid ${ddRemaining <= 0 ? C.red+"55" : C.border}`}}>
+                    <div style={{background:C.surface,borderRadius:8,padding:16,border:`1px solid ${ddRemaining <= 0 ? C.red+"55" : C.border}`}}>
                       <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.muted,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:8}}>Room Before Breach</div>
                       <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,color:ddRemaining <= 0 ? C.red : ddRemaining < ddValue*0.25 ? C.red : ddRemaining < ddValue*0.5 ? C.amber : C.green}}>
                         ${Math.round(ddRemaining).toLocaleString()}
@@ -8579,7 +8590,7 @@ export default function TradingPlatform({ session }) {
                   </div>
 
                   {progress >= 1 && (
-                    <div style={{marginTop:18,background:`${C.green}11`,border:`1px solid ${C.green}44`,borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
+                    <div style={{marginTop:18,background:`${C.green}11`,border:`1px solid ${C.green}44`,borderRadius:8,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
                       <span style={{fontSize:18}}>🎯</span>
                       <div style={{flex:1,fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.text}}>
                         You've hit the profit target. When your prop firm approves your funded account, click <strong style={{color:C.green}}>✓ Passed</strong> on the account card above to unlock the Payout Tracker.
@@ -8593,7 +8604,7 @@ export default function TradingPlatform({ session }) {
             {/* Breached — minimal message */}
             {curAcc?.status === "breached" && (
               <div style={{background:`${C.red}08`,border:`1px solid ${C.red}44`,borderRadius:12,padding:"18px 22px",display:"flex",alignItems:"center",gap:14}}>
-                <span style={{fontSize:22}}>✗</span>
+                <span style={{fontSize:22}}><X size={14}/></span>
                 <div>
                   <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:C.red,letterSpacing:"0.1em",textTransform:"uppercase",fontWeight:700}}>Account Breached</div>
                   <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,marginTop:4}}>
@@ -8697,7 +8708,7 @@ export default function TradingPlatform({ session }) {
             </div>
 
             {/* Info-banner */}
-            <div style={{background:"#00e5ff08",border:"1px solid #00e5ff22",borderRadius:10,padding:"14px 18px",display:"flex",gap:14,alignItems:"flex-start"}}>
+            <div style={{background:"#00e5ff08",border:"1px solid #00e5ff22",borderRadius:8,padding:"14px 18px",display:"flex",gap:14,alignItems:"flex-start"}}>
               <span style={{fontSize:20,flexShrink:0}}>🔐</span>
               <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim,lineHeight:1.6}}>
                 Your Tradovate credentials are used <strong style={{color:C.text}}>only to obtain an access token</strong> stored encrypted in the database.
@@ -8710,7 +8721,7 @@ export default function TradingPlatform({ session }) {
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
               {tvAccounts.length===0 ? (
                 <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:12,padding:40,textAlign:"center"}}>
-                  <div style={{fontSize:32,marginBottom:12}}>📡</div>
+                  <Radio size={32} style={{opacity:0.5,marginBottom:12}}/>
                   <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,marginBottom:6}}>No accounts connected</div>
                   <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted}}>Connect your Tradovate accounts to enable Trade Copier and live P&amp;L tracking</div>
                 </div>
@@ -8727,7 +8738,7 @@ export default function TradingPlatform({ session }) {
                     {/* Top row: account info + balance/status */}
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
                       <div style={{display:"flex",alignItems:"center",gap:14}}>
-                        <div style={{width:44,height:44,borderRadius:10,background:C.accentDim,border:`1px solid ${C.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>📈</div>
+                        <div style={{width:44,height:44,borderRadius:8,background:C.accentDim,border:`1px solid ${C.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>📈</div>
                         <div>
                           <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>{acc.display_name || acc.account_spec}</div>
                           <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,marginTop:3}}>ID: {acc.tradovate_account_id} · {acc.account_spec}</div>
@@ -8809,7 +8820,7 @@ export default function TradingPlatform({ session }) {
             {/* ── Login modal ─────────────────────────────────────────────── */}
             {showTvLogin && (
               <div style={{position:"fixed",inset:0,background:"#00000088",zIndex:3000,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <div style={{background:"#0d1420",border:"1px solid #1e2d40",borderRadius:16,padding:32,width:440,maxWidth:"95vw"}}>
+                <div style={{background:"#0d1420",border:"1px solid #1e2d40",borderRadius:14,padding:32,width:440,maxWidth:"95vw"}}>
 
                   {tvLoginStep==="credentials" && <>
                     <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,marginBottom:4}}>Connect Tradovate</div>
@@ -8868,11 +8879,11 @@ export default function TradingPlatform({ session }) {
 
                     <div style={{display:"flex",gap:10,marginTop:20}}>
                       <button onClick={()=>{setShowTvLogin(false);setTvLoginError("");}}
-                        style={{flex:1,padding:"12px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>
+                        style={{flex:1,padding:"12px",borderRadius:8,cursor:"pointer",background:"transparent",border:`1px solid ${C.border}`,color:C.muted,fontFamily:"'Space Mono',monospace",fontSize:11}}>
                         Cancel
                       </button>
                       <button onClick={doTvLogin} disabled={tvLoginLoading||!tvLoginForm.username||!tvLoginForm.password}
-                        style={{flex:2,padding:"12px",borderRadius:10,cursor:tvLoginLoading?"wait":"pointer",background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:!tvLoginForm.username||!tvLoginForm.password?.5:1}}>
+                        style={{flex:2,padding:"12px",borderRadius:8,cursor:tvLoginLoading?"wait":"pointer",background:C.accentDim,border:`1px solid ${C.accent}44`,color:C.accent,fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,opacity:!tvLoginForm.username||!tvLoginForm.password?.5:1}}>
                         {tvLoginLoading ? "Connecting…" : "Connect account →"}
                       </button>
                     </div>
@@ -8884,7 +8895,7 @@ export default function TradingPlatform({ session }) {
                     <div style={{display:"flex",flexDirection:"column",gap:8}}>
                       {tvLoginAccounts.map(acc=>(
                         <div key={acc.id} onClick={()=>selectTvAccount(acc)}
-                          style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 18px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,cursor:"pointer"}}
+                          style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 18px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,cursor:"pointer"}}
                           onMouseEnter={e=>e.currentTarget.style.borderColor=C.accent} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
                           <div>
                             <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15}}>{acc.name}</div>
@@ -8978,7 +8989,7 @@ export default function TradingPlatform({ session }) {
 
             {/* No Tradovate accounts warning */}
             {tvAccounts.length < 2 && (
-              <div style={{background:`${C.amber}11`,border:`1px solid ${C.amber}44`,borderRadius:10,padding:"14px 18px",display:"flex",gap:12,alignItems:"center"}}>
+              <div style={{background:`${C.amber}11`,border:`1px solid ${C.amber}44`,borderRadius:8,padding:"14px 18px",display:"flex",gap:12,alignItems:"center"}}>
                 <span style={{fontSize:20}}>⚠️</span>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.textDim}}>
                   You need at least <strong style={{color:C.text}}>2 connected Tradovate accounts</strong> to use the copier — one master, one or more slaves.
@@ -8995,7 +9006,7 @@ export default function TradingPlatform({ session }) {
               </div>
             ) : copierGroups.length === 0 ? (
               <div style={{background:C.card,border:`1px dashed ${C.border}`,borderRadius:12,padding:40,textAlign:"center"}}>
-                <div style={{fontSize:36,marginBottom:12}}>📡</div>
+                <Radio size={36} style={{opacity:0.5,marginBottom:12}}/>
                 <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:18,marginBottom:8}}>No copy groups yet</div>
                 <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,marginBottom:20}}>Create a group to start mirroring trades between your Tradovate accounts</div>
               </div>
@@ -9055,7 +9066,7 @@ export default function TradingPlatform({ session }) {
                           </button>
                           {/* Delete */}
                           <button onClick={()=>deleteCopierGroup(group.id)}
-                            style={{background:"transparent",border:"none",cursor:"pointer",color:C.red,fontSize:14,opacity:0.5,padding:"4px 6px"}}>✕</button>
+                            style={{background:"transparent",border:"none",cursor:"pointer",color:C.red,fontSize:14,opacity:0.5,padding:"4px 6px"}}><X size={14}/></button>
                         </div>
                       </div>
                     </div>
@@ -9115,7 +9126,7 @@ export default function TradingPlatform({ session }) {
           if(item.id==="__add__") return (
             <button key="add" onClick={()=>setShowAddTrade(true)}
               style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,background:"transparent",border:"none",cursor:"pointer",position:"relative"}}>
-              <div style={{width:44,height:44,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.purple})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,boxShadow:`0 4px 16px ${C.accent}44`,marginTop:-20}}>➕</div>
+              <div style={{width:44,height:44,borderRadius:"50%",background:`linear-gradient(135deg,${C.accent},${C.purple})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,boxShadow:`0 4px 16px ${C.accent}44`,marginTop:-20}}><Plus size={14}/></div>
               <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.accent,letterSpacing:"0.05em",marginTop:2}}>Log</span>
             </button>
           );
@@ -9155,7 +9166,7 @@ export default function TradingPlatform({ session }) {
           <div style={{width:36,height:4,borderRadius:2,background:C.border,margin:"0 auto 14px"}}/>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
             <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16}}>⚡ Open Positions</div>
-            <button onClick={()=>setShowMobilePositions(false)} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:18}}>✕</button>
+            <button onClick={()=>setShowMobilePositions(false)} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:18}}><X size={14}/></button>
           </div>
           {/* Embed FlattenWidget content inline */}
           <FlattenWidget tvStatus={tvStatus} mobileMode={true} appIsDemo={isDemo} C={C}/>
@@ -9180,7 +9191,7 @@ export default function TradingPlatform({ session }) {
               {id:"myaccount",icon:"👤", label:"Account"},
             ].map(item=>(
               <button key={item.id} onClick={()=>{setTab(item.id);setMobileMore(false);}}
-                style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,padding:"12px 8px",borderRadius:10,background:tab===item.id?C.accentDim:C.surface,border:`1px solid ${tab===item.id?C.accent+"44":C.border}`,cursor:"pointer"}}>
+                style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,padding:"12px 8px",borderRadius:8,background:tab===item.id?C.accentDim:C.surface,border:`1px solid ${tab===item.id?C.accent+"44":C.border}`,cursor:"pointer"}}>
                 <div style={{fontSize:22}}>{item.icon}</div>
                 <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:tab===item.id?C.accent:C.muted,letterSpacing:"0.04em",textAlign:"center"}}>{item.label}</span>
               </button>
