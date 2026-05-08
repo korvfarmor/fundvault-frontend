@@ -301,6 +301,51 @@ const DEFAULT_PROP_FIRMS = [
     ]
   },
   {
+    id:"alpha", name:"Alpha Futures", color:"#a78bfa",
+    activeType:"premium",
+    lastVerified:"May 2026",
+    website:"https://alpha-futures.com",
+    accountTypes:[
+      {
+        id:"premium", label:"Premium", badge:"Best ★",
+        accountSize:50000, payoutSplit:90, payoutFreq:"Every 5 winning days ($200+)", minPayout:1000,
+        description:"90% split from day one. EOD trailing drawdown. $79/month or $159/month with no activation fee.",
+        payout:{ cycleTarget:3000, minDays:2, minProfit:200, buffer:0, consistency:999 },
+        rules:[
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:2000,description:"$2,000 EOD trailing on $50K Premium. Locks permanently at starting balance once reached."},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"$3,000 profit target on $50K Premium eval"},
+          {id:"md",label:"Min 2 Trading Days",     type:"days",    value:2,   description:"Minimum 2 trading days to pass evaluation"},
+          {id:"cs",label:"Eval Consistency (50%)", type:"consist", value:50,  description:"No single day can exceed 50% of total profit during evaluation"},
+        ]
+      },
+      {
+        id:"advanced", label:"Advanced", badge:"No Consistency",
+        accountSize:50000, payoutSplit:90, payoutFreq:"Every 5 winning days ($200+)", minPayout:1000,
+        description:"90% split from day one. No consistency rule on funded. EOD trailing drawdown.",
+        payout:{ cycleTarget:4000, minDays:5, minProfit:200, buffer:0, consistency:999 },
+        rules:[
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:1750,description:"$1,750 EOD trailing on $50K Advanced. Locks permanently at starting balance once reached."},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:4000,description:"$4,000 profit target on $50K Advanced eval"},
+          {id:"md",label:"5 Winning Days",         type:"days",    value:5,   description:"5 winning days of $200+ between payout requests"},
+          {id:"nc",label:"No Consistency Rule",    type:"info",    value:0,   description:"No consistency rule on Advanced Qualified accounts"},
+        ]
+      },
+      {
+        id:"zero", label:"Zero", badge:"No Activation",
+        accountSize:50000, payoutSplit:90, payoutFreq:"Every 5 winning days ($200+)", minPayout:1500,
+        description:"$0 activation fee. 90% split from day one. Daily Loss Guard (soft lockout, not breach).",
+        payout:{ cycleTarget:3000, minDays:5, minProfit:200, buffer:0, consistency:40 },
+        rules:[
+          {id:"dd",label:"EOD Trailing Drawdown",  type:"drawdown",value:2000,description:"$2,000 EOD trailing on $50K Zero. Locks at starting balance once reached."},
+          {id:"pt",label:"Profit Target (Eval)",   type:"target",  value:3000,description:"$3,000 profit target on $50K Zero eval"},
+          {id:"dl",label:"Daily Loss Guard",       type:"loss",    value:1100,description:"Soft DLL — locks trading until next day at 6PM ET, does NOT breach the account"},
+          {id:"cs",label:"Consistency Rule (40%)", type:"consist", value:40,  description:"No single day > 40% of total cycle profits on Zero funded accounts"},
+          {id:"md",label:"5 Winning Days",         type:"days",    value:5,   description:"5 winning days of $200+ between payouts"},
+        ]
+      },
+    ]
+  },
+  {
     id:"tradeify", name:"Tradeify", color:"#34d399",
     activeType:"selectflex",
     lastVerified:"March 2026",
