@@ -1627,7 +1627,7 @@ const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase,
   const PLANS = {
     basic:    { label:"Basic",    color:"#6b859e", price:"$30/mo", features:["Trade logging + CSV import","Dashboard & Analytics","Calendar view","Prop firm tracker","Edge Library","Psychology check-in"] },
     advanced: { label:"Advanced", color:C.accent,  price:"$50/mo", features:["Everything in Basic","AI Coach (trade analysis)","Multi-account tracking","Discord daily reports","PDF export"] },
-    pro:      { label:"Pro",      color:"#a78bfa",  price:"$90/mo", features:["Everything in Advanced","Trade Copier","NinjaTrader sync (coming)","Unlimited accounts","Priority support"] },
+    pro:      { label:"Pro",      color:"#a78bfa",  price:"$90/mo", features:["Everything in Advanced","Trade Copier","Trade Grouping","Drawdown snapshots","Unlimited accounts","Priority support"] },
   };
   const currentPlan = PLANS[plan] || PLANS.basic;
 
@@ -1796,7 +1796,7 @@ const MyAccountTab = ({ C, plan, profile, user, userName, loadProfile, supabase,
               <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:"#a78bfa"}}>Pro</div>
               <div style={{fontFamily:"'Space Mono',monospace",fontSize:12,color:"#a78bfa",fontWeight:700}}>$90/mo</div>
             </div>
-            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:8,lineHeight:1.5}}>Trade Copier · NinjaTrader sync · Unlimited accounts · Priority support</div>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.textDim,marginBottom:8,lineHeight:1.5}}>Trade Copier · Trade Grouping · Drawdown snapshots · Unlimited accounts</div>
             <button onClick={()=>startCheckout("pro")} style={btnS("#a78bfa")}>Upgrade to Pro →</button>
           </div>
         </div>
@@ -8628,7 +8628,7 @@ export default function TradingPlatform({ session }) {
 
         {/* ── ACCOUNTS ────────────────────────────────────────────────────────── */}
         {tab==="accounts"&&(()=>{
-          if (!canAccess("advanced")) return <UpgradeGate plan="advanced" C={C} onUpgrade={()=>setTab("myaccount")} feature="Tradovate & NinjaTrader sync" desc="Connect your broker accounts to automatically import trades and track live P&L." />;
+          if (!canAccess("advanced")) return <UpgradeGate plan="advanced" C={C} onUpgrade={()=>setTab("myaccount")} feature="Tradovate auto-sync" desc="Connect your Tradovate account to automatically import trades and track live positions." />;
           const disconnectAccount = async (accountId) => {
             try {
               const API = import.meta.env.VITE_API_URL || "http://localhost:3001";
