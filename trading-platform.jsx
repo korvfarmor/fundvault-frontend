@@ -6549,6 +6549,11 @@ export default function TradingPlatform({ session }) {
         @keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
         @keyframes slideUp{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
         * { box-sizing: border-box; }
+        /* Make html/body match theme bg so safe-area insets don't show white */
+        html, body { background: ${C.bg} !important; margin: 0 !important; padding: 0 !important; }
+        body { background-color: ${C.bg} !important; }
+        #root { background: ${C.bg} !important; min-height: 100vh; }
+
         @media(max-width:768px){
           /* Hide desktop nav tabs and right side clutter */
           .fv-nav-tabs{display:none!important}

@@ -2,7 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Theme color for mobile browsers — matches dark mode bg by default -->
+    <meta name="theme-color" content="#080c14" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f0f4f8" media="(prefers-color-scheme: light)" />
+    <!-- iOS web app appearance -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>FundVault — Prop Trading Journal</title>
     <!-- Favicon: SVG (modern browsers) -->
     <link rel="icon" type="image/svg+xml" href="/fundvault-icon.svg" />
@@ -15,6 +21,10 @@
     <meta property="og:title" content="FundVault — Prop Trading Journal" />
     <meta property="og:description" content="Track your funded account like a pro. Drawdown, payout tracker, psychology guard and news blocker." />
     <meta property="og:url" content="https://app.fundvault.app" />
+    <style>
+      html, body { margin: 0; padding: 0; background: #080c14; min-height: 100vh; -webkit-tap-highlight-color: transparent; }
+      #root { min-height: 100vh; background: inherit; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
