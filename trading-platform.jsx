@@ -6784,7 +6784,7 @@ export default function TradingPlatform({ session }) {
           <span style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:C.amber,background:"#f59e0b18",border:"1px solid #f59e0b44",borderRadius:4,padding:"2px 8px"}}>PROP FOCUS</span>
         </div>
         <div style={{display:"flex",gap:3}} className={`fv-nav-tabs${mobileMenu?" open":""}`}>
-          {TABS.filter(t=>t!=="myaccount" && (t!=="mentor" || profile?.mentor_addon)).map(t=><button key={t} onClick={()=>{setTab(t);setMobileMenu(false);}} style={{background:tab===t?C.accentDim:"transparent",border:tab===t?`1px solid ${C.accent}44`:"1px solid transparent",color:tab===t?C.accent:C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.05em",textTransform:"uppercase",transition:"all 0.15s"}}>{t==="propfirm"?"prop firm":t==="myaccount"?"account":t}</button>)}
+          {TABS.filter(t=>t!=="myaccount" && (t!=="mentor" || profile?.mentor_addon)).map(t=><button key={t} onClick={()=>{setTab(t);setMobileMenu(false);}} style={{background:tab===t?C.accentDim:"transparent",border:tab===t?`1px solid ${C.accent}44`:"1px solid transparent",color:tab===t?C.accent:C.textDim,borderRadius:6,padding:"5px 11px",cursor:"pointer",fontFamily:"'Space Mono',monospace",fontSize:10,letterSpacing:"0.05em",textTransform:"uppercase",transition:"all 0.15s"}}>{t==="propfirm"?"prop firm":t==="accounts"?"brokers":t==="myaccount"?"my account":t}</button>)}
         </div>
         <div className="fv-nav-right" style={{display:"flex",alignItems:"center",gap:10}}>
           {/* Tradovate Live indicator */}
@@ -8678,8 +8678,8 @@ export default function TradingPlatform({ session }) {
           return <div style={{display:"flex",flexDirection:"column",gap:22}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
               <div>
-                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Connected Accounts</div>
-                <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Accounts</div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase"}}>Broker Connections</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:800,marginTop:4}}>Brokers</div>
               </div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 {(tvAccounts||[]).length > 0 && (
@@ -9197,9 +9197,10 @@ export default function TradingPlatform({ session }) {
               {id:"psychology",icon:"💭", label:"Psych"},
               {id:"propfirm",  icon:"🏢", label:"Prop Firm"},
               {id:"news",      icon:"📰", label:"News"},
-              {id:"accounts",  icon:"🔗", label:"Accounts"},
+              {id:"accounts",  icon:"🔗", label:"Brokers"},
               {id:"copier",    icon:"📡", label:"Copier"},
-              {id:"myaccount",icon:"👤", label:"Account"},
+              ...(profile?.mentor_addon ? [{id:"mentor", icon:"👨‍🏫", label:"Mentor"}] : []),
+              {id:"myaccount", icon:"👤", label:"My Account"},
             ].map(item=>(
               <button key={item.id} onClick={()=>{setTab(item.id);setMobileMore(false);}}
                 style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,padding:"12px 8px",borderRadius:8,background:tab===item.id?C.accentDim:C.surface,border:`1px solid ${tab===item.id?C.accent+"44":C.border}`,cursor:"pointer"}}>
