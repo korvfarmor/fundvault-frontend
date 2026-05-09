@@ -3461,47 +3461,71 @@ const ExportModal = ({ onClose, trades, C, userName }) => {
       const pnlStr = (n) => `${n>=0?"+":"-"}$${fmt(n)}`;
       const safeStr = (s) => String(s||"").replace(/[\u2013\u2014\u2022\u00B7\u2019\u2018]/g,"-").replace(/[^\x00-\x7F]/g,"?");
 
-      // ── Render real FundVault SVG logo to canvas → base64 PNG ────────────────
+      // ── Load real FundVault SVG logo and render to canvas → base64 PNG ───────
+      // Loads from /fundvault-dark.svg (matches the logo shown in the app header)
+      // Falls back to plain text if loading fails (e.g. CORS, missing file)
       const renderLogo = () => new Promise((resolve) => {
-        const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120" viewBox="0 0 400 120">
-  <rect width="400" height="120" fill="#080c14" rx="12"/>
-  <g transform="translate(24, 20)">
-    <circle cx="40" cy="40" r="37" fill="#0d1420" stroke="#00e5ff" stroke-width="4"/>
-    <circle cx="40" cy="40" r="29" fill="#111827"/>
-    <rect x="36.4" y="2" width="7.2" height="10" rx="3.6" fill="#00e5ff"/>
-    <rect x="36.4" y="68" width="7.2" height="10" rx="3.6" fill="#00e5ff"/>
-    <rect x="2" y="36.4" width="10" height="7.2" rx="3.6" fill="#00e5ff"/>
-    <rect x="68" y="36.4" width="10" height="7.2" rx="3.6" fill="#00e5ff"/>
-    <text x="19" y="50" font-family="Arial Black,sans-serif" font-weight="900" font-size="30" fill="#00e5ff" letter-spacing="3">F</text>
-    <text x="42" y="50" font-family="Arial Black,sans-serif" font-weight="900" font-size="30" fill="#a78bfa" letter-spacing="3">V</text>
-  </g>
-  <text x="130" y="58" font-family="Arial Black,sans-serif" font-weight="900" font-size="32" fill="#c8d8e8" letter-spacing="3">FUNDVAULT</text>
-  <text x="132" y="80" font-family="Arial,monospace" font-size="10" fill="#00e5ff" letter-spacing="4">PROP TRADING JOURNAL</text>
-</svg>`;
-        const blob = new Blob([svgStr], {type:"image/svg+xml"});
-        const url  = URL.createObjectURL(blob);
-        const img  = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = 400; canvas.height = 120;
-          canvas.getContext("2d").drawImage(img, 0, 0);
-          URL.revokeObjectURL(url);
-          resolve(canvas.toDataURL("image/png"));
-        };
-        img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
-        img.src = url;
+        // Use absolute URL to avoid issues with relative paths in different deploy environments
+        const logoUrl = `${window.location.origin}/fundvault-dark.svg?v=2`;
+        fetch(logoUrl)
+          .then(r => r.ok ? r.text() : Promise.reject("logo fetch failed"))
+          .then(svgStr => {
+            // Parse SVG to extract its native viewBox dimensions
+            const parser = new DOMParser();
+            const svgDoc = parser.parseFromString(svgStr, "image/svg+xml");
+            const svgEl  = svgDoc.querySelector("svg");
+            if (!svgEl) { resolve(null); return; }
+
+            // Try viewBox first, then width/height attributes
+            let vbW = 400, vbH = 120;
+            const vb = svgEl.getAttribute("viewBox");
+            if (vb) {
+              const parts = vb.split(/[\s,]+/).map(Number);
+              if (parts.length === 4 && parts[2] && parts[3]) { vbW = parts[2]; vbH = parts[3]; }
+            } else {
+              const w = parseFloat(svgEl.getAttribute("width"));
+              const h = parseFloat(svgEl.getAttribute("height"));
+              if (w && h) { vbW = w; vbH = h; }
+            }
+
+            const blob = new Blob([svgStr], {type:"image/svg+xml"});
+            const url  = URL.createObjectURL(blob);
+            const img  = new Image();
+            img.onload = () => {
+              // Render at 3x for crisp PDF output
+              const scale = 3;
+              const canvas = document.createElement("canvas");
+              canvas.width = vbW * scale; canvas.height = vbH * scale;
+              const ctx = canvas.getContext("2d");
+              ctx.scale(scale, scale);
+              ctx.drawImage(img, 0, 0, vbW, vbH);
+              URL.revokeObjectURL(url);
+              resolve({ data: canvas.toDataURL("image/png"), w: vbW, h: vbH });
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+            img.src = url;
+          })
+          .catch(() => resolve(null));
       });
 
-      const logoBase64 = await renderLogo();
+      const logoData = await renderLogo();
+      const logoBase64 = logoData ? logoData.data : null;
 
       // ── Header band ─────────────────────────────────────────────────────────
       doc.setFillColor(...dark); doc.rect(0, 0, PW, 30, "F");
 
-      // Real FundVault logo (SVG → PNG)
-      if (logoBase64) {
-        doc.addImage(logoBase64, "PNG", M, 3, 52, 15.6);  // 400:120 ratio → 52×15.6mm
+      // Real FundVault logo (SVG → PNG) — sized based on natural aspect ratio
+      if (logoBase64 && logoData) {
+        // Target height: 18mm (fits comfortably in the 30mm header band)
+        // Width scales proportionally to preserve aspect ratio of the source SVG
+        const targetH = 18;
+        const targetW = (logoData.w / logoData.h) * targetH;
+        // Cap max width at 80mm so wide logos don't overflow the header
+        const finalW = Math.min(targetW, 80);
+        const finalH = (finalW === targetW) ? targetH : (logoData.h / logoData.w) * finalW;
+        doc.addImage(logoBase64, "PNG", M, 6, finalW, finalH);
       } else {
-        // Fallback: plain text if canvas render failed
+        // Fallback: plain text if logo failed to load
         doc.setFontSize(16); doc.setFont("helvetica","bold"); doc.setTextColor(...cyan);
         doc.text("FUNDVAULT", M, 13);
         doc.setFontSize(7); doc.setFont("helvetica","normal"); doc.setTextColor(...light);
